@@ -10,7 +10,7 @@ navegador.
 
 - **Dois repositórios.**
   - `drive-fotos`: público, só a interface. Nunca recebe imagem nem dado.
-  - Repositório de dados: privado. Funciona como banco de dados, e é onde moram os blobs e
+  - `drive-fotos-dados`: privado. Funciona como banco de dados, e é onde moram os blobs e
     os registros. Tudo que é privado fica nele.
 - **Diferença para o `beba-agua`:** lá os dados ficam numa branch do mesmo repositório do
   app. Aqui os dados ficam em outro repositório.
@@ -113,7 +113,9 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
 No molde do Google Fotos.
 
 - **Grade:** a tela inicial é a grade de miniaturas, da mais recente para a mais antiga,
-  agrupada por data.
+  agrupada por dia, com um título por dia.
+- **Data da foto:** a data de modificação do arquivo, que o navegador entrega sem
+  biblioteca. Sem ela, vale a data do envio. Leitura de EXIF fica fora.
 - **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no X, no Esc ou no voltar
   do navegador.
 - **Navegar:** com a foto aberta, deslizar no celular ou usar as setas no teclado passa
@@ -162,22 +164,66 @@ conflito, rede e servidor. Cada um com mensagem própria.
 
 Álbuns, busca, compartilhar, vídeo, edição de imagem e seleção múltipla.
 
-### Ordem de construção
+## Épicos
 
-1. `github.js`: token, leitura da árvore, leitura de blob e commit de vários arquivos.
-2. Login e grade só de leitura, testada com fotos postas à mão no repositório de dados.
-3. Zona de envio, miniatura e fila.
-4. Foto aberta, com navegação.
-5. Renomear, baixar e apagar.
-6. Cache, estado vazio, erros e ícone de tela inicial.
+Separados por funcionalidade, na ordem de construção. Cada um termina com algo que dá para
+testar na tela.
+
+### Épico 1: Fundação e login
+
+- Estrutura de arquivos, `index.html`, estilo base e `manifest.webmanifest` com ícones.
+- `github.js`: guardar, ler e apagar o token; chamada base com os tipos de erro.
+- Tela de login que valida o token lendo o `drive-fotos-dados`.
+- "Sair", com confirmação.
+- **Pronto quando:** token válido entra, token inválido ou sem permissão mostra a mensagem
+  certa, e "Sair" volta para o login.
+
+### Épico 2: Grade
+
+- Leitura da árvore do repositório e montagem da lista a partir dos caminhos.
+- Grade de miniaturas agrupada por dia, da mais recente para a mais antiga.
+- Carregamento das miniaturas conforme aparecem na tela.
+- Estado vazio, estado de carregamento e quadro neutro para foto sem miniatura.
+- **Pronto quando:** fotos postas à mão no repositório de dados aparecem na grade, no dia
+  certo.
+
+### Épico 3: Envio
+
+- Zona de envio: toque, clique, teclado e seletor de arquivos.
+- Arrastar e soltar na janela inteira, com o véu.
+- Recusa de arquivo vazio, pasta e não imagem.
+- Geração do `id`, da miniatura e do registro.
+- Commit dos três arquivos pela API de Git Data, com nova tentativa quando a branch andou.
+- Fila com estado por item, "Enviando 2 de 5" e "tentar de novo".
+- **Pronto quando:** várias fotos enviadas pelo celular e pela web entram na grade uma a
+  uma, e uma falha no meio não derruba as outras.
+
+### Épico 4: Foto aberta
+
+- Tela cheia por cima da grade, com a original.
+- Fechar no X, no Esc e no voltar do navegador.
+- Anterior e próxima por deslize e por setas.
+- Miniatura como prévia enquanto a original carrega.
+- **Pronto quando:** dá para abrir uma foto, percorrer as vizinhas e voltar para a grade no
+  mesmo ponto.
+
+### Épico 5: Renomear, baixar e apagar
+
+- Renomear, com commit só do registro.
+- Baixar a original com o `nome` do registro.
+- Apagar, com confirmação e commit que remove os três arquivos.
+- **Pronto quando:** as três ações funcionam na foto aberta e a grade reflete o resultado
+  sem recarregar a página.
+
+### Épico 6: Cache e tamanho
+
+- Cache de miniaturas e originais no navegador, pela identidade do blob.
+- Releitura da árvore ao voltar para a tela, para aparecer o que subiu em outro aparelho.
+- Tamanho usado do repositório de dados na tela, com aviso perto de 1 GB.
+- **Pronto quando:** reabrir o app não baixa de novo o que já foi visto, e o tamanho usado
+  aparece.
 
 ## Em aberto
 
-- Nome do repositório de dados (sugestão: `drive-fotos-dados`).
-- Agrupamento da grade: por dia ou por mês.
-- Data da foto: sem biblioteca, o navegador entrega a data de modificação do arquivo, que
-  quase sempre é a da captura. Ler o EXIF de verdade pede um leitor escrito à mão.
 - Progresso por foto: mostrar só o estado de cada item, ou barra de percentual, que exige
-  `XMLHttpRequest` no lugar de `fetch`.
-- Tamanho: o GitHub recomenda repositório abaixo de 1 GB e recusa arquivo acima de 100 MB.
-  Com foto de 3 a 5 MB, 1 GB dá de 200 a 300 fotos. Definir o que fazer ao chegar perto.
+  `XMLHttpRequest` no lugar de `fetch`. O Épico 3 começa só com o estado.
