@@ -955,8 +955,9 @@ export function renderFila(itens, situacao) {
 // Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que está sendo enviada
 // e a que já existe: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
 // `outra.foto` é a foto guardada; vem vazia quando a outra cópia ainda está na fila, e aí a
-// imagem dela vem em `outra.url`. Devolve 'nao-enviar' ou 'manter'. Fechar com Esc ou clicando
-// fora é não enviar: nada é gravado.
+// imagem dela vem em `outra.url`. Devolve, na ordem das linhas, quais manter em dobro.
+// Com uma repetida só, são dois botões. Com várias, cada par tem a própria caixa de marcar, e
+// nada vem marcado. Fechar com Esc ou clicando fora é não enviar nenhuma: nada é gravado.
 function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, detalhe) {
   const figura = el('figure', 'repetidas__foto');
   const quadro = el('div', 'repetidas__quadro');
@@ -977,9 +978,22 @@ function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, detalhe) {
   return figura;
 }
 
+const marcadasNasRepetidas = () => [...$('repetidas-lista').querySelectorAll('input[type=checkbox]')];
+
+// O botão principal diz o que vai acontecer com o que está marcado agora.
+function renderEscolhaDasRepetidas() {
+  const caixas = marcadasNasRepetidas();
+  if (caixas.length === 0) return; // uma repetida só: os dois botões já dizem tudo
+  const marcadas = caixas.filter((caixa) => caixa.checked).length;
+  $('repetidas-concluir').textContent =
+    marcadas === 0 ? 'Não enviar nenhuma' : marcadas === caixas.length ? 'Manter todas' : `Manter ${marcadas} de ${caixas.length}`;
+  $('repetidas-todas').textContent = marcadas === caixas.length ? 'Desmarcar todas' : 'Marcar todas';
+}
+
 export function perguntarRepetidas(linhas, totalDaLeva) {
   const dialogo = $('repetidas');
   const quantas = linhas.length;
+  const varias = quantas > 1;
   $('repetidas-titulo').textContent =
     totalDaLeva === 1
       ? 'Esta foto já está guardada'
@@ -988,11 +1002,12 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
         : quantas === totalDaLeva
           ? `As ${quantas} fotos já estão guardadas`
           : `${quantas} das ${totalDaLeva} fotos já estão guardadas`;
-  $('repetidas-detalhe').textContent =
-    quantas === 1
-      ? 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.'
-      : 'O conteúdo é idêntico ao das fotos guardadas. "Manter todas" envia todas de novo, com outro nome.';
-  $('repetidas-manter').textContent = quantas === 1 ? 'Manter as duas' : 'Manter todas';
+  $('repetidas-detalhe').textContent = varias
+    ? 'Cada uma é idêntica à foto guardada ao lado. Marque as que quer manter em dobro: elas sobem de novo, com outro nome.'
+    : 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.';
+  $('repetidas-concluir').textContent = 'Não enviar';
+  $('repetidas-manter').hidden = varias;
+  $('repetidas-todas').hidden = !varias;
   $('repetidas-lista').replaceChildren(
     ...linhas.map(({ nova, outra }) => {
       const item = el('li', 'repetidas__item');
@@ -1002,13 +1017,29 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
           ? quadroDaRepetida('Já guardada', outra, descricaoDaFoto(outra.foto).replace('Foto de ', ''))
           : quadroDaRepetida('Na fila de envio', outra),
       );
+      if (varias) {
+        const escolha = el('label', 'repetidas__escolha');
+        const caixa = el('input');
+        caixa.type = 'checkbox';
+        escolha.append(caixa, el('span', null, 'Manter as duas'));
+        item.append(escolha);
+      }
       return item;
     }),
   );
+  renderEscolhaDasRepetidas();
   dialogo.returnValue = '';
   dialogo.showModal();
   return new Promise((resolver) => {
-    dialogo.addEventListener('close', () => resolver(dialogo.returnValue === 'manter' ? 'manter' : 'nao-enviar'), { once: true });
+    dialogo.addEventListener(
+      'close',
+      () => {
+        const resposta = dialogo.returnValue;
+        if (!varias) resolver([resposta === 'manter']);
+        else resolver(marcadasNasRepetidas().map((caixa) => resposta === 'concluir' && caixa.checked));
+      },
+      { once: true },
+    );
   });
 }
 
@@ -1116,6 +1147,13 @@ export function ligarEventos(acoes) {
 
   $('repetidas').addEventListener('click', (evento) => {
     if (evento.target === $('repetidas')) $('repetidas').close();
+  });
+  $('repetidas-lista').addEventListener('change', renderEscolhaDasRepetidas);
+  $('repetidas-todas').addEventListener('click', () => {
+    const caixas = marcadasNasRepetidas();
+    const marcar = caixas.some((caixa) => !caixa.checked);
+    for (const caixa of caixas) caixa.checked = marcar;
+    renderEscolhaDasRepetidas();
   });
 
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.

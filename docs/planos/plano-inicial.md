@@ -358,11 +358,15 @@ Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gap
   vezes na leva.
 - **Um diálogo por leva.** A leva inteira é conferida na entrada. As fotos novas sobem
   direto, sem esperar. As repetidas ficam de fora e aparecem num diálogo só, como "3 das 12
-  fotos já estão guardadas", cada uma com a miniatura, o nome, o tamanho e o nome e a data
-  da que já está guardada.
-- **Duas saídas, que valem para todas as repetidas da leva:**
+  fotos já estão guardadas".
+- **Lado a lado.** Cada repetida aparece ao lado da foto que já existe, as duas com o
+  tamanho do arquivo no canto inferior direito.
+- **Escolha por foto.** Com uma repetida só, dois botões: "Não enviar" e "Manter as duas".
+  Com várias, cada par tem a própria caixa "Manter as duas", nenhuma vem marcada, e o botão
+  principal diz o resultado ("Não enviar nenhuma", "Manter 2 de 3", "Manter todas"). "Marcar
+  todas" resolve a leva de uma vez.
   - **Não enviar:** nada é gravado, e fica a que já existe. Fechar o diálogo com Esc ou
-    clicando fora dá no mesmo.
+    clicando fora dá no mesmo. Um atalho embaixo leva até a foto guardada.
   - **Manter as duas:** a cópia sobe com outro nome, "praia (2).jpg", ou o próximo número
     livre entre as cópias. O arquivo não é enviado de novo: a cópia aponta para o que o
     repositório já tem, sobe na hora e não ocupa espaço novo.

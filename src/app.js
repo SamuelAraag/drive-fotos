@@ -735,14 +735,14 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
           : { nome: par.arquivo.name, tamanho: par.arquivo.size, url: await previaDe(par.arquivo) },
       });
     }
-    const escolha = await ui.perguntarRepetidas(linhas, totalDaLeva);
+    const manter = await ui.perguntarRepetidas(linhas, totalDaLeva);
     for (const url of previas) URL.revokeObjectURL(url);
-    if (escolha !== 'manter') {
-      ui.repetidasNaoEnviadas(repetidas.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
-      ui.anunciarEnvio(repetidas.length === 1 ? 'A foto repetida não foi enviada.' : `${repetidas.length} fotos repetidas não foram enviadas.`);
-      return;
+    const ficamDeFora = repetidas.filter((_, i) => !manter[i]);
+    if (ficamDeFora.length > 0) {
+      ui.repetidasNaoEnviadas(ficamDeFora.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
+      ui.anunciarEnvio(ficamDeFora.length === 1 ? 'A foto repetida não foi enviada.' : `${ficamDeFora.length} fotos repetidas não foram enviadas.`);
     }
-    for (const { arquivo, sha, par } of repetidas) {
+    for (const { arquivo, sha, par } of repetidas.filter((_, i) => manter[i])) {
       const nome = foto.nomeRepetido(arquivo.name, await nomesDasCopias(sha));
       // Com a original guardada, a cópia aponta para ela. Com a original ainda na fila, sobe normal.
       enfileirar([{ arquivo, sha, nome, reuso: par.foto ? sha : null }]);
