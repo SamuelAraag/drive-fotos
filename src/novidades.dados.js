@@ -4,6 +4,17 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.8.0',
+    quando: '2026-10-12T19:32',
+    titulo: 'Traga uma pasta inteira de fotos do computador',
+    mudancas: [
+      '"Backup de uma pasta" lê a pasta que você escolher, com as subpastas, e mostra quantas fotos vão subir antes de enviar.',
+      'Foto que já está no Drive Fotos não sobe de novo, e cada arquivo que fica de fora aparece com o motivo.',
+      'Três fotos sobem ao mesmo tempo, e você pode pausar, retomar ou cancelar.',
+      'No fim, um relatório para baixar diz o que aconteceu com cada arquivo.',
+    ],
+  },
+  {
     versao: '1.7.0',
     quando: '2026-10-12T17:52',
     titulo: 'Apague várias fotos de uma vez',
