@@ -132,6 +132,7 @@ h2:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--e2);
   min-height: 56px;
 }
 
@@ -146,21 +147,39 @@ h2:focus {
   height: var(--e7);
 }
 
+/* O topo nunca quebra em duas linhas. Em tela estreita quem cede é a etiqueta, que é o menos
+   importante ali: primeiro encurta, e só no limite ganha reticências. O nome e os botões ficam. */
 .topo__titulo {
   display: flex;
   align-items: center;
   gap: var(--e2);
+  min-width: 0;
   font-size: var(--fonte-base);
   font-weight: 600;
   color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.topo__titulo .logo {
+  flex: none;
 }
 
 .etiqueta {
+  min-width: 0;
   padding: 0 var(--e2);
+  overflow: hidden;
   border: 1px solid var(--trilho);
   border-radius: var(--raio-pilula);
   font-size: var(--fonte-pequena);
   font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .etiqueta__resto {
+    display: none;
+  }
 }
 
 /* Recado que fica na tela, sem bloquear nada. O forte é para o que pede atenção, e não é erro. */
@@ -286,6 +305,7 @@ h2:focus {
 
 .topo__acoes {
   display: flex;
+  flex: none;
   align-items: center;
 }
 
