@@ -13,6 +13,7 @@ navegador.
     sobe servidor, não guarda imagem nem dado, só mostra o que lê do outro repositório.
   - `drive-fotos-dados`: privado, numa conta separada, criada só para isso. Funciona como
     banco de dados, e é onde moram os blobs e os registros. Tudo que é privado fica nele.
+    Link: https://github.com/samuelsantosbackupfiles/drive-fotos-dados
 - **Por que uma conta separada:** se o GitHub limitar ou suspender por uso de espaço, quem
   é atingida é a conta das fotos, e não a do portfólio e dos projetos de carreira. Os
   commits de envio também saem em nome dela, e não pintam o gráfico de contribuições da
