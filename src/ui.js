@@ -6,7 +6,7 @@ import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 const $ = (id) => document.getElementById(id);
 
 const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
-const FIM_PUXAR = 64; // descida máxima do conteúdo; chegar aqui atualiza
+const FIM_PUXAR = 64; // descida do conteúdo em que o anel enche; soltar daqui em diante atualiza
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
@@ -37,8 +37,9 @@ export function erroAoAtualizar(mensagem) {
 }
 
 // Puxar para atualizar, como nos apps do iPhone e no beba-agua: no topo da página, arrasta
-// para baixo e solta. O conteúdo desce junto com o dedo e, no vão, um anel enche de 0 a 100%.
-// Anel cheio é o fim do arraste: soltar ali atualiza, e o anel gira até `aoSoltar` terminar.
+// para baixo e solta. O conteúdo desce junto com o dedo, sem trava, até onde a pessoa arrastar,
+// e no vão um anel enche de 0 a 100%. Com o anel cheio, soltar atualiza: o conteúdo volta para a
+// altura do anel e ele gira até `aoSoltar` terminar.
 function ligarPuxar(aoSoltar, podePuxarAgora) {
   const raiz = document.documentElement;
   let inicio = null;
@@ -48,8 +49,9 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
   const definir = (px) => {
     distancia = px;
     raiz.style.setProperty('--puxar', `${px}px`);
-    raiz.style.setProperty('--puxar-progresso', px / FIM_PUXAR);
-    $('puxar-arco').style.strokeDashoffset = 100 - (px / FIM_PUXAR) * 100;
+    const progresso = Math.min(1, px / FIM_PUXAR);
+    raiz.style.setProperty('--puxar-progresso', progresso);
+    $('puxar-arco').style.strokeDashoffset = 100 - progresso * 100;
     $('puxar').classList.toggle('puxar--cheio', px >= FIM_PUXAR);
   };
 
@@ -75,7 +77,8 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
       }
       // Segura o elástico nativo para o conteúdo seguir só o nosso deslocamento.
       if (evento.cancelable) evento.preventDefault();
-      definir(Math.min(arrasto / 2, FIM_PUXAR));
+      // Metade do caminho do dedo: dá a resistência de elástico, sem parar em lugar nenhum.
+      definir(arrasto / 2);
     },
     { passive: false },
   );
@@ -89,6 +92,7 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
       return;
     }
     recarregando = true;
+    definir(FIM_PUXAR); // de onde estiver, o conteúdo sobe até a altura do anel e espera ali
     $('puxar-arco').style.strokeDashoffset = 25;
     $('puxar').classList.add('puxar--recarregando');
     Promise.resolve(aoSoltar()).finally(() => {
