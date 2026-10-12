@@ -171,6 +171,7 @@
       <p class="campo__erro" id="visor-aviso" role="alert" hidden></p>
       <div class="visor__botoes">
         <button type="button" class="botao botao--fantasma" id="visor-baixar">Baixar</button>
+        <button type="button" class="botao botao--fantasma" id="visor-link">Enviar link</button>
         <button type="button" class="botao botao--fantasma" id="visor-renomear">Renomear</button>
         <button type="button" class="botao botao--fantasma" id="visor-apagar">Apagar</button>
       </div>
@@ -189,6 +190,22 @@
       <div class="dialogo__acoes">
         <button type="submit" class="botao botao--primario" id="renomear-salvar">Salvar</button>
         <button type="button" class="botao botao--secundario" id="renomear-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="link" aria-labelledby="link-titulo" aria-describedby="link-detalhe">
+    <form method="dialog">
+      <h2 class="tela__titulo" id="link-titulo">Link para enviar</h2>
+      <p class="texto-suave texto-pequeno" id="link-detalhe">Quem abrir o link baixa esta foto, sem precisar de conta. Ele vale por pouco tempo: se vencer, gere outro.</p>
+      <label class="campo__rotulo" for="link-endereco">Link</label>
+      <input class="campo" id="link-endereco" type="text" readonly spellcheck="false" aria-describedby="link-estado">
+      <p class="texto-suave texto-pequeno" id="link-estado" role="status"></p>
+      <p class="campo__erro" id="link-erro" role="alert" hidden></p>
+      <div class="dialogo__acoes">
+        <button type="button" class="botao botao--primario" id="link-copiar" autofocus>Copiar link</button>
+        <button type="button" class="botao botao--secundario" id="link-compartilhar" hidden>Compartilhar</button>
+        <button type="submit" class="botao botao--secundario" value="fechar">Fechar</button>
       </div>
     </form>
   </dialog>

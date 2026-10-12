@@ -191,6 +191,28 @@ h2:focus {
   font-size: var(--fonte-pequena);
 }
 
+/* Página de download, aberta por quem recebe o link de uma foto. */
+.baixar__previa {
+  display: block;
+  max-width: 100%;
+  max-height: 50dvh;
+  border-radius: var(--raio);
+  background: var(--superficie);
+  object-fit: contain;
+}
+
+.baixar__nome {
+  overflow-wrap: anywhere;
+}
+
+/* O "Baixar" é um link com o arquivo dentro, vestido de botão. */
+.baixar__botao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 /* Recado que leva a outro lugar: a linha inteira é o link. */
 .aviso--link {
   display: block;

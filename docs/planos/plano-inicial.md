@@ -474,7 +474,7 @@ Pedido em 2026-10-12 e feito no mesmo dia.
 
 ### Épico 10: Link de download para enviar a alguém
 
-Pedido em 2026-10-12. Branch `link-de-download`. Em análise.
+Pedido em 2026-10-12 e feito no mesmo dia, na branch `link-de-download`.
 
 - **O pedido:** gerar um link de uma foto para mandar a outra pessoa. Quem recebe clica e o
   download começa, sem conta no GitHub. O link pode ser temporário: se vencer, gera-se outro.
@@ -492,14 +492,23 @@ Pedido em 2026-10-12. Branch `link-de-download`. Em análise.
   - Quando o navegador segura o download automático (acontece em navegador embutido de
     aplicativo de mensagem), a página mostra a foto e um botão "Baixar".
   - Link vencido: a página diz que venceu e pede um novo a quem enviou.
-- **Na foto aberta:** um botão "Copiar link", ao lado de "Baixar".
+- **Na foto aberta:** o botão "Enviar link", ao lado de "Baixar", abre um diálogo com o link
+  num campo, "Copiar link" e, onde o navegador tem, "Compartilhar". O diálogo abre na hora
+  e os botões só acendem com o link pronto, para copiar e compartilhar acontecerem no toque
+  da pessoa.
+- **Quem recebe não precisa do app nem de token.** A página de download é aberta a qualquer
+  um e só aceita endereço do repositório de fotos, para não virar um baixador de link
+  alheio.
 - **Verificado em 2026-10-12, na base de testes:**
   - o app conseguiu o endereço temporário de um arquivo de 3,9 MB em 0,4 s;
   - o endereço baixou o arquivo inteiro sem login e a partir de outro site, que é o que a
     página de download precisa;
   - sem a chave, o mesmo endereço responde 404.
 - **Em aberto:**
-  - Quanto tempo o endereço vale. Ver a medida no fim da análise.
+  - Quanto tempo o endereço vale. Numa medida de 2026-10-12 ele ainda valia 4 minutos
+    depois de gerado; o momento em que vence não foi alcançado.
+  - O link gerado no `localhost` aponta para a página de download do `localhost`. Para
+    mandar a outra pessoa, ele precisa ser gerado no site publicado.
   - A chave fica visível no link. Quem tiver o link baixa aquela foto enquanto ele valer,
     e nenhuma outra.
 - **Pronto quando:** copiar o link de uma foto, abrir numa janela anônima e o arquivo
@@ -515,8 +524,8 @@ vez dele.
 - [x] Botão de atualizar igual ao do `beba-agua`. Feito no Épico 9.
 - [x] Melhorar a performance no envio das imagens. Feito em 2026-10-12: commit por lote,
   ponta reaproveitada e original e miniatura subindo juntas.
-- [ ] Criar um link de download direto para enviar a alguém. É o Épico 10.
-  - [ ] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
+- [x] Criar um link de download direto para enviar a alguém. Feito no Épico 10.
+  - [x] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
 - [ ] Rodar a análise de gaps.
 - [ ] Revisar todos os arquivos.

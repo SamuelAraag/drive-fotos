@@ -896,7 +896,69 @@ export function apagarOcupado(ocupado) {
   $('apagar-confirmar').textContent = ocupado ? 'Apagando...' : 'Apagar foto';
 }
 
+// Diálogo do link para enviar. Abre na hora, dizendo que está gerando, e os botões só acendem
+// com o link no campo: assim copiar e compartilhar acontecem no toque da pessoa, que é quando o
+// navegador deixa.
+export function abrirLink() {
+  $('link-endereco').value = '';
+  $('link-estado').textContent = 'Gerando o link...';
+  $('link-erro').hidden = true;
+  $('link-copiar').disabled = true;
+  $('link-copiar').textContent = 'Copiar link';
+  $('link-compartilhar').disabled = true;
+  $('link-compartilhar').hidden = !navigator.share;
+  $('link').showModal();
+}
+
+export function linkPronto(endereco) {
+  if (!$('link').open) return;
+  $('link-endereco').value = endereco;
+  $('link-estado').textContent = '';
+  $('link-copiar').disabled = false;
+  $('link-compartilhar').disabled = false;
+  $('link-copiar').focus();
+}
+
+export function erroNoLink(mensagem) {
+  $('link-estado').textContent = '';
+  $('link-erro').hidden = false;
+  $('link-erro').textContent = mensagem;
+}
+
+export function fecharLink() {
+  if ($('link').open) $('link').close();
+}
+
+async function copiarLink() {
+  const campo = $('link-endereco');
+  try {
+    await navigator.clipboard.writeText(campo.value);
+    $('link-copiar').textContent = 'Copiado';
+    $('link-estado').textContent = 'Link copiado. Agora é só colar na conversa.';
+  } catch {
+    // Sem permissão para copiar: o link fica selecionado, para copiar à mão.
+    campo.focus();
+    campo.select();
+    $('link-estado').textContent = 'Não deu para copiar sozinho. O link está selecionado: copie com Ctrl+C ou segurando o dedo.';
+  }
+}
+
+async function compartilharLink() {
+  try {
+    await navigator.share({ url: $('link-endereco').value });
+  } catch (erro) {
+    if (erro.name !== 'AbortError') $('link-estado').textContent = 'Não deu para abrir o compartilhar. Use "Copiar link".';
+  }
+}
+
 function ligarAcoesDaFoto(acoes) {
+  $('visor-link').addEventListener('click', acoes.pedirLink);
+  $('link-copiar').addEventListener('click', copiarLink);
+  $('link-compartilhar').addEventListener('click', compartilharLink);
+  $('link-endereco').addEventListener('focus', () => $('link-endereco').select());
+  $('link').addEventListener('click', (evento) => {
+    if (evento.target === $('link')) $('link').close();
+  });
   $('visor-baixar').addEventListener('click', acoes.baixarFoto);
   $('visor-renomear').addEventListener('click', acoes.pedirRenomear);
   $('visor-apagar').addEventListener('click', acoes.pedirApagar);
