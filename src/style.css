@@ -281,7 +281,82 @@ h2:focus {
 }
 
 .pagina {
-  padding-bottom: calc(var(--e7) + var(--altura-uso) + env(safe-area-inset-bottom));
+  padding-bottom: var(--e7);
+}
+
+/* Rodapé do site: a versão do app e o caminho para as novidades. Fica no fim da página, com
+   folga embaixo para a pílula de uso, que flutua por cima, não encobrir nada. */
+.rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e2) var(--e4);
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--e5) var(--margem) calc(var(--e6) + var(--altura-uso) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--trilho);
+}
+
+.rodape__botao {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* Página de novidades: uma versão por bloco, da mais nova para a mais antiga. */
+.novidades {
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: var(--e7);
+}
+
+.novidades__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.novidades__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  padding: var(--e5);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.novidades__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2);
+}
+
+.novidades__versao {
+  border-color: var(--azul);
+  color: var(--azul);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.novidades__titulo {
+  font-size: var(--fonte-titulo);
+  font-weight: 600;
+}
+
+.novidades__mudancas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+  padding-left: var(--e5);
+  color: var(--texto-suave);
+  list-style: disc;
 }
 
 /* Espaço ocupado e total de fotos: uma pílula flutuante no canto de baixo, sempre à vista.
@@ -450,7 +525,8 @@ html {
 }
 
 .topo,
-.pagina {
+.pagina,
+.rodape {
   transform: translateY(var(--puxar, 0px));
 }
 
@@ -497,7 +573,8 @@ html {
 }
 
 .puxar-soltando .topo,
-.puxar-soltando .pagina {
+.puxar-soltando .pagina,
+.puxar-soltando .rodape {
   transition: transform var(--medio);
 }
 
