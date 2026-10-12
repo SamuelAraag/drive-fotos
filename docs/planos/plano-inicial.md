@@ -63,6 +63,7 @@ src/ui.js        telas
 fotos/AAAA/<id>.<ext>         blob original
 miniaturas/AAAA/<id>.jpg      miniatura
 registros/AAAA/<id>.json      registro
+indices/backup.json           lista do que já está guardado, só para a tela de backup
 ```
 
 - **Uma pasta por ano:** o GitHub recomenda no máximo 3.000 entradas por pasta. Com uma
@@ -678,6 +679,16 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
   já foi confirmado no repositório. A lista completa de caminhos e estados e a reutilização
   automática da permissão da pasta ainda dependem de validação por navegador. Não guardar
   outra cópia completa do acervo no armazenamento do navegador.
+- **Índice do backup.** A conferência precisa do nome de cada foto guardada, e o nome mora
+  no registro: sem ajuda, é uma leitura por foto a cada conferência. O arquivo
+  `indices/backup.json`, no repositório de dados, guarda para cada registro o `sha` dele, o
+  nome e o caminho da foto. A conferência lê a árvore e o índice, e só abre os registros
+  que o índice não conhece ou cujo `sha` mudou (foto renomeada ou com a data acertada).
+  Foto apagada sai do índice sozinha. O índice é gravado depois da conferência, a cada dez
+  lotes e no fim do envio, em commit próprio. Se ele se perder ou vier ilegível, o backup
+  lê tudo de novo e o refaz. O app principal ignora a pasta `indices/`. Medida de
+  2026-10-12, na base de testes, com 68 registros: 68 leituras e 6,0 s na primeira
+  conferência, 1 leitura e 2,0 s na seguinte.
 - **Antes de enviar, fazer o levantamento.** Informar totais, tamanho e formatos, comparar
   com o espaço conhecido do repositório e apresentar uma prévia do que será enviado,
   ignorado ou precisa de decisão. Não começar a transferência até a pessoa confirmar.
