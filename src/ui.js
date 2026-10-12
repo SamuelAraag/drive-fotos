@@ -312,15 +312,27 @@ function deslizarDe(posicoes) {
   }
 }
 
-export function renderPrincipal(grupos, total, baixar) {
+const AVISO_DE_ESPACO = 4 * 1024 * 1024 * 1024;
+
+// Só avisa, não bloqueia: o teto recomendado pelo GitHub é de 5 GB por repositório.
+function renderEspaco(espaco) {
+  const aviso = $('principal-espaco');
+  aviso.hidden = espaco <= AVISO_DE_ESPACO;
+  aviso.textContent = `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`;
+}
+
+export function renderPrincipal(grupos, { total, espaco }, baixar) {
   encerrarVoo(); // os quadros vão ser trocados: um voo em curso pousa agora
   const posicoes = posicoesVisiveis();
   limparPrincipal();
   baixarAtual = baixar;
   fotosPorId = new Map(grupos.flatMap((grupo) => grupo.fotos).map((foto) => [foto.id, foto]));
   $('principal-vazia').hidden = total > 0;
-  $('principal-total').hidden = total === 0;
-  $('principal-total').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
+  // Sem fotos a pílula de uso some: "0 MB" não diz nada que a tela vazia já não diga.
+  $('uso').hidden = total === 0;
+  $('uso-valor').textContent = `${fmtTamanho(espaco)} usados`;
+  $('uso-detalhe').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
+  renderEspaco(espaco);
 
   observador = new IntersectionObserver(
     (entradas) => {

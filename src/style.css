@@ -7,6 +7,7 @@
   --texto-suave: #9aa8bd;
   --azul: #3b9dff;
   --erro: #ff8585;
+  --atencao: #f5a524; /* o --excesso do beba-agua: pede atenção, não é erro */
   --foco: #a9d3ff;
 
   --e1: 4px;
@@ -16,6 +17,12 @@
   --e5: 24px;
   --e6: 32px;
   --e7: 48px;
+
+  /* Respiro entre o conteúdo e a borda da tela. Cresce com a largura, para nada colar na borda. */
+  --margem: var(--e4);
+
+  /* Altura da pílula de uso, que flutua embaixo: o atalho e o fim da página abrem espaço para ela. */
+  --altura-uso: calc(var(--e2) * 2 + 1.5 * var(--fonte-pequena) + 2px);
 
   --raio: 12px;
   --raio-pilula: 999px;
@@ -100,7 +107,25 @@ h2:focus {
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 var(--e4);
+  padding: 0 var(--margem);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --margem: var(--e5);
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --margem: var(--e6);
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --margem: var(--e7);
+  }
 }
 
 .topo {
@@ -138,8 +163,63 @@ h2:focus {
   font-weight: 400;
 }
 
+/* Recado que fica na tela, sem bloquear nada. O forte é para o que pede atenção, e não é erro. */
+.aviso {
+  padding: var(--e3) var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  font-size: var(--fonte-pequena);
+}
+
+.aviso--forte {
+  border-color: var(--atencao);
+  color: var(--atencao);
+}
+
 .pagina {
-  padding-bottom: calc(var(--e7) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--e7) + var(--altura-uso) + env(safe-area-inset-bottom));
+}
+
+/* Espaço ocupado e total de fotos: uma pílula flutuante no canto de baixo, sempre à vista.
+   Sem barra e sem percentual, porque aqui não há limite, só o total. */
+.uso {
+  position: fixed;
+  right: var(--margem);
+  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  z-index: 1; /* abaixo do véu de arraste, que vem depois na página */
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  padding: var(--e2) var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie);
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums;
+}
+
+.uso[hidden] {
+  display: none;
+}
+
+.uso__icone {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: var(--azul);
+}
+
+.uso__valor {
+  font-weight: 600;
+}
+
+.uso__detalhe {
+  color: var(--texto-suave);
+}
+
+.uso__detalhe::before {
+  content: '· ';
 }
 
 .topo__acoes {
@@ -671,10 +751,11 @@ h2:focus {
 /* Atalho para a foto que subiu fora da tela. */
 .atalho {
   position: fixed;
-  right: var(--e4);
-  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
-  left: var(--e4);
-  z-index: 2;
+  right: var(--margem);
+  /* Fica acima da pílula de uso, que mora no mesmo canto. */
+  bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
+  left: var(--margem);
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--e3);
@@ -808,7 +889,7 @@ h2:focus {
   justify-content: space-between;
   gap: var(--e3);
   min-height: 56px;
-  padding: env(safe-area-inset-top) var(--e2) 0 var(--e4);
+  padding: calc(var(--e2) + env(safe-area-inset-top)) calc(var(--margem) - var(--e2)) 0 var(--margem);
 }
 
 .visor__legenda {
@@ -833,7 +914,7 @@ h2:focus {
   flex: 1;
   gap: var(--e5);
   min-height: 0;
-  padding: 0 var(--e4) var(--e2);
+  padding: 0 var(--margem) var(--e2);
 }
 
 .visor__palco {
@@ -930,7 +1011,7 @@ h2:focus {
   flex-direction: column;
   align-items: center;
   gap: var(--e1);
-  padding: 0 var(--e4) calc(var(--e2) + env(safe-area-inset-bottom));
+  padding: 0 var(--margem) calc(var(--e4) + env(safe-area-inset-bottom));
 }
 
 .visor__botoes {

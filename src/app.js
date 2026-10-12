@@ -9,6 +9,7 @@ const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
 const TETO_NA_MEMORIA = 150 * 1024 * 1024; // originais abertas ou prontas para abrir, em bytes
 const MAX_DE_FUNDO = 2; // originais baixando em segundo plano ao mesmo tempo
 const ESPERA_DE_FUNDO = 600; // ms que a foto precisa ficar na tela antes de entrar na fila de fundo
+const INTERVALO_DE_CONFERENCIA = 30000; // ms entre duas releituras do repositório ao voltar para a tela
 
 // fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano, id e extensão.
 const CAMINHO = /^(fotos|miniaturas|registros)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.([0-9a-z]+)$/i;
@@ -24,6 +25,8 @@ const filaDeFundo = []; // ids das fotos visíveis cuja original ainda não est�
 let fundoAtivos = 0;
 let fundoPausadoAte = 0;
 let aberta = null; // id da foto aberta em tela cheia
+let conferindo = false;
+let conferidoEm = 0; // hora da última leitura do repositório
 const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
 
 // Fila de envio. Cada item: { n, arquivo, id, estado, mensagem }.
@@ -46,7 +49,8 @@ function montarFotos(arvore) {
     if (!partes) continue;
     const [, pasta, ano, id, dia, hora, ext] = partes;
     if (!id.startsWith(ano)) continue;
-    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, registro: null, tamanho: 0, ext: null };
+    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, registro: null, tamanho: 0, peso: 0, ext: null };
+    item.peso += arquivo.tamanho ?? 0; // os três arquivos da foto, para a conta do espaço usado
     if (pasta === 'fotos') {
       item.sha = arquivo.sha;
       item.tamanho = arquivo.tamanho ?? 0;
@@ -475,7 +479,9 @@ async function apagarFoto() {
 
 function render() {
   if (!fotos) return;
-  ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura);
+  // Lista guardada por uma versão antiga do app não tem o peso: vale o tamanho da original.
+  const espaco = fotos.reduce((soma, item) => soma + (item.peso ?? item.tamanho), 0);
+  ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura);
   ui.mostrarTela('principal');
 }
 
@@ -484,7 +490,9 @@ function renderFila() {
 }
 
 async function lerFotos() {
-  return montarFotos(await github.lerArvore());
+  const lista = montarFotos(await github.lerArvore());
+  conferidoEm = Date.now();
+  return lista;
 }
 
 function mesmaLista(a, b) {
@@ -522,6 +530,34 @@ async function carregar() {
     ui.renderErro(erro.message);
     ui.mostrarTela('erro');
     ui.focarTela('erro');
+  }
+}
+
+// Ao voltar para a tela, confere se algo subiu ou foi apagado em outro aparelho. Só redesenha
+// se a lista mudou, e nunca no meio de um envio, que já mexe nela.
+async function conferir() {
+  if (!fotos || !github.lerToken() || enviando || conferindo) return;
+  if (Date.now() - conferidoEm < INTERVALO_DE_CONFERENCIA) return;
+  const antes = fotos;
+  conferindo = true;
+  try {
+    const novas = await lerFotos();
+    // A lista mudou enquanto a leitura corria (envio, renomear, apagar): a que está na tela vale.
+    if (fotos !== antes || mesmaLista(novas, antes)) return;
+    fotos = novas;
+    armazem.guardarFotos(fotos);
+    render();
+    // A foto aberta foi apagada em outro aparelho: o visor fecha.
+    if (aberta != null && !fotos.some((item) => item.id === aberta)) ui.fecharVisor();
+  } catch (erro) {
+    // Em segundo plano só o token vencido vira aviso.
+    if (erro.tipo === 'token') {
+      ui.fecharVisor();
+      github.apagarToken();
+      ui.abrirLogin(erro.message);
+    }
+  } finally {
+    conferindo = false;
   }
 }
 
@@ -651,6 +687,7 @@ async function enviarFoto(item) {
     // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
     registro: await foto.shaDoGit(textoDoRegistro(registro)),
     tamanho: arquivo.size,
+    peso: arquivo.size + (miniatura?.blob.size ?? 0) + new Blob([textoDoRegistro(registro)]).size,
     ext: foto.extensaoDe(arquivo),
   };
   registros.set(nova.id, registro);
@@ -760,10 +797,12 @@ window.addEventListener('popstate', () => ui.fecharVisor({ efeito: true }));
 
 // O navegador solta a trava quando a aba some. Ao voltar, com a fila correndo, pede de novo.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && enviando) {
+  if (document.hidden) return;
+  if (enviando) {
     trava = null;
     manterTelaAcordada();
   }
+  conferir();
 });
 
 if (github.lerToken()) carregar();
