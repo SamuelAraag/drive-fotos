@@ -273,7 +273,7 @@ separados, porque pedem espera, não um token novo.
 ### Fora do MVP
 
 Álbuns, busca, compartilhar com outras pessoas, vídeo, edição de imagem, seleção múltipla e
-uso sem internet.
+uso sem internet. A seleção múltipla para apagar entrou depois, no Épico 12.
 
 ## Cópia de segurança
 
@@ -534,6 +534,190 @@ Pedido em 2026-10-12 e feito no mesmo dia, no molde do changelog do `pr-manager`
 - **O changelog é público.** O site abre para qualquer pessoa, então as entradas descrevem
   só o app, nunca as fotos nem o repositório de dados.
 
+### Épico 12: Selecionar várias fotos para apagar
+
+Pedido em 2026-10-12. Hoje só dá para apagar uma foto por vez, com ela aberta.
+
+- **Entrar no modo de seleção:** botão "Selecionar" no topo da grade. No celular, segurar o
+  dedo numa foto também entra, já com ela marcada.
+- **No modo de seleção,** tocar numa foto marca e desmarca, em vez de abrir. Cada quadro
+  mostra a marca, e a foto marcada fica com contorno.
+- **O dia inteiro de uma vez:** o título de cada dia ganha uma caixa que marca e desmarca
+  todas as fotos dele.
+- **Barra de seleção,** fixa embaixo: "3 fotos selecionadas", "Apagar" e "Cancelar". O Esc e
+  o voltar do navegador saem do modo sem apagar nada.
+- **Confirmação com a contagem:** "Apagar 3 fotos?", com o mesmo aviso do apagar de hoje. O
+  botão repete o número.
+- **Um commit só para a seleção inteira.** A gravação já aceita vários arquivos por commit,
+  então as fotos saem todas ou nenhuma. Não há foto apagada pela metade.
+- **Depois de apagar,** as fotos somem da grade sem recarregar, o modo de seleção fecha e o
+  espaço usado é refeito.
+- **Cópias do Épico 7:** apagar uma das cópias não tira do aparelho o arquivo que a outra
+  ainda usa, como no apagar de uma foto só.
+- **Falha:** nada some da grade, a seleção continua marcada e a mensagem oferece "Tentar de
+  novo".
+- **Zona de envio e puxar para atualizar** ficam desligados enquanto o modo está aberto.
+- **Fora do épico:** baixar, mover ou copiar o link de várias fotos. A seleção nasce só
+  para apagar.
+- **Em aberto:**
+  - Teto de fotos por vez. Um commit grande demora mais e uma falha atinge a seleção
+    inteira. Medir com 50 e com 200 na base de testes antes de fixar.
+  - "Selecionar tudo". Apagar o acervo inteiro com dois toques é um risco que pede uma
+    confirmação mais forte, ou fica de fora.
+- **Pronto quando:** marcar cinco fotos de dois dias diferentes, apagar e as cinco sumirem
+  com um commit só no repositório de dados; cancelar não apagar nenhuma; e tocar numa foto
+  fora do modo de seleção continuar abrindo a foto.
+
+### Épico 13: Análise de gaps
+
+Pedido em 2026-10-12. As análises anteriores foram a do plano inicial e as dos Épicos 7 e
+8, cada uma só do seu pedaço. Esta olha o app inteiro, como ele está depois do Épico 12.
+
+- **O que é comparado:** este plano, `../requisitos.md` e o código. De um lado o que está
+  escrito, do outro o que o app faz de fato.
+- **Três tipos de gap:**
+  - prometido no plano e não feito, ou feito de outro jeito;
+  - feito no código e não escrito em lugar nenhum;
+  - caso que ninguém pensou: erro sem mensagem, tela sem estado vazio, ação sem teclado,
+    dois aparelhos ao mesmo tempo.
+- **Itens "Em aberto" de cada épico** são revistos um a um: fechado, ainda aberto ou caiu.
+- **As quatro decisões pendentes de `../requisitos.md`** são fechadas ou ganham data.
+- **Requisitos em dia:** os Épicos 7 a 12 ainda não estão na tabela de requisitos. Entram
+  nesta rodada, com a origem.
+- **Saída:** a lista de gaps em `../requisitos.md`, cada um com a decisão: corrigir agora,
+  virar épico ou aceitar como limite. Este épico não muda código.
+- **Pronto quando:** todo gap achado tem uma decisão escrita, e os que viram trabalho
+  estão na lista de pendências.
+
+### Épico 14: Revisão de todos os arquivos
+
+Pedido em 2026-10-12. Em 2026-10-12 a base principal tem 9 arquivos de código, com 5.889
+linhas: `index.html`, `baixar.html`, `src/style.css` e seis arquivos em `src/`. Os dois
+maiores são `src/ui.js` e `src/app.js`.
+
+- **Um arquivo por vez, do começo ao fim.** Os de código, o `manifest.webmanifest`, o
+  `README.md` e os dois documentos em `docs/`.
+- **O que se procura:**
+  - código morto: função, classe de CSS, `id` ou texto que nada mais usa;
+  - a mesma coisa feita em dois lugares;
+  - nome que não diz o que a coisa é;
+  - erro que cai em silêncio ou em mensagem genérica;
+  - elemento sem rótulo, sem foco visível ou sem caminho pelo teclado;
+  - texto de tela fora do padrão dos outros.
+- **Sem mudar comportamento.** O que a revisão achar de errado no comportamento vira item
+  da lista de pendências, não entra escondido.
+- **Entra com os gaps do Épico 13 decididos,** para não revisar código que vai mudar.
+- **Um commit por arquivo,** para o PR poder ser lido por partes.
+- **Pronto quando:** todos os arquivos foram lidos, cada achado foi corrigido ou anotado, e
+  o roteiro de teste (entrar, enviar, abrir, renomear, baixar, apagar, copiar link e
+  atualizar) passa no celular e no computador.
+
+### Épico 15: Remoção dos comentários
+
+Pedido em 2026-10-12. Em 2026-10-12 a base principal tem 356 linhas de comentário nos
+arquivos de `src/*.js`, 72 comentários em `src/style.css` e 1 em `index.html`.
+
+- **Sai tudo:** `//` e `/* */` no JS, `/* */` no CSS e `<!-- -->` no HTML.
+- **O porquê não se perde.** Alguns comentários guardam uma razão que o código não mostra,
+  como a cópia do link pedida no próprio toque por causa do Safari. Antes de apagar, essa
+  razão vai para o nome da função ou para a documentação do Épico 16.
+- **Depois do Épico 14,** porque a revisão mexe nos mesmos arquivos.
+- **Sem mudar nenhuma linha de código.** O PR só remove comentário.
+- **Em aberto:** a entrada de cada épico neste plano já explica as decisões. Conferir se
+  cobre o que os comentários diziam, ou se falta uma página técnica em `docs/`.
+- **Pronto quando:** a busca por `//`, `/*` e `<!--` nos arquivos de código não acha
+  comentário, e o roteiro de teste do Épico 14 passa igual.
+
+### Épico 16: Documentação das usabilidades
+
+Pedido em 2026-10-12.
+
+- **Um documento, `docs/usabilidades.md`,** com tudo o que dá para fazer no app, do ponto de
+  vista de quem usa. O `README.md` aponta para ele.
+- **Uma seção por funcionalidade:** entrar e sair, enviar, fotos repetidas, data da foto e
+  fotos sem data, grade, foto aberta e painel de informações, renomear, baixar, apagar uma
+  e várias, copiar link, atualizar, espaço usado e novidades.
+- **Cada seção diz:** o que faz, como se faz no celular e no computador, os atalhos de
+  teclado, o que acontece quando dá errado e os limites conhecidos.
+- **Tabela de atalhos e gestos** no fim, num lugar só: Esc, setas, `i`, deslizar, puxar
+  para atualizar, arrastar e soltar, segurar o dedo.
+- **Escrita a partir do app rodando,** não do plano. O que o documento descrever e o app
+  não fizer vira gap.
+- **Recebe o que saiu dos comentários** no Épico 15 e ainda importa a quem usa.
+- **Em aberto:** se o documento também vira uma página de ajuda dentro do app, como as
+  novidades.
+- **Pronto quando:** cada botão, gesto e atalho do app aparece no documento, e alguém que
+  nunca usou consegue enviar, achar e apagar uma foto só com ele.
+
+### Épico 17: Migração do acervo
+
+Pedido em 2026-10-12: trazer para o Drive Fotos tudo o que existe até hoje.
+
+- **Antes de qualquer envio, o levantamento.** Onde as fotos estão hoje, quantas são,
+  quanto pesam e em que formatos. Sem esses números o resto do épico não fecha.
+- **O teto decide o desenho.** Um repositório de dados comporta de 1.000 a 1.600 fotos,
+  pelos 5 GB recomendados. Se o acervo passa disso, a pendência "Álbum curado ou backup da
+  câmera" precisa ser fechada primeiro: ou uma seleção das fotos, ou vários repositórios
+  de dados, que o app ainda não sabe ler (RG04).
+- **O que não entra:** vídeo e foto acima de 25 MB. Ficam listados, para ter outro destino.
+- **Dois caminhos de envio:**
+  - **Pelo app,** em levas. Serve para acervo pequeno. O ritmo é de cerca de 215 fotos por
+    hora, e a tela precisa ficar aberta.
+  - **Por um script no computador,** que grava direto num clone do `drive-fotos-dados`, no
+    mesmo formato do app: o mesmo `id`, a miniatura e o registro. Não passa pela API, então
+    não tem limite de ritmo, e sobe com `git push`.
+- **Data da foto:** a mesma ordem do Épico 8, EXIF e depois nome do arquivo. Foto que veio
+  de exportação de outro serviço pode trazer a data num arquivo à parte, que o script lê.
+  As que sobrarem sem data entram marcadas e vão para a tela "Fotos sem data".
+- **Repetidas:** o mesmo conteúdo não entra duas vezes, pela comparação do Épico 7.
+- **Ensaio na base de testes,** com uma amostra de cem fotos, antes da base oficial.
+- **Cópia de segurança antes e depois:** um `git clone` do repositório de dados antes de
+  começar, e as fotos de origem só saem de onde estão depois da conferência.
+- **Conferência:** o número de fotos na origem bate com o da grade mais o da lista do que
+  ficou de fora, e uma amostra é aberta para ver data, nome e orientação.
+- **Em aberto:**
+  - De onde vêm as fotos: galeria do celular, outro serviço de fotos, HD ou vários.
+  - HEIC. O app guarda o arquivo como chega, e o Chrome não abre HEIC. Converter para JPEG
+    na migração ou guardar o original e ficar sem miniatura nele.
+  - O script fica neste repositório, que é público, ou no de dados. Ele não pode levar
+    nome de foto nem caminho do computador.
+- **Pronto quando:** todas as fotos do levantamento estão na grade, no dia certo, ou na
+  lista do que ficou de fora com o motivo, e o espaço usado está abaixo do aviso de 4 GB.
+
+### Épico 18: Enviar as fotos do dia
+
+Pedido em 2026-10-12: "tirei fotos hoje, e no fim do dia quero enviar todas".
+
+- **O limite que manda no desenho:** um site não lê a galeria sozinho. Alguém precisa
+  escolher os arquivos. O épico encurta esse caminho o máximo que o navegador deixa.
+- **Botão "Enviar as fotos de hoje",** junto da zona de envio. Abre o seletor de fotos, que
+  no celular já começa pelas mais recentes. A pessoa marca sem conferir uma a uma, pode
+  marcar a mais.
+- **O app separa as de hoje.** Da seleção, só passam as fotos com data de hoje, pela mesma
+  leitura do Épico 8. As de outros dias ficam de fora, sem pergunta.
+- **O que já subiu não sobe de novo,** pela comparação do Épico 7, sem abrir o diálogo de
+  repetidas.
+- **Resumo antes de enviar:** "14 escolhidas: 9 de hoje para enviar, 3 de hoje já
+  guardadas, 2 de outros dias". Um botão, "Enviar 9 fotos". Com nada a enviar, o resumo
+  diz que o dia já está guardado.
+- **"Hoje" é o dia do aparelho.** Antes das 4 da manhã, o botão oferece também o dia
+  anterior, para quem envia depois da meia-noite.
+- **Foto sem data** (print, imagem de mensagem) não entra no filtro. O resumo conta quantas
+  ficaram de fora e oferece "Enviar também".
+- **Estado do dia na grade:** depois do envio, o título de hoje mostra a hora do último
+  envio do dia.
+- **Em aberto, a parte de rotina:**
+  - Lembrete no fim do dia. Notificação com o app fechado pede um servidor, que o projeto
+    não tem. A alternativa é um lembrete do próprio celular, com o link do app.
+  - Um atalho do sistema que junte as fotos de hoje e entregue ao app. A confirmar em que
+    celular isso funciona, porque depende de o sistema deixar compartilhar para um site
+    instalado. Liga com a decisão "iPhone ou Android" de `../requisitos.md`.
+  - No computador, escolher uma pasta uma vez e o app ler dela as fotos de hoje. A
+    confirmar em quais navegadores.
+- **Pronto quando:** num dia com fotos novas, um toque no botão, a seleção das recentes e
+  um toque em "Enviar" guardam todas as de hoje; repetir o mesmo caminho logo depois não
+  envia nenhuma; e uma foto de ontem escolhida junto fica de fora.
+
 ## Pendências
 
 Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
@@ -547,12 +731,14 @@ vez dele.
 - [x] Criar um link de download direto para enviar a alguém. Feito no Épico 10.
   - [x] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
-- [ ] Rodar a análise de gaps.
-- [ ] Revisar todos os arquivos.
-- [ ] Remover todos os comentários.
-- [ ] Documentar as usabilidades.
-- [ ] Migração de tudo o que tenho até hoje.
-- [ ] Botão ou rotina para enviar as fotos do dia. Bem específico.
+- [ ] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Épico 11.
+- [ ] Selecionar mais de uma foto para apagar. Épico 12.
+- [ ] Rodar a análise de gaps. Épico 13.
+- [ ] Revisar todos os arquivos. Épico 14.
+- [ ] Remover todos os comentários. Épico 15.
+- [ ] Documentar as usabilidades. Épico 16.
+- [ ] Migração de tudo o que tenho até hoje. Épico 17.
+- [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
 
 ## Linha do tempo
@@ -572,7 +758,14 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 8 | Data da foto separada da data de envio | 1 dia | 3 |
 | 9 | Botão de atualizar | 0,5 dia | 6 |
 | 10 | Link de download para enviar a alguém | 0,5 dia | 5 |
-| 11 | Novidades (changelog) | 0,5 dia | Nada |
+| 11 | Novidades: página das entregas | 0,5 dia | Nada |
+| 12 | Selecionar várias fotos para apagar | 1 dia | 5 |
+| 13 | Análise de gaps | 0,5 dia | 11 e 12 |
+| 14 | Revisão de todos os arquivos | 1 dia | 13 |
+| 15 | Remoção dos comentários | 0,5 dia | 14 |
+| 16 | Documentação das usabilidades | 0,5 dia | 15 |
+| 17 | Migração do acervo | 2 dias, fora o tempo de envio | 13 |
+| 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
