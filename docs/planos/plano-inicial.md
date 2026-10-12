@@ -235,8 +235,6 @@ testar na tela.
 
 ## Em aberto
 
-- Nome da conta separada. Enquanto ela não existe, o dono do `drive-fotos-dados` fica
-  indefinido no código.
 - Onde o app aprende o dono do repositório de dados: fixo no código, que é público e
   revelaria a conta, ou digitado no login junto com o token e guardado no navegador.
 - Origem do app: servido pelo GitHub Pages da conta principal, ele divide o armazenamento
