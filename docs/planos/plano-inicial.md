@@ -46,15 +46,22 @@ navegador.
 - **Estrutura do app:** a mesma do `beba-agua`.
 
 ```
-index.html
+index.html              o app: login, grade, foto aberta
+baixar.html             página de download aberta por quem recebe um link (Épico 10)
+novidades.html          o que entrou em cada versão (Épico 11)
+backup.html             backup de uma pasta do computador (Épico 17)
 manifest.webmanifest
 icones/
 src/style.css
-src/app.js       estado, regras e eventos
-src/github.js    leitura e gravação via API do GitHub
-src/foto.js      id, miniatura e registro de cada foto
-src/armazem.js   o que fica guardado no aparelho
-src/ui.js        telas
+src/app.js              estado, regras e eventos
+src/github.js           leitura e gravação via API do GitHub
+src/foto.js             id, data, miniatura e registro de cada foto
+src/armazem.js          o que fica guardado no aparelho
+src/ui.js               telas
+src/baixar.js           página de download
+src/novidades.js        página de novidades
+src/novidades.dados.js  a lista de versões
+src/backup-app.js       conferência e fila do backup
 ```
 
 ## Repositório de dados
@@ -86,6 +93,7 @@ registros/AAAA/<id>.json      registro
   "largura": 4032,
   "altura": 3024,
   "data": "2026-10-12T15:30:45-03:00",
+  "origem_da_data": "exif",
   "enviada_em": "2026-10-12T18:02:11-03:00",
   "blob": "fotos/2026/20261012T153045-a1b2.jpg",
   "miniatura": "miniaturas/2026/20261012T153045-a1b2.jpg"
@@ -127,22 +135,24 @@ Detalhe e fontes em `../requisitos.md`. O que pesa no desenho:
 
 - **Espaço:** recomendado abaixo de 5 GB por repositório, o que dá de 1.000 a 1.600 fotos
   de 3 a 5 MB. É o teto que chega primeiro, antes das 3.000 fotos por pasta.
-- **Ritmo:** 500 escritas por hora. Com duas por foto e três por lote de dez, cerca de 215
-  fotos por hora.
+- **Ritmo:** a documentação fala em 500 escritas por hora, o que daria cerca de 215 fotos
+  por hora. A medida de 2026-10-12 não encontrou esse teto para o envio de arquivos: o que
+  bloqueia é a rajada. Ver a medida no Épico 17 e em `../requisitos.md`.
 - **Apagar não devolve espaço:** a foto continua no histórico do git.
 
 ## Miniatura
 
-Dá para gerar com JS puro, sem biblioteca: o navegador decodifica a foto
-(`createImageBitmap`), desenha reduzida num `canvas` e exporta em JPEG (`canvas.toBlob`).
+Dá para gerar com JS puro, sem biblioteca: o navegador decodifica a foto num `<img>`,
+desenha reduzida num `canvas` e exporta em JPEG (`canvas.toBlob`).
 Por isso a miniatura entra no MVP.
 
 - Lado menor de 400 px, com teto de 1.600 px no lado maior, JPEG com qualidade 0,8. O lado
   menor manda porque a grade corta a miniatura em quadrado, e em tela de alta densidade o
   quadro chega a quase 400 px.
 - A grade carrega só miniaturas. A original só é baixada ao abrir a foto.
-- A redução é pedida já na decodificação, para foto de muitos megapixels não estourar a
-  memória do celular, e respeitando a orientação gravada na foto.
+- O `<img>` já entrega a foto na orientação gravada nela. A foto é decodificada inteira
+  antes de reduzir: a redução na decodificação, pensada para foto de muitos megapixels não
+  estourar a memória do celular, não foi feita (gap G01 de `../requisitos.md`).
 - **Limite:** o navegador só gera miniatura do formato que ele sabe decodificar. HEIC do
   iPhone abre no Safari, mas não no Chrome. Quando a decodificação falha, a foto sobe sem
   miniatura e a grade mostra um quadro neutro. O iPhone costuma converter para JPEG ao
@@ -778,13 +788,16 @@ vez dele.
 - [x] Criar um link de download direto para enviar a alguém. Feito no Épico 10.
   - [x] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
-- [ ] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Épico 11.
+- [x] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Feito no Épico 11.
 - [x] Selecionar mais de uma foto para apagar. Implementado no Épico 12; medição com 50 e
   200 fotos na base de testes ainda pendente.
-- [ ] Rodar a análise de gaps. Épico 13.
-- [ ] Revisar todos os arquivos. Épico 14.
+- [x] Rodar a análise de gaps. Feito no Épico 13, em 2026-10-12: a lista está em
+  `../requisitos.md`, com a decisão proposta para cada gap.
+- [ ] Correções pequenas que saíram da análise, num PR só: "base de testes" na tela de
+  backup (G17) e o link do backup fora do caminho no celular (G18).
+- [ ] Revisar todos os arquivos. Épico 14. Recebe da análise os gaps G01, G06, G20 e G21.
 - [ ] Remover todos os comentários. Épico 15.
-- [ ] Documentar as usabilidades. Épico 16.
+- [ ] Documentar as usabilidades. Épico 16. Recebe da análise os gaps G12, G13, G15 e G25.
 - [x] Migração de tudo o que tenho até hoje. Feito no Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
