@@ -484,12 +484,139 @@ async function apagarFoto() {
   mostrarAberta();
 }
 
+// Fotos sem data
+//
+// A foto que subiu sem data conhecida fica com a do envio e com `origem_da_data: 'envio'` no
+// registro. A tela "Fotos sem data" (endereço #sem-data) junta todas, para acertar depois.
+// Acertar muda o `id`, que traz a data: os três arquivos trocam de caminho num commit só, e
+// nenhum é enviado de novo.
+
+const naTelaSemData = () => location.hash === '#sem-data';
+let lendoPendentes = false;
+let pendentesIncompletas = false;
+
+function pendentes() {
+  return (fotos ?? []).filter((item) => registros.get(item.id)?.origem_da_data === 'envio');
+}
+
+const diaDoEnvio = (item) => {
+  const enviada = new Date(registros.get(item.id)?.enviada_em ?? NaN);
+  return Number.isNaN(enviada.getTime()) ? item.dia : foto.diaEmTexto(enviada).replaceAll('-', '');
+};
+
+// Um bloco por dia de envio, do mais recente para o mais antigo.
+function gruposDePendentes() {
+  const porDia = new Map();
+  for (const item of pendentes()) {
+    const dia = diaDoEnvio(item);
+    if (!porDia.has(dia)) porDia.set(dia, []);
+    porDia.get(dia).push({ foto: item, nome: nomeDaFoto(item, registros.get(item.id)) });
+  }
+  return [...porDia.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([dia, lista]) => {
+      const data = new Date(Number(dia.slice(0, 4)), Number(dia.slice(4, 6)) - 1, Number(dia.slice(6, 8)));
+      const quando = data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+      return { chave: dia, titulo: `Enviadas em ${quando}`, fotos: lista };
+    });
+}
+
 function render() {
   if (!fotos) return;
+  if (naTelaSemData()) {
+    ui.renderSemData(gruposDePendentes(), { lendo: lendoPendentes, incompleta: pendentesIncompletas }, baixarMiniatura);
+    ui.mostrarTela('sem-data');
+    return;
+  }
   // Lista guardada por uma versão antiga do app não tem o peso: vale o tamanho da original.
   const espaco = fotos.reduce((soma, item) => soma + (item.peso ?? item.tamanho), 0);
   ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura);
+  ui.linkDasPendentes(pendentes().length);
   ui.mostrarTela('principal');
+}
+
+// A tela depende do registro de todas as fotos: é nele que está a origem da data.
+async function abrirSemData() {
+  lendoPendentes = true;
+  pendentesIncompletas = false;
+  ui.erroNasPendentes(null);
+  render();
+  ui.focarTela('sem-data');
+  const completa = await lerNomes().catch(() => false);
+  lendoPendentes = false;
+  pendentesIncompletas = !completa;
+  render();
+}
+
+function aplicarRota() {
+  if (!fotos) return;
+  if (naTelaSemData()) abrirSemData();
+  else render();
+}
+
+// mudancas: [{ id, dia }]. Com `dia`, a foto passa para esse dia. Sem ele, a data que ela tem
+// está certa: só o registro muda, para a foto sair da lista. Tudo num commit.
+async function datar(mudancas) {
+  const arquivos = [];
+  const trocas = []; // { antiga, nova, registro, texto }
+  for (const { id, dia } of mudancas) {
+    const antiga = fotos?.find((item) => item.id === id);
+    const registro = antiga && registros.get(antiga.id);
+    if (!antiga || !registro) continue;
+    const data = dia ? foto.dataNoDia(dia) : null;
+    if (dia && !data) {
+      ui.erroNasPendentes('Uma das datas não vale. Escolha um dia entre 1990 e hoje.');
+      return;
+    }
+    const novoId = data ? foto.gerarId(data) : antiga.id;
+    const de = foto.caminhos(antiga.id, antiga.ext);
+    const para = foto.caminhos(novoId, antiga.ext);
+    const novoRegistro = {
+      ...registro,
+      id: novoId,
+      data: data ? foto.comFuso(data) : registro.data,
+      origem_da_data: 'informada',
+      blob: para.blob,
+      miniatura: antiga.miniatura ? para.miniatura : null,
+    };
+    const texto = textoDoRegistro(novoRegistro);
+    if (data) {
+      // Os arquivos já estão no repositório: os caminhos novos apontam para eles, e os antigos saem.
+      arquivos.push({ caminho: para.blob, sha: antiga.sha }, { caminho: de.blob, apagar: true });
+      if (antiga.miniatura) arquivos.push({ caminho: para.miniatura, sha: antiga.miniatura }, { caminho: de.miniatura, apagar: true });
+      arquivos.push({ caminho: de.registro, apagar: true });
+    }
+    arquivos.push({ caminho: para.registro, texto });
+    trocas.push({ antiga, registro: novoRegistro, texto, nova: { ...antiga, id: novoId, dia: novoId.slice(0, 8), hora: novoId.slice(9, 15) } });
+  }
+  if (trocas.length === 0) return;
+
+  ui.erroNasPendentes(null);
+  ui.pendentesOcupado(true);
+  try {
+    await github.gravar(arquivos, trocas.length === 1 ? `datar: ${trocas[0].nova.id}` : `datar: ${trocas.length} fotos`);
+  } catch (erro) {
+    ui.pendentesOcupado(false);
+    if (tokenVenceu(erro)) return;
+    ui.erroNasPendentes(mensagemDe(erro, 'Não deu para salvar as datas. Tente de novo.'));
+    return;
+  }
+  for (const { antiga, nova, registro, texto } of trocas) {
+    nova.registro = await foto.shaDoGit(texto);
+    if (antiga.registro) armazem.apagar([antiga.registro]);
+    armazem.guardar(nova.registro, new Blob([texto], { type: 'application/json' }), { original: false });
+    registros.delete(antiga.id);
+    registros.set(nova.id, registro);
+    tirarDaFilaDeFundo(antiga.id);
+  }
+  if (fotos) {
+    const novas = new Map(trocas.map(({ antiga, nova }) => [antiga.id, nova]));
+    fotos = fotos.map((item) => novas.get(item.id) ?? item).sort(porIdDecrescente);
+    armazem.guardarFotos(fotos);
+  }
+  ui.pendentesOcupado(false);
+  render();
+  ui.anunciarEnvio(trocas.length === 1 ? 'Data salva.' : `${trocas.length} datas salvas.`);
 }
 
 function renderFila() {
@@ -514,7 +641,7 @@ async function carregar() {
   const guardadas = armazem.lerFotos();
   if (guardadas) {
     fotos = guardadas;
-    render();
+    aplicarRota();
   } else {
     ui.mostrarTela('carregando');
   }
@@ -526,7 +653,7 @@ async function carregar() {
     aquecerNomes();
     if (guardadas && mesmaLista(novas, guardadas)) return;
     fotos = novas;
-    render();
+    aplicarRota();
   } catch (erro) {
     if (erro.tipo === 'token') {
       github.apagarToken();
@@ -717,7 +844,8 @@ function lerNomes({ limite = Infinity } = {}) {
 // Em segundo plano, depois que a grade já pediu as miniaturas dela.
 function aquecerNomes() {
   if (navigator.connection?.saveData) return;
-  setTimeout(() => lerNomes().catch(() => {}), 3000);
+  // Com os registros lidos, dá para saber quantas fotos estão sem data.
+  setTimeout(() => lerNomes().then(() => !naTelaSemData() && fotos && ui.linkDasPendentes(pendentes().length), () => {}), 3000);
 }
 
 const chaveDoNome = (nome) => nome.toLocaleLowerCase('pt-BR');
@@ -989,11 +1117,12 @@ ui.ligarEventos({
   arquivos: adicionarArquivos,
   tentarDeNovo,
   limparFila: dispensarFalhas,
-  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && conferindoLevas === 0,
+  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && conferindoLevas === 0 && !naTelaSemData(),
   abrirFoto,
   passarFoto,
   recarregarFoto: () => mostrarAberta(),
   fotoFechada,
+  datar,
   baixarFoto,
   pedirRenomear,
   salvarNome,
@@ -1009,6 +1138,9 @@ window.addEventListener('beforeunload', (evento) => {
 
 // O voltar do navegador, com a foto aberta, só fecha a foto.
 window.addEventListener('popstate', () => ui.fecharVisor({ efeito: true }));
+
+// A tela de fotos sem data tem endereço próprio: #sem-data.
+window.addEventListener('hashchange', aplicarRota);
 
 // O navegador solta a trava quando a aba some. Ao voltar, com a fila correndo, pede de novo.
 document.addEventListener('visibilitychange', () => {

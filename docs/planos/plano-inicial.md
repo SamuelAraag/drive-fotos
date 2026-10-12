@@ -425,12 +425,24 @@ Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gap
   - A hora do EXIF é tratada como local, como o `id` já faz.
   - Nome no formato dia, mês e ano não é reconhecido, porque se confunde com mês, dia e
     ano.
-- **Fora do épico:** corrigir a data das fotos já guardadas. Decisão de 2026-10-12: elas
-  são ajustadas ou reenviadas à mão.
+- **Datar depois.** Quem está com pressa confirma o diálogo sem mexer nos campos ("Enviar
+  agora, datar depois"). A foto sobe com a data do envio e fica marcada com
+  `origem_da_data: envio`.
+- **Tela "Fotos sem data", no endereço `#sem-data`.** Junta todas as fotos marcadas assim.
+  A grade mostra um aviso com a contagem e o link quando existe alguma.
+  - Um bloco por dia de envio, porque fotos enviadas juntas costumam ser da mesma ocasião.
+    O campo "Mesmo dia para todas" preenche o bloco inteiro.
+  - Cada foto tem o próprio campo de dia e um "Está certa", para a que é mesmo do dia em
+    que subiu.
+  - "Salvar datas" grava o bloco num commit só. Acertar a data muda o `id`, então os três
+    arquivos trocam de caminho, sem nenhum ser enviado de novo.
+- **Fora do épico:** corrigir a data das fotos guardadas antes dele, que não têm a origem
+  no registro. Decisão de 2026-10-12: elas são ajustadas ou reenviadas à mão.
 - **Limite:** print e imagem de mensagem sem data no nome sempre caem na pergunta.
 - **Pronto quando:** uma imagem de 2015 enviada hoje aparece em 2015 na grade, fica em
-  `fotos/2015/`, e o registro traz a `data` de 2015 e o `enviada_em` de hoje; e uma imagem
-  sem data nenhuma abre a pergunta e sobe com hoje em um clique.
+  `fotos/2015/`, e o registro traz a `data` de 2015 e o `enviada_em` de hoje; uma imagem
+  sem data nenhuma abre a pergunta e sobe com hoje em um clique; e essa imagem aparece em
+  "Fotos sem data", de onde vai para o dia certo ao salvar.
 
 ### Épico 9: Botão de atualizar (backlog)
 

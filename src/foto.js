@@ -117,11 +117,17 @@ export function diaEmTexto(data) {
   return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}`;
 }
 
-// A data escolhida pela pessoa. Hoje vale a hora de agora; outro dia, o meio-dia.
+// O meio-dia de um dia escrito como "2015-03-12", ou null se o dia não vale.
+export function dataNoDia(dia) {
+  const [ano, mes, numero] = dia.split('-').map(Number);
+  return dataValida(ano, mes, numero);
+}
+
+// A data escolhida pela pessoa no envio. Hoje vale a hora de agora, e a foto fica marcada
+// como sem data, para ser acertada depois. Outro dia vale o meio-dia dele.
 export function dataInformada(dia) {
   if (dia === diaEmTexto(new Date())) return { data: new Date(), origem: 'envio' };
-  const [ano, mes, numero] = dia.split('-').map(Number);
-  const data = dataValida(ano, mes, numero);
+  const data = dataNoDia(dia);
   return data ? { data, origem: 'informada' } : null;
 }
 
@@ -136,7 +142,7 @@ export function gerarId(data) {
 }
 
 // 2026-10-12T15:30:45-03:00
-function comFuso(data) {
+export function comFuso(data) {
   const minutos = -data.getTimezoneOffset();
   const sinal = minutos < 0 ? '-' : '+';
   const fuso = `${sinal}${pad(Math.floor(Math.abs(minutos) / 60))}:${pad(Math.abs(minutos) % 60)}`;

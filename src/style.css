@@ -172,6 +172,35 @@ h2:focus {
   font-size: var(--fonte-pequena);
 }
 
+/* Recado que leva a outro lugar: a linha inteira é o link. */
+.aviso--link {
+  display: block;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.aviso--link:hover {
+  border-color: var(--azul);
+}
+
+.aviso--link strong {
+  color: var(--azul);
+}
+
+.voltar {
+  align-self: flex-start;
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+}
+
+.voltar::before {
+  content: '← ';
+}
+
+.voltar:hover {
+  color: var(--texto);
+}
+
 .aviso--forte {
   border-color: var(--atencao);
   color: var(--atencao);
@@ -1205,8 +1234,9 @@ h2:focus {
   flex-direction: column;
   gap: var(--e4);
   max-height: 50dvh;
-  margin: 0;
-  padding: 0;
+  /* Folga por dentro, compensada por fora, para o contorno de foco não ser cortado. */
+  margin: calc(var(--e2) * -1);
+  padding: var(--e2);
   overflow-y: auto;
   list-style: none;
 }
@@ -1262,16 +1292,66 @@ h2:focus {
   object-fit: cover;
 }
 
-/* Fotos sem data: uma linha por foto, com a miniatura e o campo do dia ao lado. */
+/* Fotos sem data: uma linha por foto, com a miniatura e o campo do dia ao lado.
+   A lista rola e corta o que passa da borda, então ganha uma folga por dentro (compensada
+   por fora) para o contorno de foco dos campos aparecer inteiro. */
 .sem-data {
   display: flex;
   flex-direction: column;
   gap: var(--e4);
   max-height: 50dvh;
-  margin: 0;
-  padding: 0;
+  margin: calc(var(--e2) * -1);
+  padding: var(--e2);
   overflow-y: auto;
   list-style: none;
+}
+
+/* A tela de fotos sem data: um bloco por dia de envio, com as fotos dele. */
+.pendentes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e5);
+}
+
+.pendentes__grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+  padding: var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+}
+
+.pendentes__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e3);
+}
+
+.pendentes__todas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e2);
+}
+
+.pendentes__todas .campo {
+  width: auto;
+}
+
+.pendentes__lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--e4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendentes .campo {
+  color-scheme: dark;
 }
 
 .sem-data__item {

@@ -5,7 +5,7 @@ import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
 
-const TELAS = ['carregando', 'erro', 'principal'];
+const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
@@ -1098,7 +1098,7 @@ const camposDeData = () => [...$('sem-data-lista').querySelectorAll('input[type=
 // O botão principal só promete "a data de hoje" enquanto nenhum campo foi mexido.
 function renderEnvioSemData() {
   const hoje = diaEmTexto(new Date());
-  $('sem-data-enviar').textContent = camposDeData().every((campo) => campo.value === hoje) ? 'Enviar com a data de hoje' : 'Enviar';
+  $('sem-data-enviar').textContent = camposDeData().every((campo) => campo.value === hoje) ? 'Enviar agora, datar depois' : 'Enviar';
 }
 
 export function perguntarDatas(linhas, totalDaLeva) {
@@ -1115,8 +1115,8 @@ export function perguntarDatas(linhas, totalDaLeva) {
           : `${quantas} das ${totalDaLeva} fotos estão sem data`;
   $('sem-data-detalhe').textContent =
     quantas === 1
-      ? 'O arquivo e o nome não dizem quando ela foi tirada. Escolha o dia, ou envie com a data de hoje.'
-      : 'O arquivo e o nome não dizem quando foram tiradas. Escolha o dia de cada uma, ou envie com a data de hoje.';
+      ? 'O arquivo e o nome não dizem quando ela foi tirada. Escolha o dia, ou envie agora e acerte depois em "Fotos sem data".'
+      : 'O arquivo e o nome não dizem quando foram tiradas. Escolha o dia de cada uma, ou envie agora e acerte depois em "Fotos sem data".';
   $('sem-data-lista').replaceChildren(
     ...linhas.map(({ nome, url, doArquivo }, i) => {
       const item = el('li', 'sem-data__item');
@@ -1158,6 +1158,144 @@ export function perguntarDatas(linhas, totalDaLeva) {
       () => resolver(camposDeData().map((campo) => (dialogo.returnValue === 'enviar' ? campo.value : null))),
       { once: true },
     );
+  });
+}
+
+// Tela "Fotos sem data": as que subiram com a data do envio, para acertar com calma.
+//
+// Um bloco por dia de envio, porque fotos enviadas juntas costumam ser da mesma ocasião: o
+// campo do topo do bloco aplica um dia a todas. Cada foto tem o próprio campo e um "Está certa",
+// para a que é mesmo do dia em que subiu. `grupos` é [{ chave, titulo, fotos: [{ foto, nome }] }].
+export function linkDasPendentes(quantas) {
+  const link = $('principal-pendentes');
+  link.hidden = quantas === 0;
+  link.replaceChildren(
+    quantas === 1 ? '1 foto está sem data. ' : `${quantas.toLocaleString('pt-BR')} fotos estão sem data. `,
+    el('strong', null, 'Acertar as datas'),
+  );
+}
+
+const camposDasPendentes = () => [...$('pendentes').querySelectorAll('input[data-id]')];
+
+// "Salvar datas" só acende no bloco em que algum dia foi trocado.
+function renderBotoesDasPendentes() {
+  for (const grupo of $('pendentes').querySelectorAll('.pendentes__grupo')) {
+    const mudou = [...grupo.querySelectorAll('input[data-id]')].some((campo) => campo.value && campo.value !== campo.dataset.atual);
+    grupo.querySelector('[data-acao=salvar]').disabled = mudou ? pendentesOcupadas : true;
+  }
+}
+
+let pendentesOcupadas = false;
+
+export function renderSemData(grupos, { lendo, incompleta }, baixar) {
+  baixarAtual = baixar;
+  // Um redesenho no meio da digitação (um envio que terminou, por exemplo) não apaga o que foi escolhido.
+  const escolhidos = new Map(camposDasPendentes().map((campo) => [campo.dataset.id, campo.value]));
+  const hoje = diaEmTexto(new Date());
+  const total = grupos.reduce((soma, grupo) => soma + grupo.fotos.length, 0);
+  $('pendentes-lendo').hidden = !lendo;
+  $('pendentes-vazia').hidden = lendo || total > 0;
+  $('sem-data-explica').hidden = total === 0;
+  if (incompleta) erroNasPendentes('Não deu para ler os dados de todas as fotos, então a lista pode estar incompleta. Recarregue a página para tentar de novo.');
+  $('pendentes').replaceChildren(
+    ...grupos.map(({ chave, titulo, fotos }) => {
+      const grupo = el('form', 'pendentes__grupo');
+      grupo.dataset.grupo = chave;
+      grupo.noValidate = true;
+      const topo = el('div', 'pendentes__topo');
+      topo.append(el('h3', 'dia__titulo', `${titulo} · ${fotos.length === 1 ? '1 foto' : `${fotos.length} fotos`}`));
+      if (fotos.length > 1) {
+        const todas = el('div', 'pendentes__todas');
+        const rotulo = el('label', 'campo__rotulo', 'Mesmo dia para todas');
+        const campo = el('input', 'campo');
+        campo.type = 'date';
+        campo.id = `pendentes-todas-${chave}`;
+        campo.min = '1990-01-01';
+        campo.max = hoje;
+        rotulo.htmlFor = campo.id;
+        const aplicar = el('button', 'botao botao--secundario', 'Aplicar');
+        aplicar.type = 'button';
+        aplicar.dataset.acao = 'aplicar';
+        const coluna = el('div', 'sem-data__campos');
+        coluna.append(rotulo, campo);
+        todas.append(coluna, aplicar);
+        topo.append(todas);
+      }
+      const lista = el('ul', 'pendentes__lista');
+      for (const { foto, nome } of fotos) {
+        const item = el('li', 'sem-data__item');
+        const miniatura = el('img', 'dialogo__miniatura');
+        miniatura.alt = '';
+        miniatura.width = 64;
+        miniatura.height = 64;
+        if (foto.miniatura) baixar(foto.miniatura).then((url) => (miniatura.src = url), () => {});
+        const campos = el('div', 'sem-data__campos');
+        const rotulo = el('label', 'campo__rotulo', nome);
+        const campo = el('input', 'campo');
+        const atual = `${foto.dia.slice(0, 4)}-${foto.dia.slice(4, 6)}-${foto.dia.slice(6, 8)}`;
+        campo.type = 'date';
+        campo.id = `pendente-${foto.id}`;
+        campo.dataset.id = foto.id;
+        campo.dataset.atual = atual;
+        campo.min = '1990-01-01';
+        campo.max = hoje;
+        campo.value = escolhidos.get(foto.id) ?? atual;
+        rotulo.htmlFor = campo.id;
+        const certa = el('button', 'botao botao--fantasma', 'Está certa');
+        certa.type = 'button';
+        certa.dataset.acao = 'certa';
+        certa.dataset.id = foto.id;
+        certa.setAttribute('aria-label', `A data de ${nome} está certa`);
+        campos.append(rotulo, campo, certa);
+        item.append(miniatura, campos);
+        lista.append(item);
+      }
+      const acoes = el('div', 'dialogo__acoes');
+      const salvar = el('button', 'botao botao--primario', 'Salvar datas');
+      salvar.type = 'submit';
+      salvar.dataset.acao = 'salvar';
+      acoes.append(salvar);
+      grupo.append(topo, lista, acoes);
+      return grupo;
+    }),
+  );
+  renderBotoesDasPendentes();
+}
+
+export function pendentesOcupado(ocupado) {
+  pendentesOcupadas = ocupado;
+  for (const botao of $('pendentes').querySelectorAll('button')) botao.disabled = ocupado;
+  for (const salvar of $('pendentes').querySelectorAll('[data-acao=salvar]')) salvar.textContent = ocupado ? 'Salvando...' : 'Salvar datas';
+  if (!ocupado) renderBotoesDasPendentes();
+}
+
+export function erroNasPendentes(mensagem) {
+  $('pendentes-erro').hidden = !mensagem;
+  $('pendentes-erro').textContent = mensagem ?? '';
+}
+
+function ligarPendentes(acoes) {
+  const tela = $('pendentes');
+  tela.addEventListener('input', renderBotoesDasPendentes);
+  tela.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('button[data-acao]');
+    if (!botao) return;
+    if (botao.dataset.acao === 'aplicar') {
+      const grupo = botao.closest('.pendentes__grupo');
+      const dia = grupo.querySelector('.pendentes__todas input').value;
+      if (!dia) return;
+      for (const campo of grupo.querySelectorAll('input[data-id]')) campo.value = dia;
+      renderBotoesDasPendentes();
+    }
+    // "Está certa": a foto é mesmo do dia em que subiu. Sai da lista sem mudar de lugar.
+    if (botao.dataset.acao === 'certa') acoes.datar([{ id: botao.dataset.id, dia: null }]);
+  });
+  tela.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const mudancas = [...evento.target.querySelectorAll('input[data-id]')]
+      .filter((campo) => campo.value && campo.value !== campo.dataset.atual)
+      .map((campo) => ({ id: campo.dataset.id, dia: campo.value }));
+    if (mudancas.length > 0) acoes.datar(mudancas);
   });
 }
 
@@ -1262,6 +1400,7 @@ export function ligarEventos(acoes) {
   $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
   ligarVisor(acoes);
+  ligarPendentes(acoes);
 
   $('repetidas').addEventListener('click', (evento) => {
     if (evento.target === $('repetidas')) $('repetidas').close();

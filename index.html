@@ -38,6 +38,24 @@
       </div>
     </section>
 
+    <section class="tela" id="tela-sem-data" hidden>
+      <a class="voltar" href="#">Voltar para as fotos</a>
+      <div>
+        <h2 class="tela__titulo" tabindex="-1">Fotos sem data</h2>
+        <p class="texto-suave" id="sem-data-explica">Estas subiram com a data do envio. Escolha quando cada uma foi tirada: ela passa para o dia e o ano certos.</p>
+      </div>
+      <p class="campo__erro" id="pendentes-erro" role="alert" hidden></p>
+      <div class="tela tela--centro" id="pendentes-lendo" hidden>
+        <div class="girador" aria-hidden="true"></div>
+        <p role="status">Lendo os dados das fotos...</p>
+      </div>
+      <div class="tela tela--centro" id="pendentes-vazia" hidden>
+        <p class="tela__titulo">Nenhuma foto sem data</p>
+        <p class="texto-suave">Quando você enviar uma foto sem escolher a data, ela aparece aqui.</p>
+      </div>
+      <div class="pendentes" id="pendentes"></div>
+    </section>
+
     <section class="tela" id="tela-principal" hidden>
       <h2 class="so-leitor" tabindex="-1">Suas fotos</h2>
       <div class="envio">
@@ -63,6 +81,7 @@
         <p class="texto-suave">Envie a primeira pelo botão acima.</p>
       </div>
       <p class="aviso aviso--forte" id="principal-espaco" hidden></p>
+      <a class="aviso aviso--link" id="principal-pendentes" href="#sem-data" hidden></a>
       <div class="dias" id="grade"></div>
       <footer class="uso" id="uso" aria-label="Armazenamento" hidden>
         <svg class="uso__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.5 7.5 0 0 0-6.65 4.04A6 6 0 0 0 6 20h13a5 5 0 0 0 .35-9.96Z"/></svg>
