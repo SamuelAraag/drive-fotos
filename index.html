@@ -100,9 +100,22 @@
       </div>
       <p class="aviso aviso--forte" id="principal-espaco" hidden></p>
       <a class="aviso aviso--link" id="principal-pendentes" href="#sem-data" hidden></a>
+      <div class="selecao-topo" id="selecao-topo" hidden>
+        <button type="button" class="botao botao--secundario" id="entrar-selecao">Selecionar</button>
+      </div>
       <div class="dias" id="grade"></div>
     </section>
   </main>
+
+  <div class="barra-selecao" id="barra-selecao" role="toolbar" aria-label="Ações das fotos selecionadas" hidden>
+    <div class="barra-selecao__conteudo">
+      <p class="barra-selecao__contagem" id="selecao-contagem" role="status" aria-live="polite"></p>
+      <div class="barra-selecao__acoes">
+        <button type="button" class="botao botao--perigo" id="apagar-selecionadas" disabled>Apagar</button>
+        <button type="button" class="botao botao--secundario" id="cancelar-selecao">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <footer class="rodape">
     <span class="texto-suave texto-pequeno">Drive Fotos · versão <span id="versao"></span></span>
@@ -218,6 +231,19 @@
       <div class="dialogo__acoes">
         <button type="submit" class="botao botao--perigo" id="apagar-confirmar" autofocus>Apagar foto</button>
         <button type="button" class="botao botao--secundario" id="apagar-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="apagar-selecao" aria-labelledby="apagar-selecao-titulo" aria-describedby="apagar-selecao-aviso">
+    <form id="apagar-selecao-form">
+      <h2 class="tela__titulo" id="apagar-selecao-titulo"></h2>
+      <p class="texto-suave" id="apagar-selecao-aviso"></p>
+      <p class="texto-suave texto-pequeno">Elas saem do app e deste aparelho. No repositório, continuam no histórico, e o espaço não é liberado.</p>
+      <p class="campo__erro" id="apagar-selecao-erro" role="alert" hidden></p>
+      <div class="dialogo__acoes">
+        <button type="submit" class="botao botao--perigo" id="apagar-selecao-confirmar"></button>
+        <button type="button" class="botao botao--secundario" id="apagar-selecao-cancelar">Cancelar</button>
       </div>
     </form>
   </dialog>

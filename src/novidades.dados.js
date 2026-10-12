@@ -4,6 +4,16 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.7.0',
+    quando: '2026-10-12T17:52',
+    titulo: 'Apague várias fotos de uma vez',
+    mudancas: [
+      'Selecione fotos de dias diferentes e remova todas com uma confirmação e um único commit.',
+      'No celular, mantenha o dedo sobre uma foto para começar a seleção.',
+      'O botão de cada dia marca ou desmarca todas as fotos daquele dia.',
+    ],
+  },
+  {
     versao: '1.6.0',
     quando: '2026-10-12T16:36',
     titulo: 'Veja o que mudou em cada versão',

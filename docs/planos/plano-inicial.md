@@ -536,7 +536,8 @@ Pedido em 2026-10-12 e feito no mesmo dia, no molde do changelog do `pr-manager`
 
 ### Épico 12: Selecionar várias fotos para apagar
 
-Pedido em 2026-10-12. Hoje só dá para apagar uma foto por vez, com ela aberta.
+Implementado em 2026-10-12. Seleção por toque ou pressão longa no celular, por dia,
+confirmação com contagem e remoção atômica em um único commit.
 
 - **Entrar no modo de seleção:** botão "Selecionar" no topo da grade. No celular, segurar o
   dedo numa foto também entra, já com ela marcada.
@@ -732,7 +733,8 @@ vez dele.
   - [x] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
 - [ ] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Épico 11.
-- [ ] Selecionar mais de uma foto para apagar. Épico 12.
+- [x] Selecionar mais de uma foto para apagar. Implementado no Épico 12; medição com 50 e
+  200 fotos na base de testes ainda pendente.
 - [ ] Rodar a análise de gaps. Épico 13.
 - [ ] Revisar todos os arquivos. Épico 14.
 - [ ] Remover todos os comentários. Épico 15.

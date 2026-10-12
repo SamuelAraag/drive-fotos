@@ -57,5 +57,13 @@ src/ui.js        telas
 
 ## Estado
 
-Em construção. Já dá para entrar com o token, enviar fotos, ver a grade de miniaturas
-agrupada por dia e abrir uma foto em tela cheia. Renomear, baixar e apagar ainda não existem.
+Já dá para entrar com o token, enviar e organizar fotos por dia, abrir em tela cheia,
+renomear, baixar e apagar.
+
+Para apagar mais de uma foto, toque em **Selecionar** acima da grade, marque as fotos e toque
+em **Apagar** na barra inferior. No celular, também dá para manter o dedo sobre uma foto para
+iniciar a seleção. A caixa ao lado do título de cada dia marca ou desmarca todas as fotos
+daquele dia. A remoção exige confirmação e grava todas as exclusões em um único commit.
+
+As fotos apagadas deixam de aparecer no app, mas continuam no histórico do repositório e
+ocupam espaço. A seleção em massa não oferece uma opção para marcar o acervo inteiro.

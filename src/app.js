@@ -15,6 +15,9 @@ const INTERVALO_DE_CONFERENCIA = 30000; // ms entre duas releituras do repositó
 const CAMINHO = /^(fotos|miniaturas|registros)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.([0-9a-z]+)$/i;
 
 let fotos = null; // última leitura do repositório, da mais recente para a mais antiga
+let modoSelecao = false;
+let apagandoSelecao = false;
+const fotosSelecionadas = new Set();
 const miniaturas = new Map(); // sha -> promessa da URL da imagem já baixada
 const espera = []; // downloads aguardando vaga
 let baixando = 0;
@@ -486,20 +489,8 @@ async function apagarFoto() {
   }
   ui.apagarOcupado(false);
 
-  registros.delete(item.id);
-  tirarDaFilaDeFundo(item.id);
-  if (!fotos) return; // saiu da conta enquanto o commit corria
   const indice = fotos.findIndex((outra) => outra.id === item.id);
-  fotos = fotos.filter((outra) => outra.id !== item.id);
-  armazem.guardarFotos(fotos);
-  // Duas cópias da mesma foto dividem o arquivo: só sai do aparelho o que ninguém mais usa.
-  const emUso = new Set(fotos.flatMap((outra) => [outra.sha, outra.miniatura, outra.registro]));
-  armazem.apagar([item.sha, item.miniatura, item.registro].filter((sha) => sha && !emUso.has(sha)));
-  const guardada = originais.get(item.sha);
-  if (guardada && !emUso.has(item.sha)) {
-    guardada.promessa.then(URL.revokeObjectURL, () => {});
-    originais.delete(item.sha);
-  }
+  if (!removerFotosDaLista([item])) return;
   ui.fecharApagar();
   if (aberta !== item.id) {
     render(); // o visor fechou enquanto o commit corria
@@ -516,6 +507,121 @@ async function apagarFoto() {
   ui.passouParaAFoto(vizinha.id);
   render();
   mostrarAberta();
+}
+
+function removerFotosDaLista(removidas) {
+  for (const item of removidas) {
+    registros.delete(item.id);
+    tirarDaFilaDeFundo(item.id);
+    fotosSelecionadas.delete(item.id);
+  }
+  if (!fotos) return false; // saiu da conta enquanto o commit corria
+  const idsRemovidos = new Set(removidas.map((item) => item.id));
+  fotos = fotos.filter((item) => !idsRemovidos.has(item.id));
+  armazem.guardarFotos(fotos);
+  // Duas cópias dividem os blobs e o registro: só apaga do aparelho o que não é mais usado.
+  const emUso = new Set(fotos.flatMap((item) => [item.sha, item.miniatura, item.registro]));
+  const shasRemovidos = new Set(removidas.flatMap((item) => [item.sha, item.miniatura, item.registro]));
+  armazem.apagar([...shasRemovidos].filter((sha) => sha && !emUso.has(sha)));
+  for (const sha of new Set(removidas.map((item) => item.sha))) {
+    const guardada = originais.get(sha);
+    if (!guardada || emUso.has(sha)) continue;
+    guardada.promessa.then(URL.revokeObjectURL, () => {});
+    originais.delete(sha);
+  }
+  return true;
+}
+
+function atualizarSelecao() {
+  ui.atualizarSelecao(modoSelecao, fotosSelecionadas, fotos?.length ?? 0);
+}
+
+function iniciarSelecao(id = null) {
+  if (modoSelecao) {
+    if (id) alternarFotoSelecionada(id);
+    return true;
+  }
+  if (!fotos?.length || conferindo || atualizandoAgora) return false;
+  modoSelecao = true;
+  if (id && fotos.some((item) => item.id === id)) fotosSelecionadas.add(id);
+  history.pushState({ selecaoFotos: true }, '');
+  atualizarSelecao();
+  return true;
+}
+
+function limparSelecao() {
+  modoSelecao = false;
+  fotosSelecionadas.clear();
+  atualizarSelecao();
+}
+
+function sairDaSelecao() {
+  if (!modoSelecao) return;
+  if (history.state?.selecaoFotos) {
+    history.back();
+    return;
+  }
+  limparSelecao();
+}
+
+function alternarFotoSelecionada(id) {
+  if (!modoSelecao || !fotos?.some((item) => item.id === id)) return;
+  if (fotosSelecionadas.has(id)) fotosSelecionadas.delete(id);
+  else fotosSelecionadas.add(id);
+  atualizarSelecao();
+}
+
+function definirSelecaoDoDia(ids, selecionada) {
+  if (!modoSelecao) return;
+  for (const id of ids) {
+    if (selecionada) fotosSelecionadas.add(id);
+    else fotosSelecionadas.delete(id);
+  }
+  atualizarSelecao();
+}
+
+function pedirApagarSelecao() {
+  if (!modoSelecao || fotosSelecionadas.size === 0) return;
+  ui.abrirApagarSelecao(fotosSelecionadas.size);
+}
+
+async function apagarSelecao() {
+  if (!modoSelecao || !fotos || apagandoSelecao) return;
+  const removidas = fotos.filter((item) => fotosSelecionadas.has(item.id));
+  if (!removidas.length) {
+    ui.fecharApagarSelecao();
+    return;
+  }
+  const arquivos = removidas.flatMap((item) => {
+    const caminhos = foto.caminhos(item.id, item.ext);
+    const lista = [{ caminho: caminhos.blob, apagar: true }];
+    if (item.miniatura) lista.push({ caminho: caminhos.miniatura, apagar: true });
+    if (item.registro) lista.push({ caminho: caminhos.registro, apagar: true });
+    return lista;
+  });
+  ui.erroApagarSelecao(null);
+  apagandoSelecao = true;
+  ui.apagarSelecaoOcupada(true);
+  try {
+    await github.gravar(arquivos, `apagar ${removidas.length} fotos`);
+  } catch (erro) {
+    apagandoSelecao = false;
+    ui.apagarSelecaoOcupada(false);
+    if (erro.tipo === 'token') {
+      ui.fecharApagarSelecao();
+      tokenVenceu(erro);
+      return;
+    }
+    ui.erroApagarSelecao(mensagemDe(erro, 'Não deu para apagar as fotos. Tente de novo.'));
+    return;
+  }
+  apagandoSelecao = false;
+  ui.apagarSelecaoOcupada(false);
+  ui.fecharApagarSelecao();
+  limparSelecao();
+  if (!removerFotosDaLista(removidas)) return;
+  render();
+  if (history.state?.selecaoFotos) history.back();
 }
 
 // Fotos sem data
@@ -564,7 +670,10 @@ function render() {
   }
   // Lista guardada por uma versão antiga do app não tem o peso: vale o tamanho da original.
   const espaco = fotos.reduce((soma, item) => soma + (item.peso ?? item.tamanho), 0);
-  ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura);
+  ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura, {
+    ativa: modoSelecao,
+    ids: fotosSelecionadas,
+  });
   ui.linkDasPendentes(pendentes().length);
   ui.mostrarTela('principal');
 }
@@ -584,6 +693,7 @@ async function abrirSemData() {
 
 function aplicarRota() {
   if (!fotos) return;
+  if (naTelaSemData() && modoSelecao) limparSelecao();
   if (naTelaSemData()) abrirSemData();
   else render();
 }
@@ -724,7 +834,7 @@ async function relerLista() {
 // Ao voltar para a tela, confere sozinho, em silêncio e com intervalo, e nunca no meio de um
 // envio, que já mexe na lista.
 async function conferir() {
-  if (!fotos || !github.lerToken() || enviando || conferindo) return;
+  if (!fotos || !github.lerToken() || enviando || conferindo || modoSelecao) return;
   if (Date.now() - conferidoEm < INTERVALO_DE_CONFERENCIA) return;
   conferindo = true;
   try {
@@ -746,7 +856,7 @@ async function conferir() {
 let atualizandoAgora = false;
 
 async function atualizarAgora() {
-  if (atualizandoAgora) return;
+  if (atualizandoAgora || modoSelecao) return;
   if (!fotos) {
     if (github.lerToken()) carregar();
     return;
@@ -800,6 +910,7 @@ async function entrar(token) {
 function sair() {
   github.apagarToken();
   fotos = null;
+  limparSelecao();
   fila = [];
   pausadaAte = null;
   ui.esquecerEnvio();
@@ -1273,7 +1384,7 @@ ui.ligarEventos({
   arquivos: adicionarArquivos,
   tentarDeNovo,
   limparFila: dispensarFalhas,
-  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && conferindoLevas === 0 && !naTelaSemData(),
+  podeEnviar: () => Boolean(fotos && github.lerToken()) && !modoSelecao && !ui.visorAberto() && conferindoLevas === 0 && !naTelaSemData(),
   abrirFoto,
   passarFoto,
   recarregarFoto: () => mostrarAberta(),
@@ -1286,16 +1397,33 @@ ui.ligarEventos({
   salvarNome,
   pedirApagar,
   apagarFoto,
+  iniciarSelecao,
+  alternarFotoSelecionada,
+  definirSelecaoDoDia,
+  abrirConfirmacaoSelecao: pedirApagarSelecao,
+  apagarSelecao,
+  sairDaSelecao,
+  estaEmSelecao: () => modoSelecao,
   visibilidade,
 });
 
 // A fila vive só nesta página: sair no meio perde o que ainda não subiu.
 window.addEventListener('beforeunload', (evento) => {
-  if (fila.some((item) => ['aguardando', 'enviando', 'gravando'].includes(item.estado))) evento.preventDefault();
+  if (apagandoSelecao || fila.some((item) => ['aguardando', 'enviando', 'gravando'].includes(item.estado))) evento.preventDefault();
 });
 
-// O voltar do navegador, com a foto aberta, só fecha a foto.
-window.addEventListener('popstate', () => ui.fecharVisor({ efeito: true }));
+// O voltar do navegador fecha primeiro o modo de seleção; depois, se houver, o visor.
+window.addEventListener('popstate', () => {
+  if (modoSelecao) {
+    if (apagandoSelecao) {
+      history.pushState({ selecaoFotos: true }, '');
+      return;
+    }
+    limparSelecao();
+    return;
+  }
+  if (ui.visorAberto()) ui.fecharVisor({ efeito: true });
+});
 
 // A tela de fotos sem data tem endereço próprio: #sem-data.
 window.addEventListener('hashchange', aplicarRota);

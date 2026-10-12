@@ -284,6 +284,47 @@ h2:focus {
   padding-bottom: var(--e7);
 }
 
+body.modo-selecao .pagina {
+  padding-bottom: calc(var(--e7) + 104px + env(safe-area-inset-bottom));
+}
+
+.barra-selecao {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  padding: var(--e3) var(--margem) calc(var(--e3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--trilho);
+  background: color-mix(in srgb, var(--superficie) 96%, transparent);
+  box-shadow: 0 -8px 24px color-mix(in srgb, var(--fundo) 35%, transparent);
+}
+
+.barra-selecao__conteudo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2) var(--e4);
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.barra-selecao__contagem {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.barra-selecao__acoes {
+  display: flex;
+  gap: var(--e2);
+}
+
+body.modo-selecao .uso {
+  display: none;
+}
+
 /* Rodapé do site: a versão do app e o caminho para as novidades. Fica no fim da página, com
    folga embaixo para a pílula de uso, que flutua por cima, não encobrir nada. */
 .rodape {
@@ -827,6 +868,12 @@ html {
 
 /* Grade */
 
+.selecao-topo {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--e3);
+}
+
 /* O número de colunas vem da largura da tela, e o quadro ocupa a fatia exata dele.
    Assim a miniatura cresce com a tela e a linha cheia fecha rente à borda. */
 .dias {
@@ -848,6 +895,34 @@ html {
 .dia__titulo {
   font-size: var(--fonte-pequena);
   font-weight: 600;
+}
+
+.dia__cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+}
+
+.dia__selecao {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+body.modo-selecao .dia__selecao {
+  display: flex;
+}
+
+.dia__selecao input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--azul);
 }
 
 .grade {
@@ -903,6 +978,7 @@ html {
 
 /* O quadro inteiro é o botão que abre a foto. */
 .grade__botao {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -912,6 +988,57 @@ html {
   background: none;
   color: inherit;
   cursor: pointer;
+}
+
+.grade--selecao .grade__botao {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.grade--selecao .grade__botao::before,
+.grade--selecao .grade__botao::after {
+  position: absolute;
+  z-index: 1;
+  top: var(--e2);
+  right: var(--e2);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+
+.grade--selecao .grade__botao::before {
+  border: 2px solid white;
+  background: color-mix(in srgb, var(--fundo) 55%, transparent);
+  box-shadow: 0 1px 5px color-mix(in srgb, var(--fundo) 60%, transparent);
+}
+
+.grade--selecao .grade__quadro--selecionado .grade__botao::before {
+  border-color: var(--azul);
+  background: var(--azul);
+}
+
+.grade--selecao .grade__botao::after {
+  top: calc(var(--e2) + 6px);
+  right: calc(var(--e2) + 8px);
+  width: 8px;
+  height: 12px;
+  border: solid var(--fundo);
+  border-width: 0 2px 2px 0;
+  border-radius: 0;
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+.grade--selecao .grade__quadro--selecionado .grade__botao::after {
+  opacity: 1;
+}
+
+.grade--selecao .grade__botao:hover .grade__imagem {
+  transform: none;
 }
 
 /* O quadro corta o que passa dele, então o contorno de foco vai para dentro. */
