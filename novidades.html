@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="robots" content="noindex">
+  <title>Novidades · Drive Fotos</title>
+  <link rel="icon" type="image/svg+xml" href="src/logo.svg">
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos</p>
+  </header>
+
+  <main class="pagina">
+    <section class="tela novidades">
+      <div class="tela__cabeca">
+        <a class="botao botao--secundario voltar" href="./">
+          <svg class="voltar__seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          Voltar para as fotos
+        </a>
+        <div>
+          <h1 class="tela__titulo">Novidades</h1>
+          <p class="texto-suave">Tudo o que entrou no Drive Fotos, da versão mais nova para a mais antiga.</p>
+          <p class="texto-suave texto-pequeno" id="novidades-atual"></p>
+        </div>
+      </div>
+      <ol class="novidades__lista" id="novidades-lista" reversed></ol>
+    </section>
+  </main>
+
+  <script type="module" src="src/novidades.js"></script>
+</body>
+</html>
