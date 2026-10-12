@@ -53,6 +53,19 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
 - **Fica de fora do `cloud-files`:** trial, barra de espaço livre e backend. Aqui o envio é
   o commit direto no repositório de dados.
 
+## Visualização
+
+No molde do Google Fotos.
+
+- **Grade:** a tela inicial é a grade de fotos, da mais recente para a mais antiga,
+  agrupada por data.
+- **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no X, no Esc ou no voltar
+  do navegador.
+- **Navegar:** com a foto aberta, deslizar no celular ou usar as setas no teclado passa
+  para a anterior e a próxima.
+- A grade precisa ser leve, e a foto aberta mostra o blob original. Isso depende da decisão
+  de miniaturas, abaixo.
+
 ## Em aberto
 
 - Nome do repositório de dados (sugestão: `drive-fotos-dados`).
@@ -65,7 +78,9 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
   arquivo, para o `nome` poder mudar sem mover o blob).
 - Quais são as referências básicas além de data, tamanho e tipo.
 - Miniaturas: gerar no navegador e subir junto com a original, ou carregar sempre a
-  original.
+  original. Como o repositório é privado, a imagem não abre por URL direta: o app baixa o
+  blob com o token e monta a imagem. Sem miniatura, a grade baixa todas as originais.
+- Agrupamento da grade: por dia ou por mês, e se a data é a da foto (EXIF) ou a do envio.
 - Reduzir a imagem antes de subir ou guardar o arquivo original. A API de Contents recebe o
   arquivo em base64, o que pesa em foto grande, e o GitHub recomenda repositório abaixo de
   1 GB.
