@@ -390,7 +390,7 @@ let camadaDoAmbiente = 0;
 let fechando = false;
 const analises = new Map(); // sha da miniatura -> { paleta, luminancia }
 
-const cromo = () => [$('visor-topo'), $('visor-anterior'), $('visor-proxima'), $('visor-painel')];
+const cromo = () => [$('visor-topo'), $('visor-anterior'), $('visor-proxima'), $('visor-painel'), $('visor-rodape')];
 
 export function visorAberto() {
   return $('visor').open;
@@ -546,6 +546,7 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('visor-erro').hidden = true;
   $('visor-carregando').hidden = false;
   $('painel-analise').hidden = true;
+  avisoNoVisor(null);
   ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null };
   renderFicha();
   ajustarFoto();
@@ -671,7 +672,88 @@ export function erroNoVisor(mensagem, { podeTentar }) {
   $('visor-tentar').hidden = !podeTentar;
 }
 
+// Ações da foto aberta: baixar, renomear e apagar.
+
+export function avisoNoVisor(mensagem) {
+  $('visor-aviso').hidden = !mensagem;
+  $('visor-aviso').textContent = mensagem ?? '';
+}
+
+export function baixarOcupado(ocupado) {
+  $('visor-baixar').disabled = ocupado;
+  $('visor-baixar').textContent = ocupado ? 'Baixando...' : 'Baixar';
+}
+
+// O nome se edita sem a extensão, que fica ao lado: trocar ".jpg" por engano quebraria o arquivo baixado.
+export function abrirRenomear(base, extensao) {
+  $('renomear-nome').value = base;
+  $('renomear-extensao').textContent = extensao;
+  $('renomear-extensao').hidden = !extensao;
+  erroNoRenomear(null);
+  renomearOcupado(false);
+  $('renomear').showModal();
+  $('renomear-nome').select();
+}
+
+export function fecharRenomear() {
+  if ($('renomear').open) $('renomear').close();
+}
+
+export function erroNoRenomear(mensagem) {
+  $('renomear-erro').hidden = !mensagem;
+  $('renomear-erro').textContent = mensagem ?? '';
+  $('renomear-nome').setAttribute('aria-invalid', String(Boolean(mensagem)));
+}
+
+export function renomearOcupado(ocupado) {
+  $('renomear-salvar').disabled = ocupado;
+  $('renomear-salvar').textContent = ocupado ? 'Salvando...' : 'Salvar';
+}
+
+export function abrirApagar() {
+  erroNoApagar(null);
+  apagarOcupado(false);
+  $('apagar').showModal();
+}
+
+export function fecharApagar() {
+  if ($('apagar').open) $('apagar').close();
+}
+
+export function erroNoApagar(mensagem) {
+  $('apagar-erro').hidden = !mensagem;
+  $('apagar-erro').textContent = mensagem ?? '';
+}
+
+export function apagarOcupado(ocupado) {
+  $('apagar-confirmar').disabled = ocupado;
+  $('apagar-confirmar').textContent = ocupado ? 'Apagando...' : 'Apagar foto';
+}
+
+function ligarAcoesDaFoto(acoes) {
+  $('visor-baixar').addEventListener('click', acoes.baixarFoto);
+  $('visor-renomear').addEventListener('click', acoes.pedirRenomear);
+  $('visor-apagar').addEventListener('click', acoes.pedirApagar);
+  $('renomear-form').addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    acoes.salvarNome($('renomear-nome').value.trim(), $('renomear-extensao').textContent);
+  });
+  $('renomear-cancelar').addEventListener('click', fecharRenomear);
+  $('apagar-form').addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    acoes.apagarFoto();
+  });
+  $('apagar-cancelar').addEventListener('click', fecharApagar);
+  // Clicar fora do diálogo cancela, como no de sair.
+  for (const dialogo of [$('renomear'), $('apagar')]) {
+    dialogo.addEventListener('click', (evento) => {
+      if (evento.target === dialogo) dialogo.close();
+    });
+  }
+}
+
 function ligarVisor(acoes) {
+  ligarAcoesDaFoto(acoes);
   const visor = $('visor');
   $('grade').addEventListener('click', (evento) => {
     const quadro = evento.target.closest('.grade__botao')?.closest('[data-id]');
@@ -693,6 +775,7 @@ function ligarVisor(acoes) {
     acoes.fotoFechada();
   });
   visor.addEventListener('keydown', (evento) => {
+    if (evento.target.closest('input, textarea')) return;
     if (evento.key === 'ArrowLeft') acoes.passarFoto(-1);
     if (evento.key === 'ArrowRight') acoes.passarFoto(1);
     if (evento.key === 'i' || evento.key === 'I') alternarPainel();

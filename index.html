@@ -123,6 +123,42 @@
         </div>
       </aside>
     </div>
+    <div class="visor__rodape" id="visor-rodape">
+      <p class="campo__erro" id="visor-aviso" role="alert" hidden></p>
+      <div class="visor__botoes">
+        <button type="button" class="botao botao--fantasma" id="visor-baixar">Baixar</button>
+        <button type="button" class="botao botao--fantasma" id="visor-renomear">Renomear</button>
+        <button type="button" class="botao botao--fantasma" id="visor-apagar">Apagar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="dialogo" id="renomear" aria-labelledby="renomear-titulo">
+    <form id="renomear-form" novalidate>
+      <h2 class="tela__titulo" id="renomear-titulo">Renomear foto</h2>
+      <label class="campo__rotulo" for="renomear-nome">Nome</label>
+      <div class="campo-com-sufixo">
+        <input class="campo" id="renomear-nome" type="text" autocomplete="off" spellcheck="false" maxlength="120" aria-describedby="renomear-erro">
+        <span class="texto-suave" id="renomear-extensao"></span>
+      </div>
+      <p class="campo__erro" id="renomear-erro" hidden></p>
+      <div class="pilha">
+        <button type="submit" class="botao botao--primario" id="renomear-salvar">Salvar</button>
+        <button type="button" class="botao botao--fantasma" id="renomear-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="apagar" aria-labelledby="apagar-titulo">
+    <form id="apagar-form">
+      <h2 class="tela__titulo" id="apagar-titulo">Apagar esta foto?</h2>
+      <p class="texto-suave">Ela some do app e deste aparelho. No repositório, continua no histórico: o espaço não é liberado.</p>
+      <p class="campo__erro" id="apagar-erro" role="alert" hidden></p>
+      <div class="pilha">
+        <button type="submit" class="botao botao--perigo" id="apagar-confirmar">Apagar foto</button>
+        <button type="button" class="botao botao--fantasma" id="apagar-cancelar" autofocus>Cancelar</button>
+      </div>
+    </form>
   </dialog>
 
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">

@@ -92,6 +92,25 @@ export function paraBase64(blob) {
   });
 }
 
+const TIPO_DA_EXTENSAO = Object.fromEntries(Object.entries(EXTENSAO_DO_TIPO).map(([tipo, extensao]) => [extensao, tipo]));
+
+export function tipoDaExtensao(extensao) {
+  return TIPO_DA_EXTENSAO[extensao] ?? (extensao === 'jpeg' ? 'image/jpeg' : 'application/octet-stream');
+}
+
+// "praia.de.itapua.jpg" -> ["praia.de.itapua", ".jpg"]. Sem extensão, o segundo vem vazio.
+export function separarNome(nome) {
+  const partes = /^(.*?)(\.[0-9a-z]{1,5})?$/i.exec(nome);
+  return partes[1] ? [partes[1], partes[2] ?? ''] : [nome, ''];
+}
+
+// Texto em base64, com acento e tudo.
+export function textoParaBase64(texto) {
+  let binario = '';
+  for (const byte of new TextEncoder().encode(texto)) binario += String.fromCharCode(byte);
+  return btoa(binario);
+}
+
 export function caminhos(id, extensao) {
   const ano = id.slice(0, 4);
   return {
