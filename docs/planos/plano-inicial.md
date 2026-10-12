@@ -480,8 +480,11 @@ vez dele.
 - [x] A data de envio deve ser isolada da data de criação. Feito no Épico 8.
   - [x] Enviei hoje uma imagem de 2015, deve salvar em 2015.
 - [x] Botão de atualizar igual ao do `beba-agua`. Feito no Épico 9.
-- [ ] Melhorar a performance no envio das imagens. Primeira rodada feita em 2026-10-12:
-  lote, ponta reaproveitada e subida em paralelo. Em teste.
+- [x] Melhorar a performance no envio das imagens. Feito em 2026-10-12: commit por lote,
+  ponta reaproveitada e original e miniatura subindo juntas.
+- [ ] Criar um link de download direto para enviar a alguém.
+  - [ ] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
+    vencer, um novo é criado e enviado de novo.
 - [ ] Rodar a análise de gaps.
 - [ ] Revisar todos os arquivos.
 - [ ] Remover todos os comentários.
