@@ -472,6 +472,39 @@ Pedido em 2026-10-12 e feito no mesmo dia.
   cheio atualiza, e o anel gira até terminar. Só vale com a página no topo e sem diálogo
   aberto.
 
+### Épico 10: Link de download para enviar a alguém
+
+Pedido em 2026-10-12. Branch `link-de-download`. Em análise.
+
+- **O pedido:** gerar um link de uma foto para mandar a outra pessoa. Quem recebe clica e o
+  download começa, sem conta no GitHub. O link pode ser temporário: se vencer, gera-se outro.
+- **De onde vem o link.** O repositório de dados é privado, então o endereço comum do
+  arquivo só abre para quem tem acesso. A API do GitHub devolve, para cada arquivo, um
+  endereço temporário em `raw.githubusercontent.com`, com uma chave de vida curta, que
+  abre sem login. O app pede esse endereço com o token que já tem (`linkTemporario`, em
+  `src/github.js`).
+- **Por que o endereço sozinho não basta.** Aberto direto, ele mostra a imagem no navegador
+  em vez de baixar, e o arquivo sai com o nome do `id`, não com o nome da foto. O GitHub não
+  manda o cabeçalho que força o download.
+- **A página de download.** O link enviado aponta para uma página do próprio app
+  (`baixar.html`), que recebe o endereço temporário e o nome da foto, baixa o arquivo e
+  dispara o download com o nome certo. Não pede login.
+  - Quando o navegador segura o download automático (acontece em navegador embutido de
+    aplicativo de mensagem), a página mostra a foto e um botão "Baixar".
+  - Link vencido: a página diz que venceu e pede um novo a quem enviou.
+- **Na foto aberta:** um botão "Copiar link", ao lado de "Baixar".
+- **Verificado em 2026-10-12, na base de testes:**
+  - o app conseguiu o endereço temporário de um arquivo de 3,9 MB em 0,4 s;
+  - o endereço baixou o arquivo inteiro sem login e a partir de outro site, que é o que a
+    página de download precisa;
+  - sem a chave, o mesmo endereço responde 404.
+- **Em aberto:**
+  - Quanto tempo o endereço vale. Ver a medida no fim da análise.
+  - A chave fica visível no link. Quem tiver o link baixa aquela foto enquanto ele valer,
+    e nenhuma outra.
+- **Pronto quando:** copiar o link de uma foto, abrir numa janela anônima e o arquivo
+  baixar com o nome da foto; e um link vencido mostrar a mensagem certa.
+
 ## Pendências
 
 Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
@@ -482,7 +515,7 @@ vez dele.
 - [x] Botão de atualizar igual ao do `beba-agua`. Feito no Épico 9.
 - [x] Melhorar a performance no envio das imagens. Feito em 2026-10-12: commit por lote,
   ponta reaproveitada e original e miniatura subindo juntas.
-- [ ] Criar um link de download direto para enviar a alguém.
+- [ ] Criar um link de download direto para enviar a alguém. É o Épico 10.
   - [ ] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
 - [ ] Rodar a análise de gaps.
@@ -509,6 +542,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 7 | Fotos duplicadas | 1 dia | 3 e 5 |
 | 8 | Data da foto separada da data de envio | 1 dia | 3 |
 | 9 | Botão de atualizar | 0,5 dia | 6 |
+| 10 | Link de download para enviar a alguém | 0,5 dia | 5 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
