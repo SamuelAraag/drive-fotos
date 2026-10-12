@@ -8,14 +8,20 @@ navegador.
 
 ## Decisões
 
-- **Dois repositórios.**
-  - `drive-fotos`: público, só a interface. Nunca recebe imagem nem dado.
-  - `drive-fotos-dados`: privado. Funciona como banco de dados, e é onde moram os blobs e
-    os registros. Tudo que é privado fica nele.
+- **Dois repositórios, em duas contas do GitHub.**
+  - `drive-fotos`: público, na conta principal. Só a interface, em HTML, CSS e JS. Não
+    sobe servidor, não guarda imagem nem dado, só mostra o que lê do outro repositório.
+  - `drive-fotos-dados`: privado, numa conta separada, criada só para isso. Funciona como
+    banco de dados, e é onde moram os blobs e os registros. Tudo que é privado fica nele.
+- **Por que uma conta separada:** se o GitHub limitar ou suspender por uso de espaço, quem
+  é atingida é a conta das fotos, e não a do portfólio e dos projetos de carreira. Os
+  commits de envio também saem em nome dela, e não pintam o gráfico de contribuições da
+  conta principal.
 - **Diferença para o `beba-agua`:** lá os dados ficam numa branch do mesmo repositório do
-  app. Aqui os dados ficam em outro repositório.
-- **Token:** fine-grained, com acesso só ao repositório de dados, Contents em "Read and
-  write". É o token que protege as fotos: sem ele, a interface pública não lê nada.
+  app. Aqui os dados ficam em outro repositório, de outra conta.
+- **Token:** fine-grained, gerado na conta separada, com acesso só ao `drive-fotos-dados`,
+  Contents em "Read and write". É o token que protege as fotos: sem ele, a interface
+  pública não lê nada. A conta principal não tem acesso nenhum ao repositório de dados.
 - **Cada foto é um commit no repositório de dados**, com três arquivos:
   - o blob, que é a foto de fato e o asset mais importante, guardado intacto;
   - a miniatura, gerada no navegador;
@@ -228,6 +234,13 @@ testar na tela.
   aparece.
 
 ## Em aberto
+
+- Nome da conta separada. Enquanto ela não existe, o dono do `drive-fotos-dados` fica
+  indefinido no código.
+- Onde o app aprende o dono do repositório de dados: fixo no código, que é público e
+  revelaria a conta, ou digitado no login junto com o token e guardado no navegador.
+- Origem do app: servido pelo GitHub Pages da conta principal, ele divide o armazenamento
+  do navegador com os outros sites dela. A conta separada não resolve isso.
 
 - Progresso por foto: mostrar só o estado de cada item, ou barra de percentual, que exige
   `XMLHttpRequest` no lugar de `fetch`. O Épico 3 começa só com o estado.

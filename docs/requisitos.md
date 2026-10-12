@@ -45,8 +45,11 @@ Nada é bloqueado na hora. O risco é sobre a conta, não sobre o repositório:
   de outros usuários.
 - A documentação diz que o Git "não foi projetado para servir como ferramenta de backup".
 
-A conta em risco é a mesma do portfólio e dos projetos de carreira. Com um usuário só,
-poucos GB e pouco tráfego, a chance é baixa, mas o custo de uma suspensão é alto.
+Decisão de 2026-10-12: o repositório de dados fica numa conta separada, criada só para
+isso, para que uma ação do GitHub não atinja a conta do portfólio e dos projetos de
+carreira. Os termos do GitHub permitem uma conta pessoal gratuita por pessoa, mais uma
+conta de máquina gratuita, "usada exclusivamente para tarefas automatizadas". A conta
+separada se apoia nessa segunda regra.
 
 ### Contas que saem desses números
 
@@ -107,7 +110,7 @@ poucos GB e pouco tráfego, a chance é baixa, mas o custo de uma suspensão é 
 | RG05 | Lote grande vai em commits de várias fotos, não um commit por foto | 500 escritas por hora |
 | RG06 | No máximo 6 downloads de miniatura ao mesmo tempo | Requisições simultâneas |
 | RG07 | Repositório de dados criado com um commit inicial antes do primeiro uso | A API de Git Data recusa repositório vazio |
-| RG08 | Dados numa branch que não é a principal | Não pintar o gráfico de contribuições |
+| RG08 | Repositório de dados numa conta separada, com o token gerado nela | Isolar a conta principal de limite ou suspensão |
 | RG09 | Sem vídeo | 100 MiB por arquivo e consumo de espaço |
 | RG10 | Cópia de segurança fora do GitHub, por `git clone` periódico | O GitHub pode limitar ou apagar com aviso |
 
@@ -117,7 +120,8 @@ poucos GB e pouco tráfego, a chance é baixa, mas o custo de uma suspensão é 
    precisa entrar no MVP.
 2. iPhone ou Android. No iPhone, a data do arquivo tende a ser a do envio, e a foto chega
    convertida para JPEG.
-3. Domínio do app: padrão do GitHub Pages ou próprio (RNF05).
+3. Domínio do app: padrão do GitHub Pages ou próprio (RNF05). A conta separada não resolve
+   isso, porque a interface continua na conta principal.
 4. RG05 muda a decisão "cada foto é um commit". Alternativa: manter um commit por foto e
    aceitar cerca de 100 fotos por hora.
 
@@ -127,7 +131,7 @@ O RG02 já está no plano, com pastas por ano. Se aceitos, os demais mudam o pla
 pontos:
 
 - o repositório de dados deixa de ser fixo no código (RG04);
-- a gravação passa para uma branch própria (RG08);
+- o repositório de dados fica numa conta separada (RG08), já no plano;
 - entra um épico zero de preparo: repositórios, commit inicial, branch, token e hospedagem
   (RG07).
 
