@@ -172,6 +172,17 @@ export async function lerBlob(sha) {
   return resposta.blob();
 }
 
+// Endereço temporário de um arquivo do repositório, que abre sem login: o GitHub põe nele uma
+// chave de vida curta. Serve para mandar a foto a quem não tem acesso ao repositório.
+// O formato "object" é o que devolve o endereço também para arquivo de mais de 1 MB.
+export async function linkTemporario(caminho) {
+  const partes = caminho.split('/').map(encodeURIComponent).join('/');
+  const resposta = await requisitar(`/contents/${partes}?ref=${encodeURIComponent(BRANCH)}`, {
+    headers: { Accept: 'application/vnd.github.object+json' },
+  });
+  return (await resposta.json()).download_url ?? null;
+}
+
 async function enviar(metodo, caminho, corpo) {
   const resposta = await requisitar(caminho, {
     method: metodo,

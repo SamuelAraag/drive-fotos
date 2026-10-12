@@ -350,6 +350,39 @@ async function baixarFoto() {
   }
 }
 
+// Link para mandar a foto a outra pessoa, copiado direto para a área de transferência. O GitHub
+// dá um endereço temporário do arquivo, que abre sem login, e o link aponta para a página de
+// download do app, que baixa com o nome certo.
+async function copiarLink() {
+  const item = fotoAberta();
+  if (!item) return;
+  ui.avisoNoVisor(null);
+  ui.estadoDoLink('copiando');
+  const link = (async () => {
+    const [endereco, registro] = await Promise.all([github.linkTemporario(foto.caminhos(item.id, item.ext).blob), lerRegistro(item)]);
+    if (!endereco) throw new Error('sem endereço');
+    const pagina = new URL('baixar.html', location.href);
+    pagina.hash = new URLSearchParams({ u: endereco, n: nomeDaFoto(item, registro) }).toString();
+    return pagina.href;
+  })();
+  // A cópia começa já, no toque, com o link ainda por chegar.
+  const copiou = ui.copiarTexto(link);
+  try {
+    await link;
+  } catch (erro) {
+    ui.estadoDoLink(null);
+    if (tokenVenceu(erro)) return;
+    ui.avisoNoVisor(mensagemDe(erro, 'Não deu para gerar o link. Tente de novo.'));
+    return;
+  }
+  if (await copiou) {
+    ui.estadoDoLink('copiado');
+  } else {
+    ui.estadoDoLink(null);
+    ui.avisoNoVisor('O link foi gerado, mas o navegador não deixou copiar. Toque em "Copiar link" de novo.');
+  }
+}
+
 async function pedirRenomear() {
   const item = fotoAberta();
   if (!item) return;
@@ -1248,6 +1281,7 @@ ui.ligarEventos({
   atualizar: atualizarAgora,
   datar,
   baixarFoto,
+  copiarLink,
   pedirRenomear,
   salvarNome,
   pedirApagar,

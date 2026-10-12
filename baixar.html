@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Baixar foto · Drive Fotos</title>
+  <link rel="icon" type="image/svg+xml" href="src/logo.svg">
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos</p>
+  </header>
+
+  <main class="pagina">
+    <section class="tela tela--centro" id="baixar-preparando">
+      <div class="girador" aria-hidden="true"></div>
+      <h1 class="tela__titulo">Preparando o download</h1>
+      <p class="texto-suave" role="status">Buscando a foto...</p>
+    </section>
+
+    <section class="tela tela--centro" id="baixar-pronta" hidden>
+      <img class="baixar__previa" id="baixar-previa" alt="">
+      <div>
+        <h1 class="tela__titulo baixar__nome" id="baixar-nome"></h1>
+        <p class="texto-suave texto-pequeno" id="baixar-tamanho"></p>
+      </div>
+      <div class="pilha">
+        <a class="botao botao--primario baixar__botao" id="baixar-link">Baixar</a>
+      </div>
+      <p class="texto-suave texto-pequeno" role="status">O download começa sozinho. Se não começar, toque em "Baixar".</p>
+    </section>
+
+    <section class="tela tela--centro" id="baixar-erro" hidden>
+      <h1 class="tela__titulo" id="baixar-erro-titulo"></h1>
+      <p class="texto-suave" id="baixar-erro-texto" role="alert"></p>
+      <div class="pilha">
+        <button type="button" class="botao botao--primario" id="baixar-de-novo" hidden>Tentar de novo</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/baixar.js"></script>
+</body>
+</html>

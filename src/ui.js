@@ -684,6 +684,8 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('visor-carregando').hidden = false;
   $('painel-analise').hidden = true;
   avisoNoVisor(null);
+  estadoDoLink(null);
+  confirmarNoVisor(null);
   ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null, origem: null, enviadaEm: null };
   renderFicha();
   ajustarFoto();
@@ -896,7 +898,59 @@ export function apagarOcupado(ocupado) {
   $('apagar-confirmar').textContent = ocupado ? 'Apagando...' : 'Apagar foto';
 }
 
+// "Copiar link" manda o link direto para a área de transferência, sem diálogo. O link ainda
+// está sendo gerado quando a pessoa toca, e o Safari só deixa copiar no toque: por isso o
+// texto vai como promessa. Devolve se copiou.
+export async function copiarTexto(promessa) {
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      const comoArquivo = promessa.then((texto) => new Blob([texto], { type: 'text/plain' }));
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': comoArquivo })]);
+      return true;
+    } catch {
+      // navegador que não aceita promessa aqui: tenta do jeito simples, logo abaixo
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(await promessa);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let fimDaConfirmacao = null;
+
+// Confirmação no meio da foto aberta, que some sozinha. Sem texto, some na hora.
+export function confirmarNoVisor(texto) {
+  clearTimeout(fimDaConfirmacao);
+  const confirmacao = $('visor-confirmacao');
+  confirmacao.hidden = true;
+  if (!texto) return;
+  $('visor-confirmacao-texto').textContent = texto;
+  // Mostrar de novo é o que faz a animação de entrada tocar a cada confirmação.
+  void confirmacao.offsetWidth;
+  confirmacao.hidden = false;
+  fimDaConfirmacao = setTimeout(() => (confirmacao.hidden = true), 2500);
+}
+
+let voltaDoLink = null; // temporizador que devolve o botão ao texto normal
+
+// estado: 'copiando' | 'copiado' | null
+export function estadoDoLink(estado) {
+  clearTimeout(voltaDoLink);
+  const botao = $('visor-link');
+  botao.disabled = estado === 'copiando';
+  botao.textContent = estado === 'copiando' ? 'Copiando...' : estado === 'copiado' ? 'Link copiado' : 'Copiar link';
+  // A confirmação aparece no meio da foto e no próprio botão, e depois os dois voltam ao normal.
+  if (estado === 'copiado') {
+    confirmarNoVisor('Link copiado');
+    voltaDoLink = setTimeout(() => estadoDoLink(null), 2500);
+  }
+}
+
 function ligarAcoesDaFoto(acoes) {
+  $('visor-link').addEventListener('click', acoes.copiarLink);
   $('visor-baixar').addEventListener('click', acoes.baixarFoto);
   $('visor-renomear').addEventListener('click', acoes.pedirRenomear);
   $('visor-apagar').addEventListener('click', acoes.pedirApagar);
