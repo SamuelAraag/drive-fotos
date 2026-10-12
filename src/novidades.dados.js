@@ -4,6 +4,17 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.8.0',
+    quando: '2026-10-12T19:32',
+    titulo: 'Traga uma pasta inteira de fotos do computador',
+    mudancas: [
+      '"Backup de uma pasta" lê a pasta que você escolher, com as subpastas. Antes de enviar, mostra quantas fotos vão subir.',
+      'Foto que já está no Drive Fotos não sobe de novo, e cada arquivo que fica de fora aparece com o motivo.',
+      'Três fotos sobem ao mesmo tempo, e você pode pausar, retomar ou cancelar.',
+      'No fim, um relatório para baixar diz o que aconteceu com cada arquivo.',
+    ],
+  },
+  {
     versao: '1.7.0',
     quando: '2026-10-12T17:52',
     titulo: 'Apague várias fotos de uma vez',
@@ -138,7 +149,7 @@ export const NOVIDADES = [
     quando: '2026-10-12T12:12',
     titulo: 'Entre com um token que fica só no seu navegador',
     mudancas: [
-      'O login é um token do GitHub, guardado só no navegador.',
+      'O login é um token do GitHub.',
       'Token inválido, falta de permissão e repositório ausente têm cada um a sua mensagem.',
       '"Sair" pede confirmação e apaga o token e as fotos guardadas no aparelho.',
     ],

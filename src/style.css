@@ -514,6 +514,7 @@ body.modo-selecao .uso {
   color: inherit;
   font: inherit;
   cursor: pointer;
+  text-decoration: none;
   touch-action: manipulation;
   transition: background-color var(--rapido), transform var(--rapido), opacity var(--rapido);
 }
@@ -864,6 +865,124 @@ html {
   flex: none;
   color: var(--texto);
   font-weight: 700;
+}
+
+.backup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+  padding: var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.backup__abrir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-bottom: var(--e3);
+}
+
+.backup-pagina {
+  max-width: 760px;
+  padding-bottom: var(--e7);
+}
+
+.backup-pagina__cabeca {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin-bottom: var(--e5);
+}
+
+.backup-pagina .topo > .botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backup__acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--e2);
+}
+
+.backup__titulo {
+  font-size: var(--fonte-titulo);
+  font-weight: 600;
+}
+
+.backup__resumo,
+.backup__andamento,
+.backup__escolha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+}
+
+.backup__detalhes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+}
+
+.backup__detalhes:empty {
+  display: none;
+}
+
+.backup summary {
+  padding: var(--e2) 0;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.backup-pagina > .aviso {
+  margin-bottom: var(--e4);
+}
+
+.backup__repetidas-lista,
+.backup__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+}
+
+.backup__repetidas-lista label,
+.backup__lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e2);
+  overflow-wrap: anywhere;
+}
+
+.backup__repetidas-lista input {
+  flex: none;
+  margin-top: 0.35em;
+}
+
+.backup__lista li {
+  justify-content: space-between;
+  padding-bottom: var(--e2);
+  border-bottom: 1px solid var(--trilho);
+}
+
+.backup__lista li span:first-child {
+  min-width: 0;
+}
+
+.backup__lista li span:last-child {
+  color: var(--texto-suave);
+  text-align: right;
+}
+
+.backup progress {
+  width: 100%;
+  height: 0.75rem;
+  accent-color: var(--azul);
 }
 
 /* Grade */

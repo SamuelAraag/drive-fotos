@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="robots" content="noindex">
+  <title>Backup do acervo · Drive Fotos</title>
+  <link rel="icon" type="image/svg+xml" href="src/logo.svg">
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos</p>
+    <a class="botao botao--fantasma" href="index.html">Voltar às fotos</a>
+  </header>
+
+  <main class="pagina backup-pagina">
+    <section class="backup-pagina__cabeca">
+      <h1 class="tela__titulo">Backup do computador</h1>
+      <p class="texto-suave">Envie imagens do computador enquanto esta aba estiver aberta.</p>
+    </section>
+
+    <section class="aviso" id="backup-interrompido" hidden role="status">
+      Um backup anterior foi interrompido. Escolha a mesma pasta de novo: o que já foi enviado não sobe outra vez.
+    </section>
+
+    <section class="backup" id="backup-login" hidden>
+      <h2 class="tela__titulo">Entrar no Drive Fotos</h2>
+      <p class="texto-suave">O token já salvo neste navegador será usado. Se não houver token, cole um com permissão de leitura e gravação.</p>
+      <form class="backup__escolha" id="backup-login-form">
+        <label for="backup-token">Token do GitHub</label>
+        <input class="campo" id="backup-token" type="password" autocomplete="off" spellcheck="false">
+        <p class="campo__erro" id="backup-login-erro" role="alert" hidden></p>
+        <button class="botao botao--primario" id="backup-login-entrar" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <section class="backup" id="backup-conteudo" hidden>
+      <p class="campo__erro" id="backup-erro" role="alert" hidden></p>
+      <div class="backup__escolha" id="backup-escolha">
+        <h2 class="backup__titulo">Selecione uma origem</h2>
+        <div class="backup__acoes">
+          <button type="button" class="botao botao--primario" id="backup-escolher-pasta">Escolher pasta</button>
+          <button type="button" class="botao botao--secundario" id="backup-escolher-arquivos">Escolher arquivos</button>
+        </div>
+        <input type="file" id="backup-entrada-pasta" multiple webkitdirectory hidden>
+        <input type="file" id="backup-entrada-arquivos" multiple hidden>
+        <p class="texto-suave texto-pequeno" id="backup-limite-navegador" hidden>Este navegador não permite escolher pastas. Escolha várias imagens pelo seletor de arquivos.</p>
+        <p class="texto-suave texto-pequeno">Pastas incluem as subpastas. Imagens acima de 25 MB, vídeos e outros arquivos serão ignorados. A pasta original não será alterada.</p>
+      </div>
+
+      <div class="backup__resumo" id="backup-resumo" hidden>
+        <h2 class="backup__titulo" id="backup-resumo-titulo" tabindex="-1"></h2>
+        <p class="texto-suave" id="backup-resumo-texto"></p>
+        <ul class="backup__detalhes texto-suave texto-pequeno" id="backup-detalhes"></ul>
+        <div id="backup-repetidas" hidden>
+          <p>O conteúdo destas fotos já existe com outro nome. Marque as que deseja manter como cópias:</p>
+          <ul class="backup__repetidas-lista" id="backup-repetidas-lista"></ul>
+        </div>
+        <details id="backup-ignorados" hidden>
+          <summary id="backup-ignorados-titulo"></summary>
+          <ul class="backup__lista texto-pequeno" id="backup-ignorados-lista"></ul>
+        </details>
+        <p class="campo__erro" id="backup-limite" role="alert" hidden></p>
+        <div class="backup__acoes">
+          <button type="button" class="botao botao--primario" id="backup-iniciar" disabled>Iniciar backup</button>
+          <button type="button" class="botao botao--secundario" id="backup-nova-escolha">Escolher outra origem</button>
+          <button type="button" class="botao botao--fantasma" id="backup-relatorio-resumo" hidden>Baixar relatório da conferência</button>
+        </div>
+      </div>
+
+      <div class="backup__andamento" id="backup-andamento" hidden>
+        <p id="backup-status" role="status" aria-live="polite"></p>
+        <p class="texto-suave texto-pequeno" id="backup-atual"></p>
+        <progress id="backup-progresso" max="100" value="0"></progress>
+        <p class="texto-suave texto-pequeno" id="backup-contagem"></p>
+        <details id="backup-lista-detalhes">
+          <summary>Estado dos arquivos</summary>
+          <ul class="backup__lista" id="backup-lista"></ul>
+        </details>
+        <div class="backup__acoes">
+          <button type="button" class="botao botao--secundario" id="backup-pausar" hidden>Pausar</button>
+          <button type="button" class="botao botao--primario" id="backup-retomar-botao" hidden>Retomar</button>
+          <button type="button" class="botao botao--fantasma" id="backup-cancelar" hidden>Cancelar backup</button>
+          <button type="button" class="botao botao--fantasma" id="backup-tentar-erros" hidden>Tentar novamente os que falharam</button>
+          <button type="button" class="botao botao--fantasma" id="backup-relatorio" hidden>Baixar relatório</button>
+          <button type="button" class="botao botao--fantasma" id="backup-nova-escolha-final" hidden>Escolher outra origem</button>
+          <button type="button" class="botao botao--fantasma" id="backup-login-trocar">Trocar token</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/backup-app.js"></script>
+</body>
+</html>
