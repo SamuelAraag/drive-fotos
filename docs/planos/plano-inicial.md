@@ -153,9 +153,11 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
   da página envia. Vêm junto os três cuidados do `cloud-files`: contador de `dragenter` e
   `dragleave` para o véu não piscar, `preventDefault` no `dragover` para o navegador não
   abrir a foto numa aba, e filtro por `types` para só reagir a arquivo.
-- **Zona durante o envio:** mostra o nome da foto que está subindo e "Enviando 2 de 5", com
-  uma varredura de luz no lugar da barra, porque não há percentual por foto. No arraste,
-  um véu nasce da zona e cobre a tela, como no `cloud-files`.
+- **Zona durante o envio:** mostra o nome da foto que está subindo, "Enviando 2 de 5", o
+  percentual e uma barra. O percentual é real: os arquivos sobem por `XMLHttpRequest`, que
+  informa quanto já foi enviado, coisa que o `fetch` não faz. Antes do primeiro byte
+  ("Preparando...") e depois do último ("Concluindo..."), uma varredura de luz substitui o
+  número. No arraste, um véu nasce da zona e cobre a tela, como no `cloud-files`.
 - **Fila de envio:** uma foto por vez, em sequência. Não há histórico na tela: o que subiu
   aparece direto na grade, e a última foto enviada fica em destaque, com contorno, selo
   "Enviada agora" e um halo que se abre duas vezes.
@@ -358,5 +360,3 @@ A partir do dia 4 o app já é usável: entrar, enviar e ver.
   o limite real no Épico 3 antes de decidir.
 - **Foto repetida.** A árvore já traz a identidade de cada blob, então dá para detectar a
   mesma foto antes de enviar de novo. Entra no Épico 3 ou fica para depois.
-- **Progresso por foto.** Mostrar só o estado de cada item, ou barra de percentual, que
-  exige `XMLHttpRequest` no lugar de `fetch`. O Épico 3 começa só com o estado.

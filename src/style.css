@@ -311,10 +311,33 @@ h2:focus {
 
 .zona__detalhe {
   font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums; /* o percentual muda sem empurrar o texto */
 }
 
-/* Não há percentual por foto: a varredura de luz diz que o envio está andando. */
-.zona--enviando::after {
+.zona__barra {
+  display: block;
+  width: 100%;
+  max-width: 408px;
+  height: var(--e1);
+  margin-top: var(--e2);
+  overflow: hidden;
+  border-radius: var(--raio-pilula);
+  background: var(--trilho);
+}
+
+/* A barra cresce por transform, que não mexe no layout a cada avanço. */
+.zona__barra-cheia {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  background: var(--azul);
+  transform: scaleX(var(--progresso, 0));
+  transform-origin: left center;
+  transition: transform var(--rapido);
+}
+
+/* Sem número para mostrar (preparando ou concluindo), a varredura de luz diz que está andando. */
+.zona--varrendo::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -682,8 +705,12 @@ h2:focus {
     transition: none;
   }
 
-  .zona--enviando::after {
+  .zona--varrendo::after {
     display: none;
+  }
+
+  .zona__barra-cheia {
+    transition: none;
   }
 
   .veu,

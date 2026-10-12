@@ -21,6 +21,7 @@ let proximoItem = 1;
 let enviando = false;
 let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
+let progresso = 0; // de 0 a 1, da foto que está subindo agora
 let destaque = null; // id da última foto enviada nesta sessão, marcada na grade
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
@@ -91,7 +92,7 @@ function render() {
 }
 
 function renderFila() {
-  ui.renderFila(fila, { enviando, pausadaAte });
+  ui.renderFila(fila, { enviando, pausadaAte, progresso });
 }
 
 async function lerFotos() {
@@ -215,7 +216,10 @@ async function enviarFoto(item) {
   if (miniatura) arquivos.push({ caminho: caminhos.miniatura, base64: await foto.paraBase64(miniatura.blob) });
   arquivos.push({ caminho: caminhos.registro, texto: `${JSON.stringify(registro, null, 2)}\n` });
 
-  const shas = await github.gravar(arquivos, `foto: ${item.id}`);
+  const shas = await github.gravar(arquivos, `foto: ${item.id}`, (fracao) => {
+    progresso = fracao;
+    ui.renderProgresso(progresso);
+  });
 
   // A miniatura recém-gerada já serve para a grade, sem baixar de volta.
   const shaDaMiniatura = miniatura ? shas[caminhos.miniatura] : null;
@@ -246,6 +250,7 @@ async function bombear() {
     if (!item) break;
     item.estado = 'enviando';
     item.mensagem = null;
+    progresso = 0;
     renderFila();
     try {
       await enviarFoto(item);

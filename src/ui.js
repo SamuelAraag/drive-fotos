@@ -156,15 +156,37 @@ function resumoDaFila(itens, { enviando, pausadaAte }) {
 const TITULO_DA_ZONA = $('zona-titulo').textContent;
 const DETALHE_DA_ZONA = $('zona-detalhe').textContent;
 
+let posicaoNaFila = ''; // "Enviando 2 de 5", repetido ao lado do percentual
+
+// Chamado a cada avanço do envio, por isso mexe só na barra e no texto, sem redesenhar a fila.
+// Nas duas pontas não há número para mostrar: antes do primeiro byte a foto ainda está sendo
+// preparada, e com tudo enviado falta o GitHub fechar o commit. Aí a varredura de luz diz que
+// está andando, para a barra parada não parecer travada.
+export function renderProgresso(fracao) {
+  const percentual = Math.round(fracao * 100);
+  const fase = fracao <= 0 ? 'Preparando...' : fracao >= 0.95 && fracao < 1 ? 'Concluindo...' : `${percentual}%`;
+  $('zona-barra-cheia').style.setProperty('--progresso', fracao);
+  $('zona-barra').setAttribute('aria-valuenow', percentual);
+  $('zona-detalhe').textContent = `${posicaoNaFila} · ${fase}`;
+  $('zona').classList.toggle('zona--varrendo', fase.endsWith('...'));
+}
+
 // Não há histórico de envio: o que subiu aparece na grade, com a última em destaque.
 // Aqui ficam só as fotos que falharam, porque elas precisam do "Tentar de novo".
 export function renderFila(itens, situacao) {
   const atual = itens.find((item) => item.estado === 'enviando');
   const ocupada = Boolean(atual || situacao.pausadaAte);
   // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
-  $('zona').classList.toggle('zona--enviando', Boolean(atual));
   $('zona-titulo').textContent = atual ? atual.arquivo.name : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
+  posicaoNaFila = atual ? resumoDaFila(itens, situacao) : '';
   $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
+  $('zona-barra').hidden = !atual;
+  if (atual) {
+    $('zona-barra').setAttribute('aria-label', `Envio de ${atual.arquivo.name}`);
+    renderProgresso(situacao.progresso);
+  } else {
+    $('zona').classList.remove('zona--varrendo');
+  }
 
   const falhas = itens.filter((item) => item.estado === 'erro');
   $('fila').hidden = falhas.length === 0;
