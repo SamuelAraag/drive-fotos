@@ -237,7 +237,7 @@ testar na tela.
 - `drive-fotos` criado na conta principal. Feito.
 - `drive-fotos-dados` criado na conta separada. Feito.
 - Token fine-grained gerado na conta separada. Feito.
-- Conferir que o `drive-fotos-dados` tem um commit inicial.
+- Commit inicial no `drive-fotos-dados`, com um README. Feito.
 - Publicar a interface pelo GitHub Pages.
 - **Pronto quando:** a página abre pelo endereço público e o token lê o repositório de
   dados.
@@ -301,6 +301,30 @@ testar na tela.
   outro, mais forte, em 4 GB. Só avisa, não bloqueia.
 - **Pronto quando:** reabrir o app não baixa de novo o que já foi visto, e o espaço usado
   aparece.
+
+## Linha do tempo
+
+Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
+
+| Ordem | Épico | Duração | Depende de |
+| --- | --- | --- | --- |
+| 0 | Preparo | 0,5 dia | Nada |
+| 1 | Fundação e login | 0,5 dia | 0 |
+| 2 | Grade | 1 dia | 1 |
+| 3 | Envio | 2 dias | 2 |
+| 4 | Foto aberta | 1 dia | 2 |
+| 5 | Renomear, baixar e apagar | 0,5 dia | 4 |
+| 6 | Cache e tamanho | 1 dia | 3 e 4 |
+
+- **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
+  token.
+- **Dia 2:** Épico 2. Fotos postas à mão aparecem na grade.
+- **Dias 3 e 4:** Épico 3. Envio pelo celular e pela web. É o épico de maior risco.
+- **Dia 5:** Épico 4. Abrir e percorrer as fotos.
+- **Dia 6:** Épico 5 e metade do 6.
+- **Dia 7:** fim do Épico 6 e ajustes.
+
+A partir do dia 4 o app já é usável: entrar, enviar e ver.
 
 ## Em aberto
 

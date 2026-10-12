@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Drive Fotos">
+  <!-- Cores iguais aos tokens azul e texto de style.css. -->
+  <rect fill="#3b9dff" x="7" y="11" width="50" height="42" rx="9"/>
+  <circle fill="#e8eef7" cx="22" cy="25" r="5"/>
+  <path fill="#e8eef7" d="M13 47l12-13 8 8 9-11 9 12v2a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2Z"/>
+</svg>
