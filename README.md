@@ -29,7 +29,7 @@ Você entra com um token pessoal do GitHub, que fica guardado só no navegador.
 3. Em Contents, escolha "Read and write".
 4. Copie o token e cole na tela de login do app.
 
-O botão "Sair" apaga o token do navegador.
+O botão "Sair" apaga o token e as fotos guardadas no navegador.
 
 ## Rodar localmente
 
@@ -51,10 +51,11 @@ src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
 src/foto.js      id, miniatura e registro de cada foto
+src/armazem.js   o que fica guardado no aparelho, para abrir sem esperar a rede
 src/ui.js        telas
 ```
 
 ## Estado
 
-Em construção. Já dá para entrar com o token, enviar fotos e ver a grade de miniaturas,
-agrupada por dia. A foto aberta ainda não existe.
+Em construção. Já dá para entrar com o token, enviar fotos, ver a grade de miniaturas
+agrupada por dia e abrir uma foto em tela cheia. Renomear, baixar e apagar ainda não existem.

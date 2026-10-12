@@ -121,3 +121,50 @@ export const fmtTamanho = (bytes) =>
   bytes >= 1024 * 1024
     ? `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('pt-BR')} KB`;
+
+// Paleta dominante e luminância média de uma imagem, lidas de uma cópia reduzida.
+// Devolve { paleta: [[r, g, b], ...], luminancia: 0 a 1 } ou null se a imagem não abrir.
+export async function analisar(url) {
+  const imagem = new Image();
+  imagem.src = url;
+  try {
+    await imagem.decode();
+  } catch {
+    return null;
+  }
+  const escala = 160 / Math.max(imagem.naturalWidth, imagem.naturalHeight);
+  const tela = document.createElement('canvas');
+  tela.width = Math.max(1, Math.round(imagem.naturalWidth * escala));
+  tela.height = Math.max(1, Math.round(imagem.naturalHeight * escala));
+  const contexto = tela.getContext('2d', { willReadFrequently: true });
+  contexto.drawImage(imagem, 0, 0, tela.width, tela.height);
+  const pontos = contexto.getImageData(0, 0, tela.width, tela.height).data;
+
+  // Agrupa as cores em 4.096 faixas e soma a luminância percebida de cada ponto.
+  const faixas = new Map();
+  let luminancia = 0;
+  for (let i = 0; i < pontos.length; i += 4) {
+    const [r, g, b] = [pontos[i], pontos[i + 1], pontos[i + 2]];
+    luminancia += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const chave = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const faixa = faixas.get(chave);
+    if (faixa) {
+      faixa[0]++;
+      faixa[1] += r;
+      faixa[2] += g;
+      faixa[3] += b;
+    } else {
+      faixas.set(chave, [1, r, g, b]);
+    }
+  }
+  // Das faixas mais cheias para as mais vazias, fica com seis cores bem diferentes entre si.
+  const cores = [...faixas.values()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([n, r, g, b]) => [Math.round(r / n), Math.round(g / n), Math.round(b / n)]);
+  const paleta = [];
+  for (const cor of cores) {
+    if (paleta.every((outra) => Math.hypot(outra[0] - cor[0], outra[1] - cor[1], outra[2] - cor[2]) > 52)) paleta.push(cor);
+    if (paleta.length === 6) break;
+  }
+  return { paleta, luminancia: luminancia / (pontos.length / 4) / 255 };
+}

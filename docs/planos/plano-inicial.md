@@ -53,6 +53,7 @@ src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
 src/foto.js      id, miniatura e registro de cada foto
+src/armazem.js   o que fica guardado no aparelho
 src/ui.js        telas
 ```
 
@@ -189,8 +190,16 @@ No molde do Google Fotos.
   agrupada por dia, com um título por dia. Miniaturas quadradas, cortadas ao centro.
 - **Data da foto:** a data de modificação do arquivo, que o navegador entrega sem
   biblioteca. Sem ela, vale a data do envio. Ver "Em aberto" sobre o iPhone.
-- **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no X, no Esc ou no voltar
-  do navegador.
+- **Abrir:** um toque ou clique abre a foto em tela cheia, no modo ambiente. A própria
+  miniatura cresce do quadro da grade até o tamanho final, e a miniatura desfocada cobre o
+  fundo. A original entra por cima da prévia quando termina de baixar. Fecha no "Fechar",
+  no Esc, clicando fora da foto ou no voltar do navegador, e a foto volta para o quadro.
+- **Painel de informações:** só em tela larga, ao lado da foto, com nome, dimensões,
+  proporção, megapixels, tamanho, data, paleta dominante e luminância média. O botão
+  "Informações" e a tecla `i` mostram e escondem, e a escolha fica guardada no aparelho. O
+  nome vem do registro da foto; a paleta e a luminância são calculadas da miniatura, no
+  navegador. No celular não há painel: a foto fica com a tela toda.
+- **Fora do modo ambiente:** inclinação 3D, histograma e faixa de miniaturas.
 - **Navegar:** com a foto aberta, deslizar no celular ou usar as setas no teclado passa
   para a anterior e a próxima.
 - **Ações na foto aberta:** renomear, baixar a original e apagar. O nome aparece aqui, lido
@@ -217,10 +226,26 @@ No molde do Google Fotos.
 
 ### Fluxo de leitura
 
-1. Ao abrir, o app lê a árvore do repositório de dados e monta a grade.
-2. As miniaturas entram conforme aparecem na tela, não todas de uma vez.
-3. Miniaturas baixadas ficam em cache no navegador, pela identidade do blob, que nunca
-   muda. Originais também, com um teto de espaço, e as mais antigas saem primeiro.
+A regra é usar ao máximo o que já está no aparelho, para o app parecer imediato.
+
+1. Ao abrir, o app mostra na hora a lista de fotos guardada no aparelho e confere com o
+   GitHub por trás. Só redesenha a grade se algo mudou.
+2. As miniaturas entram conforme aparecem na tela, não todas de uma vez. Toda miniatura
+   baixada fica guardada no aparelho, sem limite, porque é pequena.
+3. Toda foto que fica na tela por mais de 0,6 s entra numa fila de fundo, que baixa a
+   original para o aparelho, duas por vez. Ao tocar numa foto visível, ela abre sem
+   chamar o GitHub. Rolar depressa não dispara downloads, e a fila cede a vez ao envio.
+4. Com a foto aberta, a anterior e a próxima ficam prontas na memória, para a seta passar
+   sem espera.
+5. Limites: as originais guardadas no aparelho têm teto de 1 GB, e as menos usadas saem
+   primeiro. Na memória da aba o teto é de 150 MB. Os dois são em bytes, não em número de
+   fotos, porque uma foto pode ter 300 KB ou 25 MB.
+6. O que acabou de ser enviado já fica guardado, sem baixar de volta.
+7. "Sair" apaga tudo que está guardado. Quem ativou economia de dados no navegador não tem
+   a fila de fundo.
+
+O arquivo é identificado pelo conteúdo (o `sha` do git), então o que está guardado nunca
+fica desatualizado.
 
 ### Renomear, baixar e apagar
 
@@ -314,15 +339,37 @@ testar na tela.
 
 ### Épico 6: Cache e tamanho
 
-- Cache de miniaturas e originais no navegador, pela identidade do blob, com teto para as
-  originais.
-- "Sair" limpa o cache.
+- Cache de miniaturas e originais no navegador. Feito no Épico 4.
+- "Sair" limpa o cache. Feito no Épico 4.
 - Releitura da árvore ao voltar para a tela, para aparecer o que subiu ou foi apagado em
   outro aparelho.
 - Espaço usado na tela, somado dos tamanhos que a árvore já traz. Aviso a partir de 1 GB e
   outro, mais forte, em 4 GB. Só avisa, não bloqueia.
 - **Pronto quando:** reabrir o app não baixa de novo o que já foi visto, e o espaço usado
   aparece.
+
+### Épico 7: Fotos duplicadas (backlog)
+
+Pedido em 2026-10-12. Ainda sem data.
+
+- Ao enviar uma foto que já existe, o app para antes de gravar e abre um diálogo dizendo
+  que o arquivo já existe, com a foto nova e a que já está guardada lado a lado.
+- O diálogo oferece duas saídas:
+  - **Mesclar:** confirma que são a mesma foto. Nada novo é enviado, e fica a que já
+    existe.
+  - **Manter as duas:** envia a nova com o nome alterado, para as duas conviverem. O
+    formato do nome está em aberto: um "2" na frente, ou "(2)" antes da extensão.
+- Numa leva com várias repetidas, o diálogo permite aplicar a mesma escolha a todas.
+- **Como reconhecer a repetida:** pelo conteúdo. O app calcula no navegador a identidade
+  do arquivo (o mesmo `sha` que o git usa) e compara com a lista de fotos, que já traz
+  esse valor. Não custa nenhuma chamada ao GitHub.
+- **Limites conhecidos:**
+  - Só pega cópia idêntica, byte a byte. A mesma foto reenviada pelo iPhone pode vir
+    recodificada e passar como nova.
+  - Reconhecer por nome igual com conteúdo diferente exigiria ler todos os registros, que
+    é onde o nome mora. Fica fora, a menos que valha o custo.
+- **Pronto quando:** enviar duas vezes a mesma foto abre o diálogo, "Mesclar" não cria
+  nada novo, e "Manter as duas" deixa as duas na grade com nomes diferentes.
 
 ## Linha do tempo
 
@@ -337,6 +384,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 4 | Foto aberta | 1 dia | 2 |
 | 5 | Renomear, baixar e apagar | 0,5 dia | 4 |
 | 6 | Cache e tamanho | 1 dia | 3 e 4 |
+| 7 | Fotos duplicadas (backlog) | a estimar | 3 e 5 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
@@ -366,5 +414,3 @@ A partir do dia 4 o app já é usável: entrar, enviar e ver.
 - **Um commit por foto ou por lote.** Um por foto dá cerca de 100 por hora. Agrupar várias
   num commit sobe para perto de 240, mas a foto deixa de entrar na grade uma a uma. Medir
   o limite real no Épico 3 antes de decidir.
-- **Foto repetida.** A árvore já traz a identidade de cada blob, então dá para detectar a
-  mesma foto antes de enviar de novo. Entra no Épico 3 ou fica para depois.
