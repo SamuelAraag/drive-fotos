@@ -1177,11 +1177,26 @@ export function linkDasPendentes(quantas) {
 
 const camposDasPendentes = () => [...$('pendentes').querySelectorAll('input[data-id]')];
 
-// "Salvar datas" só acende no bloco em que algum dia foi trocado.
+// O que a pessoa decidiu para cada foto de um bloco: um dia novo, "está certa", ou nada.
+function decisoesDoBloco(grupo) {
+  return [...grupo.querySelectorAll('.pendentes__item')].flatMap((item) => {
+    const campo = item.querySelector('input[data-id]');
+    if (item.querySelector('input[type=checkbox]').checked) return [{ id: campo.dataset.id, dia: null }];
+    return campo.value && campo.value !== campo.dataset.atual ? [{ id: campo.dataset.id, dia: campo.value }] : [];
+  });
+}
+
+// O rodapé de cada bloco diz quantas fotos vão mudar, e o "Salvar" só acende quando há alguma.
 function renderBotoesDasPendentes() {
   for (const grupo of $('pendentes').querySelectorAll('.pendentes__grupo')) {
-    const mudou = [...grupo.querySelectorAll('input[data-id]')].some((campo) => campo.value && campo.value !== campo.dataset.atual);
-    grupo.querySelector('[data-acao=salvar]').disabled = mudou ? pendentesOcupadas : true;
+    for (const item of grupo.querySelectorAll('.pendentes__item')) {
+      // Marcada como certa, a foto fica com a data que tem: o campo sai de cena.
+      item.querySelector('input[data-id]').disabled = item.querySelector('input[type=checkbox]').checked;
+    }
+    const quantas = decisoesDoBloco(grupo).length;
+    grupo.querySelector('.pendentes__resumo').textContent =
+      quantas === 0 ? 'Nenhuma alteração ainda' : quantas === 1 ? '1 foto pronta para salvar' : `${quantas} fotos prontas para salvar`;
+    grupo.querySelector('[data-acao=salvar]').disabled = pendentesOcupadas || quantas === 0;
   }
 }
 
@@ -1189,8 +1204,9 @@ let pendentesOcupadas = false;
 
 export function renderSemData(grupos, { lendo, incompleta }, baixar) {
   baixarAtual = baixar;
-  // Um redesenho no meio da digitação (um envio que terminou, por exemplo) não apaga o que foi escolhido.
+  // Um redesenho no meio da escolha (um envio que terminou, por exemplo) não apaga o que foi decidido.
   const escolhidos = new Map(camposDasPendentes().map((campo) => [campo.dataset.id, campo.value]));
+  const certas = new Set([...$('pendentes').querySelectorAll('input[type=checkbox]:checked')].map((caixa) => caixa.dataset.de));
   const hoje = diaEmTexto(new Date());
   const total = grupos.reduce((soma, grupo) => soma + grupo.fotos.length, 0);
   $('pendentes-lendo').hidden = !lendo;
@@ -1202,10 +1218,14 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
       const grupo = el('form', 'pendentes__grupo');
       grupo.dataset.grupo = chave;
       grupo.noValidate = true;
-      const topo = el('div', 'pendentes__topo');
-      topo.append(el('h3', 'dia__titulo', `${titulo} · ${fotos.length === 1 ? '1 foto' : `${fotos.length} fotos`}`));
+
+      const topo = el('header', 'pendentes__topo');
+      topo.append(el('h3', 'pendentes__titulo', titulo), el('p', 'texto-suave texto-pequeno', fotos.length === 1 ? '1 foto' : `${fotos.length} fotos`));
+      grupo.append(topo);
+
+      // Fotos enviadas juntas costumam ser da mesma ocasião: um dia só resolve o bloco.
       if (fotos.length > 1) {
-        const todas = el('div', 'pendentes__todas');
+        const ferramenta = el('div', 'pendentes__ferramenta');
         const rotulo = el('label', 'campo__rotulo', 'Mesmo dia para todas');
         const campo = el('input', 'campo');
         campo.type = 'date';
@@ -1213,24 +1233,21 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
         campo.min = '1990-01-01';
         campo.max = hoje;
         rotulo.htmlFor = campo.id;
-        const aplicar = el('button', 'botao botao--secundario', 'Aplicar');
+        const aplicar = el('button', 'botao botao--secundario', 'Aplicar a todas');
         aplicar.type = 'button';
         aplicar.dataset.acao = 'aplicar';
-        const coluna = el('div', 'sem-data__campos');
-        coluna.append(rotulo, campo);
-        todas.append(coluna, aplicar);
-        topo.append(todas);
+        ferramenta.append(rotulo, campo, aplicar);
+        grupo.append(ferramenta);
       }
+
       const lista = el('ul', 'pendentes__lista');
       for (const { foto, nome } of fotos) {
-        const item = el('li', 'sem-data__item');
-        const miniatura = el('img', 'dialogo__miniatura');
+        // A prévia é o que diz de quando é a foto: ocupa a largura toda do cartão.
+        const item = el('li', 'pendentes__item');
+        const miniatura = el('img', 'pendentes__imagem');
         miniatura.alt = '';
-        miniatura.width = 64;
-        miniatura.height = 64;
         if (foto.miniatura) baixar(foto.miniatura).then((url) => (miniatura.src = url), () => {});
-        const campos = el('div', 'sem-data__campos');
-        const rotulo = el('label', 'campo__rotulo', nome);
+        const rotulo = el('label', 'pendentes__nome', nome);
         const campo = el('input', 'campo');
         const atual = `${foto.dia.slice(0, 4)}-${foto.dia.slice(4, 6)}-${foto.dia.slice(6, 8)}`;
         campo.type = 'date';
@@ -1241,21 +1258,26 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
         campo.max = hoje;
         campo.value = escolhidos.get(foto.id) ?? atual;
         rotulo.htmlFor = campo.id;
-        const certa = el('button', 'botao botao--fantasma', 'Está certa');
-        certa.type = 'button';
-        certa.dataset.acao = 'certa';
-        certa.dataset.id = foto.id;
-        certa.setAttribute('aria-label', `A data de ${nome} está certa`);
-        campos.append(rotulo, campo, certa);
-        item.append(miniatura, campos);
+        // Para a foto que é mesmo do dia em que subiu: sai da lista sem mudar de lugar.
+        const certa = el('label', 'pendentes__certa');
+        const caixa = el('input');
+        caixa.type = 'checkbox';
+        caixa.dataset.de = foto.id;
+        caixa.checked = certas.has(foto.id);
+        certa.append(caixa, el('span', null, 'A data está certa'));
+        item.append(miniatura, rotulo, campo, certa);
         lista.append(item);
       }
-      const acoes = el('div', 'dialogo__acoes');
+      grupo.append(lista);
+
+      const rodape = el('footer', 'pendentes__rodape');
+      const resumo = el('p', 'pendentes__resumo texto-suave texto-pequeno');
+      resumo.setAttribute('role', 'status');
       const salvar = el('button', 'botao botao--primario', 'Salvar datas');
       salvar.type = 'submit';
       salvar.dataset.acao = 'salvar';
-      acoes.append(salvar);
-      grupo.append(topo, lista, acoes);
+      rodape.append(resumo, salvar);
+      grupo.append(rodape);
       return grupo;
     }),
   );
@@ -1264,7 +1286,7 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
 
 export function pendentesOcupado(ocupado) {
   pendentesOcupadas = ocupado;
-  for (const botao of $('pendentes').querySelectorAll('button')) botao.disabled = ocupado;
+  for (const controle of $('pendentes').querySelectorAll('button, input')) controle.disabled = ocupado;
   for (const salvar of $('pendentes').querySelectorAll('[data-acao=salvar]')) salvar.textContent = ocupado ? 'Salvando...' : 'Salvar datas';
   if (!ocupado) renderBotoesDasPendentes();
 }
@@ -1278,23 +1300,18 @@ function ligarPendentes(acoes) {
   const tela = $('pendentes');
   tela.addEventListener('input', renderBotoesDasPendentes);
   tela.addEventListener('click', (evento) => {
-    const botao = evento.target.closest('button[data-acao]');
+    const botao = evento.target.closest('button[data-acao=aplicar]');
     if (!botao) return;
-    if (botao.dataset.acao === 'aplicar') {
-      const grupo = botao.closest('.pendentes__grupo');
-      const dia = grupo.querySelector('.pendentes__todas input').value;
-      if (!dia) return;
-      for (const campo of grupo.querySelectorAll('input[data-id]')) campo.value = dia;
-      renderBotoesDasPendentes();
-    }
-    // "Está certa": a foto é mesmo do dia em que subiu. Sai da lista sem mudar de lugar.
-    if (botao.dataset.acao === 'certa') acoes.datar([{ id: botao.dataset.id, dia: null }]);
+    const grupo = botao.closest('.pendentes__grupo');
+    const dia = grupo.querySelector('.pendentes__ferramenta input').value;
+    if (!dia) return;
+    // As que foram marcadas como certas ficam como estão.
+    for (const campo of grupo.querySelectorAll('input[data-id]:not(:disabled)')) campo.value = dia;
+    renderBotoesDasPendentes();
   });
   tela.addEventListener('submit', (evento) => {
     evento.preventDefault();
-    const mudancas = [...evento.target.querySelectorAll('input[data-id]')]
-      .filter((campo) => campo.value && campo.value !== campo.dataset.atual)
-      .map((campo) => ({ id: campo.dataset.id, dia: campo.value }));
+    const mudancas = decisoesDoBloco(evento.target);
     if (mudancas.length > 0) acoes.datar(mudancas);
   });
 }

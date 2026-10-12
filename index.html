@@ -39,10 +39,15 @@
     </section>
 
     <section class="tela" id="tela-sem-data" hidden>
-      <a class="voltar" href="#">Voltar para as fotos</a>
-      <div>
-        <h2 class="tela__titulo" tabindex="-1">Fotos sem data</h2>
-        <p class="texto-suave" id="sem-data-explica">Estas subiram com a data do envio. Escolha quando cada uma foi tirada: ela passa para o dia e o ano certos.</p>
+      <div class="tela__cabeca">
+        <a class="botao botao--secundario voltar" href="#">
+          <svg class="voltar__seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          Voltar para as fotos
+        </a>
+        <div>
+          <h2 class="tela__titulo" tabindex="-1">Fotos sem data</h2>
+          <p class="texto-suave" id="sem-data-explica">Estas subiram com a data do envio. Escolha quando cada uma foi tirada: ela passa para o dia e o ano certos.</p>
+        </div>
       </div>
       <p class="campo__erro" id="pendentes-erro" role="alert" hidden></p>
       <div class="tela tela--centro" id="pendentes-lendo" hidden>
