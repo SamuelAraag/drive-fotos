@@ -6,6 +6,7 @@ import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 const $ = (id) => document.getElementById(id);
 
 const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
+const FIM_PUXAR = 64; // descida do conteúdo em que o anel enche; soltar daqui em diante atualiza
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
@@ -13,6 +14,98 @@ $('base-de-testes').hidden = !BASE_DE_TESTES;
 export function mostrarTela(nome) {
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;
   $('sair').hidden = !lerToken();
+  $('atualizar').hidden = !lerToken();
+  // A pílula de uso mora fora da página e só faz sentido com a grade na tela.
+  if (nome !== 'principal') $('uso').hidden = true;
+}
+
+// Botão "Atualizar", no molde do beba-agua: enquanto lê, diz que está lendo e não aceita outro toque.
+export function atualizarOcupado(ocupado) {
+  $('atualizar').disabled = ocupado;
+  $('atualizar').textContent = ocupado ? 'Atualizando...' : 'Atualizar';
+}
+
+// "Atualizado às 14:02", ou vazio.
+export function mostrarSincronia(texto) {
+  $('sincronia').textContent = texto;
+}
+
+// A releitura pedida pela pessoa avisa quando falha, com o motivo e a saída ao lado.
+export function erroAoAtualizar(mensagem) {
+  $('atualizar-erro').hidden = !mensagem;
+  $('atualizar-erro-texto').textContent = mensagem ?? '';
+}
+
+// Puxar para atualizar, como nos apps do iPhone e no beba-agua: no topo da página, arrasta
+// para baixo e solta. O conteúdo desce junto com o dedo, sem trava, até onde a pessoa arrastar,
+// e no vão um anel enche de 0 a 100%. Com o anel cheio, soltar atualiza: o conteúdo volta para a
+// altura do anel e ele gira até `aoSoltar` terminar.
+function ligarPuxar(aoSoltar, podePuxarAgora) {
+  const raiz = document.documentElement;
+  let inicio = null;
+  let distancia = 0;
+  let recarregando = false;
+
+  const definir = (px) => {
+    distancia = px;
+    raiz.style.setProperty('--puxar', `${px}px`);
+    const progresso = Math.min(1, px / FIM_PUXAR);
+    raiz.style.setProperty('--puxar-progresso', progresso);
+    $('puxar-arco').style.strokeDashoffset = 100 - progresso * 100;
+    $('puxar').classList.toggle('puxar--cheio', px >= FIM_PUXAR);
+  };
+
+  addEventListener(
+    'touchstart',
+    (evento) => {
+      const podePuxar =
+        !recarregando && evento.touches.length === 1 && scrollY <= 0 && !document.querySelector('dialog[open]') && podePuxarAgora();
+      inicio = podePuxar ? evento.touches[0].clientY : null;
+      raiz.classList.remove('puxar-soltando');
+    },
+    { passive: true },
+  );
+
+  addEventListener(
+    'touchmove',
+    (evento) => {
+      if (inicio == null) return;
+      const arrasto = evento.touches[0].clientY - inicio;
+      if (arrasto <= 0 || scrollY > 0) {
+        if (distancia) definir(0);
+        return;
+      }
+      // Segura o elástico nativo para o conteúdo seguir só o nosso deslocamento.
+      if (evento.cancelable) evento.preventDefault();
+      // Metade do caminho do dedo: dá a resistência de elástico, sem parar em lugar nenhum.
+      definir(arrasto / 2);
+    },
+    { passive: false },
+  );
+
+  addEventListener('touchend', () => {
+    if (inicio == null) return;
+    inicio = null;
+    raiz.classList.add('puxar-soltando');
+    if (distancia < FIM_PUXAR) {
+      definir(0);
+      return;
+    }
+    recarregando = true;
+    definir(FIM_PUXAR); // de onde estiver, o conteúdo sobe até a altura do anel e espera ali
+    $('puxar-arco').style.strokeDashoffset = 25;
+    $('puxar').classList.add('puxar--recarregando');
+    Promise.resolve(aoSoltar()).finally(() => {
+      recarregando = false;
+      $('puxar').classList.remove('puxar--recarregando');
+      definir(0);
+    });
+  });
+
+  addEventListener('touchcancel', () => {
+    inicio = null;
+    if (!recarregando) definir(0);
+  });
 }
 
 export function focarTela(nome) {
@@ -1415,6 +1508,9 @@ export function ligarEventos(acoes) {
   $('fila-limpar').addEventListener('click', acoes.limparFila);
   $('atalho-ver').addEventListener('click', verPeloAtalho);
   $('atalho-fechar').addEventListener('click', fecharAtalho);
+  ligarPuxar(acoes.atualizar, () => Boolean(lerToken()));
+  $('atualizar').addEventListener('click', acoes.atualizar);
+  $('atualizar-de-novo').addEventListener('click', acoes.atualizar);
   ligarArraste(acoes);
   ligarVisor(acoes);
   ligarPendentes(acoes);

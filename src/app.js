@@ -668,26 +668,33 @@ async function carregar() {
   }
 }
 
-// Ao voltar para a tela, confere se algo subiu ou foi apagado em outro aparelho. Só redesenha
-// se a lista mudou, e nunca no meio de um envio, que já mexe nela.
+// Relê o repositório e troca a lista se algo mudou em outro aparelho. Só redesenha nesse caso.
+// Devolve se mudou. Quem chama trata o erro.
+async function relerLista() {
+  const antes = fotos;
+  const novas = await lerFotos();
+  // A lista mudou enquanto a leitura corria (envio, renomear, apagar): a que está na tela vale.
+  if (!antes || fotos !== antes || mesmaLista(novas, antes)) return false;
+  // Registro trocado em outro aparelho (um renomear): o nome que estava na memória não vale mais.
+  const registroDe = new Map(antes.map((item) => [item.id, item.registro]));
+  for (const item of novas) if (registroDe.get(item.id) !== item.registro) registros.delete(item.id);
+  fotos = novas;
+  armazem.guardarFotos(fotos);
+  render();
+  aquecerNomes();
+  // A foto aberta foi apagada em outro aparelho: o visor fecha.
+  if (aberta != null && !fotos.some((item) => item.id === aberta)) ui.fecharVisor();
+  return true;
+}
+
+// Ao voltar para a tela, confere sozinho, em silêncio e com intervalo, e nunca no meio de um
+// envio, que já mexe na lista.
 async function conferir() {
   if (!fotos || !github.lerToken() || enviando || conferindo) return;
   if (Date.now() - conferidoEm < INTERVALO_DE_CONFERENCIA) return;
-  const antes = fotos;
   conferindo = true;
   try {
-    const novas = await lerFotos();
-    // A lista mudou enquanto a leitura corria (envio, renomear, apagar): a que está na tela vale.
-    if (fotos !== antes || mesmaLista(novas, antes)) return;
-    // Registro trocado em outro aparelho (um renomear): o nome que estava na memória não vale mais.
-    const registroDe = new Map(antes.map((item) => [item.id, item.registro]));
-    for (const item of novas) if (registroDe.get(item.id) !== item.registro) registros.delete(item.id);
-    fotos = novas;
-    armazem.guardarFotos(fotos);
-    render();
-    aquecerNomes();
-    // A foto aberta foi apagada em outro aparelho: o visor fecha.
-    if (aberta != null && !fotos.some((item) => item.id === aberta)) ui.fecharVisor();
+    await relerLista();
   } catch (erro) {
     // Em segundo plano só o token vencido vira aviso.
     if (erro.tipo === 'token') {
@@ -697,6 +704,34 @@ async function conferir() {
     }
   } finally {
     conferindo = false;
+  }
+}
+
+// Releitura pedida pela pessoa, no botão "Atualizar". Diferente da silenciosa, não tem
+// intervalo, espera o envio em curso terminar e avisa na tela se não der certo.
+let atualizandoAgora = false;
+
+async function atualizarAgora() {
+  if (atualizandoAgora) return;
+  if (!fotos) {
+    if (github.lerToken()) carregar();
+    return;
+  }
+  atualizandoAgora = true;
+  ui.atualizarOcupado(true);
+  ui.erroAoAtualizar(null);
+  try {
+    // Fila pausada pelo limite do GitHub pode demorar: aí a leitura não espera por ela.
+    while ((enviando && !pausadaAte) || conferindo) await dormir(300);
+    await relerLista();
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    ui.mostrarSincronia(`Atualizado às ${hora}`);
+  } catch (erro) {
+    if (tokenVenceu(erro)) return;
+    ui.erroAoAtualizar(`Não deu para atualizar. ${mensagemDe(erro, 'Tente de novo em instantes.')}`);
+  } finally {
+    atualizandoAgora = false;
+    ui.atualizarOcupado(false);
   }
 }
 
@@ -734,6 +769,8 @@ function sair() {
   fila = [];
   pausadaAte = null;
   ui.esquecerEnvio();
+  ui.mostrarSincronia('');
+  ui.erroAoAtualizar(null);
   renderFila();
   ui.fecharVisor();
   ui.limparPrincipal();
@@ -1122,6 +1159,7 @@ ui.ligarEventos({
   passarFoto,
   recarregarFoto: () => mostrarAberta(),
   fotoFechada,
+  atualizar: atualizarAgora,
   datar,
   baixarFoto,
   pedirRenomear,

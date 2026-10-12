@@ -132,6 +132,7 @@ h2:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--e2);
   min-height: 56px;
 }
 
@@ -146,21 +147,39 @@ h2:focus {
   height: var(--e7);
 }
 
+/* O topo nunca quebra em duas linhas. Em tela estreita quem cede é a etiqueta, que é o menos
+   importante ali: primeiro encurta, e só no limite ganha reticências. O nome e os botões ficam. */
 .topo__titulo {
   display: flex;
   align-items: center;
   gap: var(--e2);
+  min-width: 0;
   font-size: var(--fonte-base);
   font-weight: 600;
   color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.topo__titulo .logo {
+  flex: none;
 }
 
 .etiqueta {
+  min-width: 0;
   padding: 0 var(--e2);
+  overflow: hidden;
   border: 1px solid var(--trilho);
   border-radius: var(--raio-pilula);
   font-size: var(--fonte-pequena);
   font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .etiqueta__resto {
+    display: none;
+  }
 }
 
 /* Recado que fica na tela, sem bloquear nada. O forte é para o que pede atenção, e não é erro. */
@@ -215,6 +234,25 @@ h2:focus {
   stroke-linejoin: round;
 }
 
+/* Algo que a pessoa pediu não deu certo: diz o que houve e oferece a saída ao lado. */
+.aviso--erro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2) var(--e4);
+  margin-bottom: var(--e5);
+  border-color: var(--erro);
+}
+
+.aviso--erro[hidden] {
+  display: none;
+}
+
+.aviso--erro .botao {
+  flex: none;
+}
+
 .aviso--forte {
   border-color: var(--atencao);
   color: var(--atencao);
@@ -267,6 +305,36 @@ h2:focus {
 
 .topo__acoes {
   display: flex;
+  flex: none;
+  align-items: center;
+}
+
+/* "Atualizado às 14:02", ao lado do botão. Em tela estreita não cabe: fica só para o leitor de tela. */
+.topo__sincronia {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .topo__sincronia {
+    position: static;
+    width: auto;
+    height: auto;
+    margin-right: var(--e2);
+    clip-path: none;
+  }
+}
+
+/* Dois botões no topo: no celular eles encolhem a folga lateral para caber ao lado do nome. */
+@media (max-width: 479px) {
+  .topo__acoes .botao {
+    padding-right: var(--e3);
+    padding-left: var(--e3);
+  }
 }
 
 .tela {
@@ -351,6 +419,68 @@ h2:focus {
 
 .botao--secundario:hover {
   background: color-mix(in srgb, var(--trilho) 85%, var(--texto));
+}
+
+/* Puxar para atualizar, como no beba-agua e nos apps do iPhone. */
+
+html {
+  overscroll-behavior-y: contain;
+}
+
+.topo,
+.pagina {
+  transform: translateY(var(--puxar, 0px));
+}
+
+/* O anel fica no meio do vão aberto pelo arraste e aparece conforme ele enche. */
+.puxar {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 50%;
+  opacity: var(--puxar-progresso, 0);
+  transform: translate(-50%, calc(var(--puxar, 0px) / 2 - 50%));
+  pointer-events: none;
+}
+
+.puxar__anel {
+  display: block;
+  width: var(--e5);
+  height: var(--e5);
+}
+
+.puxar__anel circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.puxar__trilho {
+  stroke: var(--trilho);
+}
+
+.puxar__arco {
+  stroke: var(--azul);
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 100;
+  stroke-linecap: round;
+}
+
+/* Anel cheio: soltar agora atualiza. */
+.puxar--cheio .puxar__arco {
+  stroke: var(--foco);
+}
+
+/* Anel cheio girando não se percebe: enquanto atualiza, gira um arco de três quartos. */
+.puxar--recarregando .puxar__anel {
+  animation: girar 1s linear infinite;
+}
+
+.puxar-soltando .topo,
+.puxar-soltando .pagina {
+  transition: transform var(--medio);
+}
+
+.puxar-soltando .puxar {
+  transition: transform var(--medio), opacity var(--medio);
 }
 
 /* Carregando */
@@ -933,6 +1063,14 @@ h2:focus {
   gap: var(--e3);
   min-height: 56px;
   padding: calc(var(--e2) + env(safe-area-inset-top)) calc(var(--margem) - var(--e2)) 0 var(--margem);
+}
+
+/* No celular a barra de status do iPhone fica por cima da página: a foto aberta ocupa a tela
+   toda, então o topo dela ganha a mesma folga que a página tem, para nada ficar encoberto. */
+@media (max-width: 899px) {
+  .visor__topo {
+    padding-top: calc(var(--e5) + env(safe-area-inset-top));
+  }
 }
 
 .visor__legenda {
@@ -1547,6 +1685,16 @@ h2:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .puxar-soltando .topo,
+  .puxar-soltando .pagina,
+  .puxar-soltando .puxar {
+    transition: none;
+  }
+
+  .puxar--recarregando .puxar__anel {
+    animation-duration: 3s;
+  }
+
   .botao,
   .zona,
   .zona__icone,

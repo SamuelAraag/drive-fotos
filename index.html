@@ -16,14 +16,27 @@
   <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
+  <div class="puxar" id="puxar" aria-hidden="true">
+    <svg class="puxar__anel" viewBox="0 0 24 24">
+      <circle class="puxar__trilho" cx="12" cy="12" r="9"/>
+      <circle class="puxar__arco" id="puxar-arco" cx="12" cy="12" r="9" pathLength="100" transform="rotate(-90 12 12)"/>
+    </svg>
+  </div>
+
   <header class="topo">
-    <h1 class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos<span class="etiqueta" id="base-de-testes" hidden>base de testes</span></h1>
+    <h1 class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos<span class="etiqueta" id="base-de-testes" hidden><span class="etiqueta__resto">base de </span>testes</span></h1>
     <div class="topo__acoes">
+      <span class="texto-suave texto-pequeno topo__sincronia" id="sincronia" role="status"></span>
+      <button type="button" class="botao botao--fantasma" id="atualizar" hidden>Atualizar</button>
       <button type="button" class="botao botao--fantasma" id="sair" hidden>Sair</button>
     </div>
   </header>
 
   <main class="pagina">
+    <div class="aviso aviso--erro" id="atualizar-erro" role="alert" hidden>
+      <p id="atualizar-erro-texto"></p>
+      <button type="button" class="botao botao--secundario" id="atualizar-de-novo">Tentar de novo</button>
+    </div>
     <section class="tela tela--centro" id="tela-carregando" hidden>
       <div class="girador" aria-hidden="true"></div>
       <p role="status">Carregando suas fotos...</p>
@@ -88,13 +101,15 @@
       <p class="aviso aviso--forte" id="principal-espaco" hidden></p>
       <a class="aviso aviso--link" id="principal-pendentes" href="#sem-data" hidden></a>
       <div class="dias" id="grade"></div>
-      <footer class="uso" id="uso" aria-label="Armazenamento" hidden>
-        <svg class="uso__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.5 7.5 0 0 0-6.65 4.04A6 6 0 0 0 6 20h13a5 5 0 0 0 .35-9.96Z"/></svg>
-        <span class="uso__valor" id="uso-valor"></span>
-        <span class="uso__detalhe" id="uso-detalhe"></span>
-      </footer>
     </section>
   </main>
+
+  <!-- Fora da página de propósito: ela desce com o arraste de atualizar, e a pílula fica parada. -->
+  <footer class="uso" id="uso" aria-label="Armazenamento" hidden>
+    <svg class="uso__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.5 7.5 0 0 0-6.65 4.04A6 6 0 0 0 6 20h13a5 5 0 0 0 .35-9.96Z"/></svg>
+    <span class="uso__valor" id="uso-valor"></span>
+    <span class="uso__detalhe" id="uso-detalhe"></span>
+  </footer>
 
   <div class="veu" id="veu" aria-hidden="true" hidden>
     <div class="veu__quadro">
