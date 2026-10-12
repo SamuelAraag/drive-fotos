@@ -26,6 +26,7 @@
 
   --rapido: 0.2s ease;
   --medio: 0.3s ease;
+  --expandir: 0.26s cubic-bezier(0.16, 1, 0.3, 1);
 
   color-scheme: dark;
 }
@@ -235,6 +236,232 @@ h2:focus {
   }
 }
 
+/* Envio */
+
+.envio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+}
+
+/* Mesma linguagem da zona de envio do cloud-files: caixa tracejada que acende no hover e no
+   arraste, e um véu que nasce dela. */
+.zona {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e1);
+  width: 100%;
+  min-height: 144px;
+  padding: var(--e5) var(--e4);
+  overflow: hidden;
+  border: 2px dashed var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--texto-suave);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color var(--rapido), background-color var(--rapido), color var(--rapido), transform var(--rapido);
+}
+
+.zona:hover,
+.zona--ativa {
+  border-color: var(--azul);
+  background: color-mix(in srgb, var(--azul) 10%, var(--superficie));
+  color: var(--texto);
+}
+
+.zona:active {
+  transform: scale(0.99);
+}
+
+.zona__icone,
+.veu__icone {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.zona__icone {
+  width: var(--e6);
+  height: var(--e6);
+  transition: transform var(--rapido), color var(--rapido);
+}
+
+.zona:hover .zona__icone,
+.zona--ativa .zona__icone {
+  color: var(--azul);
+  transform: translateY(calc(var(--e1) * -1));
+}
+
+.zona__titulo {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--texto);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zona__detalhe {
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums; /* o percentual muda sem empurrar o texto */
+}
+
+.zona__barra {
+  display: block;
+  width: 100%;
+  max-width: 408px;
+  height: var(--e1);
+  margin-top: var(--e2);
+  overflow: hidden;
+  border-radius: var(--raio-pilula);
+  background: var(--trilho);
+}
+
+/* A barra cresce por transform, que não mexe no layout a cada avanço. */
+.zona__barra-cheia {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  background: var(--azul);
+  transform: scaleX(var(--progresso, 0));
+  transform-origin: left center;
+  transition: transform var(--rapido);
+}
+
+/* Sem número para mostrar (preparando ou concluindo), a varredura de luz diz que está andando. */
+.zona--varrendo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--azul) 6%, transparent) 44%,
+    color-mix(in srgb, var(--azul) 22%, transparent) 50%,
+    color-mix(in srgb, var(--azul) 6%, transparent) 56%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: varrer 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes varrer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* O véu cobre a página inteira porque o alvo do arraste é a página inteira. Não recebe o
+   ponteiro: é só o aviso de que pode soltar. */
+.veu {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--fundo) 40%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transform-origin: 0 0;
+  animation: veu-expande var(--expandir);
+  pointer-events: none;
+}
+
+@keyframes veu-expande {
+  from {
+    transform: translate(var(--zona-x, 0px), var(--zona-y, 0px)) scale(var(--zona-escala-x, 0.9), var(--zona-escala-y, 0.9));
+    opacity: 0.4;
+  }
+}
+
+.veu__quadro {
+  position: absolute;
+  inset: var(--e4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e2);
+  border: 2px dashed var(--azul);
+  border-radius: var(--raio);
+  background: color-mix(in srgb, var(--azul) 12%, transparent);
+}
+
+.veu__icone {
+  width: var(--e7);
+  height: var(--e7);
+  color: var(--azul);
+  animation: quicar 0.9s ease-in-out infinite;
+}
+
+@keyframes quicar {
+  50% {
+    transform: translateY(calc(var(--e2) * -1));
+  }
+}
+
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  padding: var(--e3) var(--e4);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.fila__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.fila__lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.fila__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  padding: var(--e2) 0;
+  border-top: 1px solid var(--trilho);
+}
+
+.fila__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fila__nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fila__estado {
+  color: var(--erro);
+  font-size: var(--fonte-pequena);
+}
+
+.fila__item .botao {
+  flex: none;
+  color: var(--texto);
+  font-weight: 700;
+}
+
 /* Grade */
 
 /* O número de colunas vem da largura da tela, e o quadro ocupa a fatia exata dele.
@@ -311,6 +538,147 @@ h2:focus {
   }
 }
 
+/* A última foto enviada. O contorno e o selo ficam, para achar a foto na grade a qualquer
+   momento. A entrada e o halo (--pousou) acontecem uma vez, no instante em que ela chega.
+   Tudo anima só transform e opacity. */
+.grade__quadro {
+  transition: opacity var(--medio);
+}
+
+.grade__quadro--destaque {
+  z-index: 1;
+  overflow: visible;
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+}
+
+.grade__quadro--destaque:focus-visible {
+  outline-color: var(--foco);
+}
+
+/* Um assentar curto no pouso, para a chegada não parecer um corte. */
+.grade__quadro--pousou {
+  animation: destaque-pousa var(--rapido);
+}
+
+@keyframes destaque-pousa {
+  from {
+    transform: scale(1.05);
+  }
+}
+
+/* Halo: um anel do tamanho do quadro que se abre e some, duas vezes. */
+.grade__quadro--pousou::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--azul);
+  opacity: 0;
+  animation: destaque-halo 1.2s ease-out 0.2s 2;
+  pointer-events: none;
+}
+
+@keyframes destaque-halo {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+
+  to {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+.grade__selo {
+  position: absolute;
+  bottom: var(--e2);
+  left: var(--e2);
+  z-index: 1;
+  padding: 0 var(--e2);
+  border-radius: var(--raio-pilula);
+  background: var(--azul);
+  color: var(--fundo);
+  font-size: var(--fonte-pequena);
+  font-weight: 700;
+}
+
+.grade__quadro--pousou .grade__selo {
+  animation: destaque-selo var(--medio) 0.15s backwards;
+}
+
+@keyframes destaque-selo {
+  from {
+    transform: translateY(var(--e2));
+    opacity: 0;
+  }
+}
+
+/* Foco: enquanto a foto nova se apresenta, as outras recuam. */
+.dias--holofote .grade__quadro:not(.grade__quadro--destaque) {
+  opacity: 0.3;
+}
+
+/* A foto em voo, entre a zona de envio e o lugar dela na grade. O ponto de apoio fica acima
+   dela, para o balanço ser de pêndulo. */
+.voo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  overflow: hidden;
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+  background: var(--superficie);
+  transform-origin: 50% -140%;
+  pointer-events: none;
+}
+
+/* Atalho para a foto que subiu fora da tela. */
+.atalho {
+  position: fixed;
+  right: var(--e4);
+  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  left: var(--e4);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  max-width: 408px;
+  margin: 0 auto;
+  padding: var(--e2) var(--e2) var(--e2) var(--e3);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  animation: atalho-entra var(--expandir);
+}
+
+@keyframes atalho-entra {
+  from {
+    transform: translateY(var(--e5));
+    opacity: 0;
+  }
+}
+
+.atalho__foto {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--raio);
+  background: var(--fundo);
+}
+
+.atalho__texto {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.atalho .botao {
+  flex: none;
+}
+
 .grade__quadro--carregando {
   animation: pulsar 1.6s ease-in-out infinite;
 }
@@ -325,6 +693,9 @@ h2:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.grade__imagem--nova {
   animation: surgir var(--medio);
 }
 
@@ -406,16 +777,39 @@ h2:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .botao {
+  .botao,
+  .zona,
+  .zona__icone {
     transition: none;
+  }
+
+  .zona--varrendo::after {
+    display: none;
+  }
+
+  .zona__barra-cheia {
+    transition: none;
+  }
+
+  .veu,
+  .veu__icone {
+    animation: none;
   }
 
   .girador {
     animation-duration: 3s;
   }
 
+  .grade__quadro {
+    transition: none;
+  }
+
   .grade__quadro--carregando,
-  .grade__imagem {
+  .grade__quadro--pousou,
+  .grade__quadro--pousou::after,
+  .grade__quadro--pousou .grade__selo,
+  .atalho,
+  .grade__imagem--nova {
     animation: none;
   }
 }
