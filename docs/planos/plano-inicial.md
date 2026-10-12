@@ -459,8 +459,10 @@ Pedido em 2026-10-12 e feito no mesmo dia.
   "Não deu para atualizar", com o motivo e um "Tentar de novo". Token vencido abre o login.
 - **No meio de um envio,** espera a fila terminar antes de ler. Com a fila pausada pelo
   limite do GitHub, não espera.
-- **Em aberto:** o `beba-agua` também atualiza ao puxar a tela para baixo. O gesto não
-  entrou aqui, onde a tela rola muito mais.
+- **Puxar para atualizar,** com o mesmo efeito do `beba-agua`: no topo da página, arrastar
+  para baixo faz o conteúdo descer junto com o dedo e um anel encher. Soltar com o anel
+  cheio atualiza, e o anel gira até terminar. Só vale com a página no topo e sem diálogo
+  aberto.
 
 ## Pendências
 

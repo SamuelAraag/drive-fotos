@@ -401,6 +401,68 @@ h2:focus {
   background: color-mix(in srgb, var(--trilho) 85%, var(--texto));
 }
 
+/* Puxar para atualizar, como no beba-agua e nos apps do iPhone. */
+
+html {
+  overscroll-behavior-y: contain;
+}
+
+.topo,
+.pagina {
+  transform: translateY(var(--puxar, 0px));
+}
+
+/* O anel fica no meio do vão aberto pelo arraste e aparece conforme ele enche. */
+.puxar {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 50%;
+  opacity: var(--puxar-progresso, 0);
+  transform: translate(-50%, calc(var(--puxar, 0px) / 2 - 50%));
+  pointer-events: none;
+}
+
+.puxar__anel {
+  display: block;
+  width: var(--e5);
+  height: var(--e5);
+}
+
+.puxar__anel circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.puxar__trilho {
+  stroke: var(--trilho);
+}
+
+.puxar__arco {
+  stroke: var(--azul);
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 100;
+  stroke-linecap: round;
+}
+
+/* Anel cheio: soltar agora atualiza. */
+.puxar--cheio .puxar__arco {
+  stroke: var(--foco);
+}
+
+/* Anel cheio girando não se percebe: enquanto atualiza, gira um arco de três quartos. */
+.puxar--recarregando .puxar__anel {
+  animation: girar 1s linear infinite;
+}
+
+.puxar-soltando .topo,
+.puxar-soltando .pagina {
+  transition: transform var(--medio);
+}
+
+.puxar-soltando .puxar {
+  transition: transform var(--medio), opacity var(--medio);
+}
+
 /* Carregando */
 
 .girador {
@@ -1603,6 +1665,16 @@ h2:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .puxar-soltando .topo,
+  .puxar-soltando .pagina,
+  .puxar-soltando .puxar {
+    transition: none;
+  }
+
+  .puxar--recarregando .puxar__anel {
+    animation-duration: 3s;
+  }
+
   .botao,
   .zona,
   .zona__icone,
