@@ -97,6 +97,7 @@ const TEMPO_DO_HOLOFOTE = 900;
 
 let destaqueId = null; // a foto marcada com contorno e selo
 let distantes = []; // ids das fotos que subiram fora da tela, à espera do atalho
+let atalhoDeRepetidas = false; // o atalho fala de repetidas que não subiram, e não de fotos que chegaram
 let voo = null; // pêndulo em andamento: { encerrar }
 let fotosPorId = new Map();
 let baixarAtual = null;
@@ -210,6 +211,9 @@ export function fotoChegou(id, { ultimaDaLeva }) {
   const quadro = quadroDe(id);
   if (!quadro) return;
   if (!estaNaTela(quadro)) {
+    // Foto que chega toma o atalho de um aviso de repetidas que ainda estivesse aberto.
+    if (atalhoDeRepetidas) distantes = [];
+    atalhoDeRepetidas = false;
     distantes.push(id);
     renderAtalho();
     return;
@@ -238,8 +242,14 @@ function renderAtalho() {
   barra.hidden = distantes.length === 0;
   if (distantes.length === 0) return;
   const varias = distantes.length > 1;
-  $('atalho-texto').textContent = varias ? `${distantes.length} fotos enviadas` : 'Foto enviada';
-  $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver foto';
+  if (atalhoDeRepetidas) {
+    // Curto de propósito: o atalho é estreito, e o diálogo acabou de dizer que eram repetidas.
+    $('atalho-texto').textContent = varias ? `${distantes.length} não enviadas` : 'Não enviada';
+    $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver a guardada';
+  } else {
+    $('atalho-texto').textContent = varias ? `${distantes.length} fotos enviadas` : 'Foto enviada';
+    $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver foto';
+  }
   const foto = fotosPorId.get(distantes.at(-1));
   const moldura = $('atalho-foto');
   moldura.replaceChildren();
@@ -258,15 +268,26 @@ function renderAtalho() {
 
 async function verPeloAtalho() {
   const id = distantes.at(-1);
-  distantes = [];
-  renderAtalho();
+  const repetida = atalhoDeRepetidas;
+  fecharAtalho();
   if (id == null) return;
   await rolarAte(id);
-  destacar(id, { comFoco: true });
+  // A guardada não acabou de chegar: só recebe o foco, sem o selo de "Enviada agora".
+  if (repetida) quadroDe(id)?.querySelector('.grade__botao')?.focus({ preventScroll: true });
+  else destacar(id, { comFoco: true });
 }
 
 function fecharAtalho() {
   distantes = [];
+  atalhoDeRepetidas = false;
+  renderAtalho();
+}
+
+// Depois de "Não enviar": o atalho diz que nada subiu e leva até a foto que já estava guardada.
+export function repetidasNaoEnviadas(ids) {
+  if (ids.length === 0) return;
+  distantes = ids;
+  atalhoDeRepetidas = true;
   renderAtalho();
 }
 
@@ -900,16 +921,18 @@ export function renderProgresso(fracao) {
 export function renderFila(itens, situacao) {
   const atual = itens.find((item) => item.estado === 'enviando');
   const ocupada = Boolean(atual || situacao.pausadaAte);
+  // Sem nada subindo, a conferência das repetidas é o que a zona tem para contar.
+  const conferindo = !ocupada && situacao.conferindo;
   // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
-  $('zona-titulo').textContent = atual ? atual.nome : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
+  $('zona-titulo').textContent = atual ? atual.nome : situacao.pausadaAte ? 'Envio em pausa' : conferindo ? 'Conferindo as fotos' : TITULO_DA_ZONA;
   posicaoNaFila = atual ? resumoDaFila(itens, situacao) : '';
-  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
+  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : conferindo ? 'Vendo se alguma já está guardada...' : DETALHE_DA_ZONA;
   $('zona-barra').hidden = !atual;
   if (atual) {
     $('zona-barra').setAttribute('aria-label', `Envio de ${atual.nome}`);
     renderProgresso(situacao.progresso);
   } else {
-    $('zona').classList.remove('zona--varrendo');
+    $('zona').classList.toggle('zona--varrendo', conferindo);
   }
 
   const falhas = itens.filter((item) => item.estado === 'erro');

@@ -40,6 +40,7 @@ let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila ret
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
 let progresso = 0; // de 0 a 1, da foto que está subindo agora
 let perguntando = false; // o diálogo de fotos repetidas está aberto
+let conferindoRepetidas = 0; // levas sendo conferidas agora, antes de entrar na fila
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
@@ -491,7 +492,7 @@ function render() {
 }
 
 function renderFila() {
-  ui.renderFila(fila, { enviando, pausadaAte, progresso });
+  ui.renderFila(fila, { enviando, pausadaAte, progresso, conferindo: conferindoRepetidas > 0 });
 }
 
 async function lerFotos() {
@@ -639,9 +640,17 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
 
   if (aceitos.length === 0) return;
   // As novas sobem direto. As repetidas esperam a resposta, sem segurar a fila.
-  const { novas, repetidas } = await separarRepetidas(aceitos);
-  enfileirar(novas);
-  if (repetidas.length > 0) resolverRepetidas(repetidas, aceitos.length);
+  // Até o diálogo abrir (ou a fila andar), a zona diz que está conferindo.
+  conferindoRepetidas++;
+  renderFila();
+  try {
+    const { novas, repetidas } = await separarRepetidas(aceitos);
+    enfileirar(novas);
+    if (repetidas.length > 0) await resolverRepetidas(repetidas, aceitos.length);
+  } finally {
+    conferindoRepetidas--;
+    renderFila();
+  }
 }
 
 function enfileirar(entradas) {
@@ -729,6 +738,7 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
     const escolha = await ui.perguntarRepetidas(linhas, totalDaLeva);
     for (const url of previas) URL.revokeObjectURL(url);
     if (escolha !== 'manter') {
+      ui.repetidasNaoEnviadas(repetidas.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
       ui.anunciarEnvio(repetidas.length === 1 ? 'A foto repetida não foi enviada.' : `${repetidas.length} fotos repetidas não foram enviadas.`);
       return;
     }
