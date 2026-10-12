@@ -237,7 +237,7 @@ testar na tela.
 - `drive-fotos` criado na conta principal. Feito.
 - `drive-fotos-dados` criado na conta separada. Feito.
 - Token fine-grained gerado na conta separada. Feito.
-- Conferir que o `drive-fotos-dados` tem um commit inicial.
+- Commit inicial no `drive-fotos-dados`, com um README. Feito.
 - Publicar a interface pelo GitHub Pages.
 - **Pronto quando:** a página abre pelo endereço público e o token lê o repositório de
   dados.

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="robots" content="noindex">
+  <title>Drive Fotos</title>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Drive Fotos">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icones/icone-180.png">
+  <link rel="icon" type="image/svg+xml" href="src/logo.svg">
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <header class="topo">
+    <h1 class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos</h1>
+    <div class="topo__acoes">
+      <button type="button" class="botao botao--fantasma" id="sair" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main class="pagina">
+    <section class="tela tela--centro" id="tela-carregando" hidden>
+      <div class="girador" aria-hidden="true"></div>
+      <p role="status">Carregando suas fotos...</p>
+    </section>
+
+    <section class="tela tela--centro" id="tela-erro" hidden>
+      <h2 class="tela__titulo" tabindex="-1">Não deu para carregar</h2>
+      <p class="texto-suave" id="erro-mensagem"></p>
+      <div class="pilha">
+        <button type="button" class="botao botao--primario" id="erro-recarregar">Tentar de novo</button>
+        <button type="button" class="botao botao--fantasma" id="erro-trocar-token">Trocar token</button>
+      </div>
+    </section>
+
+    <section class="tela tela--centro" id="tela-principal" hidden>
+      <h2 class="tela__titulo" tabindex="-1">Suas fotos</h2>
+      <p class="texto-suave" id="principal-vazia" hidden>Nenhuma foto guardada ainda.</p>
+      <p class="texto-suave" id="principal-total" hidden></p>
+    </section>
+  </main>
+
+  <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">
+    <form method="dialog">
+      <h2 class="tela__titulo" id="confirmar-sair-titulo">Sair e apagar o token?</h2>
+      <p class="texto-suave">O token some deste navegador e o GitHub não mostra ele de novo. Se você não tiver o token guardado, vai precisar gerar outro para entrar.</p>
+      <div class="pilha">
+        <button type="submit" class="botao botao--perigo" value="sair">Sair e apagar o token</button>
+        <button type="submit" class="botao botao--fantasma" value="cancelar" autofocus>Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo login" id="login" aria-labelledby="login-titulo">
+    <form id="login-form" novalidate>
+      <img class="logo logo--grande" src="src/logo.svg" alt="" width="48" height="48">
+      <h2 class="tela__titulo" id="login-titulo">Entrar no Drive Fotos</h2>
+      <p class="texto-suave">As fotos ficam num repositório privado do GitHub. Gere um token só para ele, na conta dona do repositório:</p>
+      <ol class="login__passos texto-suave">
+        <li>GitHub &gt; Settings &gt; Developer settings &gt; Personal access tokens &gt; <strong>Fine-grained tokens</strong>.</li>
+        <li><strong>Generate new token</strong>, com acesso só ao repositório <strong id="login-repo"></strong>.</li>
+        <li>Permissão <strong>Contents: Read and write</strong>.</li>
+      </ol>
+      <label class="campo__rotulo" for="login-token">Token do GitHub</label>
+      <input class="campo" id="login-token" type="password" autocomplete="off" spellcheck="false" aria-describedby="login-erro">
+      <p class="campo__erro" id="login-erro" hidden></p>
+      <p class="texto-suave texto-pequeno">O token fica guardado só neste navegador.</p>
+      <div class="pilha">
+        <button type="submit" class="botao botao--primario" id="login-entrar">Entrar</button>
+        <button type="button" class="botao botao--fantasma" id="login-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
