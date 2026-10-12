@@ -722,9 +722,26 @@ export function renomearOcupado(ocupado) {
   $('renomear-salvar').textContent = ocupado ? 'Salvando...' : 'Salvar';
 }
 
-export function abrirApagar() {
+// O diálogo mostra qual foto vai sair: a miniatura, o nome e o dia dela.
+export function abrirApagar(foto, nome) {
   erroNoApagar(null);
   apagarOcupado(false);
+  $('apagar-nome').textContent = nome;
+  $('apagar-data').textContent = descricaoDaFoto(foto).replace('Foto de ', '');
+  const miniatura = $('apagar-miniatura');
+  miniatura.hidden = true;
+  miniatura.removeAttribute('src');
+  miniatura.dataset.id = foto.id;
+  if (foto.miniatura) {
+    baixarAtual(foto.miniatura).then(
+      (url) => {
+        if (miniatura.dataset.id !== foto.id) return;
+        miniatura.src = url;
+        miniatura.hidden = false;
+      },
+      () => {},
+    );
+  }
   $('apagar').showModal();
 }
 

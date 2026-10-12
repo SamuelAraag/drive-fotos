@@ -1061,6 +1061,52 @@ h2:focus {
   gap: var(--e3);
 }
 
+/* Ações de um diálogo curto: cancelar primeiro, a ação por último, do tamanho do texto.
+   No celular os dois dividem a largura, para o toque. */
+.dialogo__acoes {
+  display: flex;
+  gap: var(--e2);
+  margin-top: var(--e2);
+}
+
+.dialogo__acoes .botao {
+  flex: 1;
+}
+
+@media (min-width: 480px) {
+  .dialogo__acoes {
+    justify-content: flex-end;
+  }
+
+  .dialogo__acoes .botao {
+    flex: none;
+  }
+}
+
+/* O que o diálogo vai afetar: a miniatura da foto, com o nome ao lado. */
+.dialogo__alvo {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+}
+
+.dialogo__miniatura {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--e2);
+  background: var(--trilho);
+  object-fit: cover;
+}
+
+.dialogo__alvo-texto {
+  min-width: 0;
+}
+
+.dialogo__nome {
+  overflow-wrap: anywhere;
+}
+
 .login__passos {
   display: flex;
   flex-direction: column;

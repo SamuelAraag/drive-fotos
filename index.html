@@ -142,21 +142,28 @@
         <span class="texto-suave" id="renomear-extensao"></span>
       </div>
       <p class="campo__erro" id="renomear-erro" hidden></p>
-      <div class="pilha">
-        <button type="submit" class="botao botao--primario" id="renomear-salvar">Salvar</button>
+      <div class="dialogo__acoes">
         <button type="button" class="botao botao--fantasma" id="renomear-cancelar">Cancelar</button>
+        <button type="submit" class="botao botao--primario" id="renomear-salvar">Salvar</button>
       </div>
     </form>
   </dialog>
 
-  <dialog class="dialogo" id="apagar" aria-labelledby="apagar-titulo">
+  <dialog class="dialogo" id="apagar" aria-labelledby="apagar-titulo" aria-describedby="apagar-nome">
     <form id="apagar-form">
-      <h2 class="tela__titulo" id="apagar-titulo">Apagar esta foto?</h2>
-      <p class="texto-suave">Ela some do app e deste aparelho. No repositório, continua no histórico: o espaço não é liberado.</p>
+      <div class="dialogo__alvo">
+        <img class="dialogo__miniatura" id="apagar-miniatura" alt="" width="64" height="64" hidden>
+        <div class="dialogo__alvo-texto">
+          <h2 class="tela__titulo" id="apagar-titulo">Apagar esta foto?</h2>
+          <p class="dialogo__nome" id="apagar-nome"></p>
+          <p class="texto-suave texto-pequeno" id="apagar-data"></p>
+        </div>
+      </div>
+      <p class="texto-suave texto-pequeno">Ela sai do app e deste aparelho. No repositório, continua no histórico, e o espaço não é liberado.</p>
       <p class="campo__erro" id="apagar-erro" role="alert" hidden></p>
-      <div class="pilha">
-        <button type="submit" class="botao botao--perigo" id="apagar-confirmar">Apagar foto</button>
+      <div class="dialogo__acoes">
         <button type="button" class="botao botao--fantasma" id="apagar-cancelar" autofocus>Cancelar</button>
+        <button type="submit" class="botao botao--perigo" id="apagar-confirmar">Apagar foto</button>
       </div>
     </form>
   </dialog>
@@ -165,9 +172,9 @@
     <form method="dialog">
       <h2 class="tela__titulo" id="confirmar-sair-titulo">Sair e apagar o token?</h2>
       <p class="texto-suave">O token e as fotos guardadas somem deste navegador, e o GitHub não mostra o token de novo. Se você não tiver ele guardado, vai precisar gerar outro para entrar.</p>
-      <div class="pilha">
-        <button type="submit" class="botao botao--perigo" value="sair">Sair e apagar o token</button>
+      <div class="dialogo__acoes">
         <button type="submit" class="botao botao--fantasma" value="cancelar" autofocus>Cancelar</button>
+        <button type="submit" class="botao botao--perigo" value="sair">Sair e apagar o token</button>
       </div>
     </form>
   </dialog>

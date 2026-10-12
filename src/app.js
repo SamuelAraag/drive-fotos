@@ -417,9 +417,10 @@ async function salvarNome(base, extensao) {
 }
 
 function pedirApagar() {
-  if (!fotoAberta()) return;
+  const item = fotoAberta();
+  if (!item) return;
   ui.avisoNoVisor(null);
-  ui.abrirApagar();
+  ui.abrirApagar(item, nomeDaFoto(item, registros.get(item.id)));
 }
 
 async function apagarFoto() {
