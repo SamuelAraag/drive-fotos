@@ -104,11 +104,16 @@ export function separarNome(nome) {
   return partes[1] ? [partes[1], partes[2] ?? ''] : [nome, ''];
 }
 
-// Texto em base64, com acento e tudo.
-export function textoParaBase64(texto) {
-  let binario = '';
-  for (const byte of new TextEncoder().encode(texto)) binario += String.fromCharCode(byte);
-  return btoa(binario);
+// O sha que o git dá a um arquivo de texto, calculado aqui: o mesmo que aparece na árvore
+// do repositório depois da gravação.
+export async function shaDoGit(texto) {
+  const conteudo = new TextEncoder().encode(texto);
+  const cabecalho = new TextEncoder().encode(`blob ${conteudo.length}\0`);
+  const bytes = new Uint8Array(cabecalho.length + conteudo.length);
+  bytes.set(cabecalho);
+  bytes.set(conteudo, cabecalho.length);
+  const resumo = await crypto.subtle.digest('SHA-1', bytes);
+  return [...new Uint8Array(resumo)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export function caminhos(id, extensao) {

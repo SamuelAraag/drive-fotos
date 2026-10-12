@@ -684,6 +684,18 @@ export function baixarOcupado(ocupado) {
   $('visor-baixar').textContent = ocupado ? 'Baixando...' : 'Baixar';
 }
 
+// Entrega o arquivo ao navegador como um download comum.
+export function baixarArquivo(arquivo) {
+  const url = URL.createObjectURL(arquivo);
+  const link = el('a');
+  link.href = url;
+  link.download = arquivo.name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 // O nome se edita sem a extensão, que fica ao lado: trocar ".jpg" por engano quebraria o arquivo baixado.
 export function abrirRenomear(base, extensao) {
   $('renomear-nome').value = base;

@@ -232,6 +232,8 @@ async function lerRegistro(item) {
   return registro;
 }
 
+const textoDoRegistro = (registro) => `${JSON.stringify(registro, null, 2)}\n`;
+
 async function mostrarAberta({ abrindo = false } = {}) {
   const indice = fotos.findIndex((item) => item.id === aberta);
   if (indice < 0) {
@@ -287,8 +289,187 @@ function passarFoto(sentido) {
 function fotoFechada() {
   const id = aberta;
   aberta = null;
+  ui.fecharRenomear();
+  ui.fecharApagar();
   if (history.state?.visor) history.back();
   if (id != null) ui.voltarParaAFoto(id);
+}
+
+// Ações da foto aberta: baixar, renomear e apagar.
+
+const fotoAberta = () => fotos?.find((item) => item.id === aberta) ?? null;
+
+// Foto sem registro, posta à mão no repositório, atende pelo id.
+const nomeDaFoto = (item, registro) => registro?.nome ?? `${item.id}.${item.ext}`;
+
+// Token vencido no meio de uma ação: fecha tudo e pede o login de novo.
+function tokenVenceu(erro) {
+  if (erro.tipo !== 'token') return false;
+  ui.fecharVisor();
+  github.apagarToken();
+  ui.abrirLogin(erro.message);
+  return true;
+}
+
+const mensagemDe = (erro, padrao) => (erro instanceof github.ErroGitHub ? erro.message : padrao);
+
+async function baixarFoto() {
+  const item = fotoAberta();
+  if (!item) return;
+  ui.avisoNoVisor(null);
+  ui.baixarOcupado(true);
+  try {
+    const [blob, registro] = await Promise.all([obterBlob(item.sha, { original: true }), lerRegistro(item)]);
+    const arquivo = new File([blob], nomeDaFoto(item, registro), { type: registro?.tipo || foto.tipoDaExtensao(item.ext) });
+    // No celular, o compartilhar do sistema deixa salvar direto na galeria.
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [arquivo] })) {
+      try {
+        await navigator.share({ files: [arquivo] });
+        return;
+      } catch (erro) {
+        if (erro.name === 'AbortError') return; // a pessoa fechou o compartilhar
+        // O navegador recusou (a espera pelo download gastou o toque): cai no download comum.
+      }
+    }
+    ui.baixarArquivo(arquivo);
+  } catch (erro) {
+    if (tokenVenceu(erro)) return;
+    ui.avisoNoVisor(mensagemDe(erro, 'Não deu para baixar a foto. Tente de novo.'));
+  } finally {
+    ui.baixarOcupado(false);
+  }
+}
+
+async function pedirRenomear() {
+  const item = fotoAberta();
+  if (!item) return;
+  ui.avisoNoVisor(null);
+  const registro = await lerRegistro(item);
+  if (aberta !== item.id) return;
+  // Sem o registro em mãos, salvar o nome apagaria os outros dados dele.
+  if (item.registro && !registro) {
+    ui.avisoNoVisor('Não deu para ler os dados da foto. Tente de novo.');
+    return;
+  }
+  ui.abrirRenomear(...foto.separarNome(nomeDaFoto(item, registro)));
+}
+
+async function salvarNome(base, extensao) {
+  const item = fotoAberta();
+  if (!item) return;
+  if (!base) {
+    ui.erroNoRenomear('Escreva um nome para a foto.');
+    return;
+  }
+  if (/[\\/\u0000-\u001f]/.test(base)) {
+    ui.erroNoRenomear('O nome não pode ter barra.');
+    return;
+  }
+  const atual = await lerRegistro(item);
+  if (item.registro && !atual) {
+    ui.erroNoRenomear('Não deu para ler os dados da foto. Tente de novo.');
+    return;
+  }
+  const nome = `${base}${extensao}`;
+  if (nome === nomeDaFoto(item, atual)) {
+    ui.fecharRenomear();
+    return;
+  }
+  const caminhos = foto.caminhos(item.id, item.ext);
+  // Foto posta à mão no repositório ganha o registro dela agora.
+  const registro = {
+    ...(atual ?? {
+      versao: 1,
+      id: item.id,
+      nome,
+      tipo: foto.tipoDaExtensao(item.ext),
+      tamanho: item.tamanho,
+      largura: null,
+      altura: null,
+      data: null,
+      enviada_em: null,
+      blob: caminhos.blob,
+      miniatura: item.miniatura ? caminhos.miniatura : null,
+    }),
+    nome,
+  };
+  const texto = textoDoRegistro(registro);
+  ui.erroNoRenomear(null);
+  ui.renomearOcupado(true);
+  try {
+    await github.gravar([{ caminho: caminhos.registro, texto }], `renomear: ${item.id}`);
+    const sha = await foto.shaDoGit(texto);
+    if (item.registro) armazem.apagar([item.registro]);
+    armazem.guardar(sha, new Blob([texto], { type: 'application/json' }), { original: false });
+    registros.set(item.id, registro);
+    if (fotos) {
+      fotos = fotos.map((outra) => (outra.id === item.id ? { ...outra, registro: sha } : outra));
+      armazem.guardarFotos(fotos);
+    }
+    ui.dadosDoRegistro(item.id, registro);
+    ui.fecharRenomear();
+  } catch (erro) {
+    if (tokenVenceu(erro)) return;
+    ui.erroNoRenomear(mensagemDe(erro, 'Não deu para renomear a foto. Tente de novo.'));
+  } finally {
+    ui.renomearOcupado(false);
+  }
+}
+
+function pedirApagar() {
+  if (!fotoAberta()) return;
+  ui.avisoNoVisor(null);
+  ui.abrirApagar();
+}
+
+async function apagarFoto() {
+  const item = fotoAberta();
+  if (!item) return;
+  const caminhos = foto.caminhos(item.id, item.ext);
+  // Só entra no commit o que a foto tem: tirar da árvore um arquivo que não existe é recusado.
+  const arquivos = [{ caminho: caminhos.blob, apagar: true }];
+  if (item.miniatura) arquivos.push({ caminho: caminhos.miniatura, apagar: true });
+  if (item.registro) arquivos.push({ caminho: caminhos.registro, apagar: true });
+  ui.erroNoApagar(null);
+  ui.apagarOcupado(true);
+  try {
+    await github.gravar(arquivos, `apagar: ${item.id}`);
+  } catch (erro) {
+    ui.apagarOcupado(false);
+    if (tokenVenceu(erro)) return;
+    ui.erroNoApagar(mensagemDe(erro, 'Não deu para apagar a foto. Tente de novo.'));
+    return;
+  }
+  ui.apagarOcupado(false);
+
+  armazem.apagar([item.sha, item.miniatura, item.registro].filter(Boolean));
+  registros.delete(item.id);
+  const guardada = originais.get(item.sha);
+  if (guardada) {
+    guardada.promessa.then(URL.revokeObjectURL, () => {});
+    originais.delete(item.sha);
+  }
+  tirarDaFilaDeFundo(item.id);
+  if (!fotos) return; // saiu da conta enquanto o commit corria
+  const indice = fotos.findIndex((outra) => outra.id === item.id);
+  fotos = fotos.filter((outra) => outra.id !== item.id);
+  armazem.guardarFotos(fotos);
+  ui.fecharApagar();
+  if (aberta !== item.id) {
+    render(); // o visor fechou enquanto o commit corria
+    return;
+  }
+  // A vizinha assume o lugar: a seguinte, ou a anterior quando a apagada era a última.
+  const vizinha = fotos[indice] ?? fotos[indice - 1];
+  if (!vizinha) {
+    render();
+    ui.fecharVisor();
+    return;
+  }
+  aberta = vizinha.id;
+  ui.passouParaAFoto(vizinha.id);
+  render();
+  mostrarAberta();
 }
 
 function render() {
@@ -448,7 +629,7 @@ async function enviarFoto(item) {
 
   const arquivos = [{ caminho: caminhos.blob, base64: await foto.paraBase64(arquivo) }];
   if (miniatura) arquivos.push({ caminho: caminhos.miniatura, base64: await foto.paraBase64(miniatura.blob) });
-  arquivos.push({ caminho: caminhos.registro, texto: `${JSON.stringify(registro, null, 2)}\n` });
+  arquivos.push({ caminho: caminhos.registro, texto: textoDoRegistro(registro) });
 
   const shas = await github.gravar(arquivos, `foto: ${item.id}`, (fracao) => {
     progresso = fracao;
@@ -466,7 +647,8 @@ async function enviarFoto(item) {
     hora: item.id.slice(9, 15),
     sha: shas[caminhos.blob],
     miniatura: shaDaMiniatura,
-    registro: null, // o sha do registro só aparece na próxima leitura do repositório
+    // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
+    registro: await foto.shaDoGit(textoDoRegistro(registro)),
     tamanho: arquivo.size,
     ext: foto.extensaoDe(arquivo),
   };
@@ -559,6 +741,11 @@ ui.ligarEventos({
   passarFoto,
   recarregarFoto: () => mostrarAberta(),
   fotoFechada,
+  baixarFoto,
+  pedirRenomear,
+  salvarNome,
+  pedirApagar,
+  apagarFoto,
   visibilidade,
 });
 
