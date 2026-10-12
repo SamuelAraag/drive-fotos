@@ -785,7 +785,7 @@ vez dele.
 - [ ] Revisar todos os arquivos. Épico 14.
 - [ ] Remover todos os comentários. Épico 15.
 - [ ] Documentar as usabilidades. Épico 16.
-- [ ] Migração de tudo o que tenho até hoje. Épico 17.
+- [x] Migração de tudo o que tenho até hoje. Feito no Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
 
