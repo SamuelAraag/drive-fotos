@@ -56,5 +56,5 @@ src/ui.js        telas
 
 ## Estado
 
-Em construção. Já dá para entrar com o token, enviar fotos e ver a grade de miniaturas,
-agrupada por dia. A foto aberta ainda não existe.
+Em construção. Já dá para entrar com o token, enviar fotos, ver a grade de miniaturas
+agrupada por dia e abrir uma foto em tela cheia. Renomear, baixar e apagar ainda não existem.

@@ -81,6 +81,27 @@
     <button type="button" class="botao botao--fantasma" id="atalho-fechar">Fechar</button>
   </div>
 
+  <dialog class="visor" id="visor" aria-label="Foto aberta">
+    <div class="visor__topo">
+      <p class="visor__legenda"><span id="visor-legenda"></span><span class="texto-suave texto-pequeno" id="visor-posicao"></span></p>
+      <button type="button" class="botao botao--fantasma" id="visor-fechar">Fechar</button>
+    </div>
+    <div class="visor__palco">
+      <img class="visor__imagem" id="visor-imagem" alt="" hidden>
+      <div class="girador visor__girador" id="visor-carregando" role="status" aria-label="Carregando a foto" hidden></div>
+      <div class="visor__erro" id="visor-erro" role="alert" hidden>
+        <p id="visor-erro-texto"></p>
+        <button type="button" class="botao botao--primario" id="visor-tentar">Tentar de novo</button>
+      </div>
+    </div>
+    <button type="button" class="botao visor__seta visor__seta--anterior" id="visor-anterior" aria-label="Foto anterior">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button type="button" class="botao visor__seta visor__seta--proxima" id="visor-proxima" aria-label="Próxima foto">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </dialog>
+
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">
     <form method="dialog">
       <h2 class="tela__titulo" id="confirmar-sair-titulo">Sair e apagar o token?</h2>

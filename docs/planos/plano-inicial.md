@@ -189,8 +189,10 @@ No molde do Google Fotos.
   agrupada por dia, com um título por dia. Miniaturas quadradas, cortadas ao centro.
 - **Data da foto:** a data de modificação do arquivo, que o navegador entrega sem
   biblioteca. Sem ela, vale a data do envio. Ver "Em aberto" sobre o iPhone.
-- **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no X, no Esc ou no voltar
-  do navegador.
+- **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no "Fechar", no Esc ou no
+  voltar do navegador, e o foco volta para a foto na grade. A miniatura aparece desfocada
+  como prévia até a original baixar. As últimas oito originais ficam na memória, para ir
+  e voltar entre vizinhas sem baixar de novo.
 - **Navegar:** com a foto aberta, deslizar no celular ou usar as setas no teclado passa
   para a anterior e a próxima.
 - **Ações na foto aberta:** renomear, baixar a original e apagar. O nome aparece aqui, lido

@@ -5,6 +5,7 @@ import * as github from './github.js';
 import * as ui from './ui.js';
 
 const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
+const MAX_ORIGINAIS = 8; // originais guardadas na memória enquanto a pessoa passa de foto
 
 // fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano e id.
 const CAMINHO = /^(fotos|miniaturas)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.[0-9a-z]+$/i;
@@ -13,6 +14,8 @@ let fotos = null; // última leitura do repositório, da mais recente para a mai
 const miniaturas = new Map(); // sha -> promessa da URL da imagem já baixada
 const espera = []; // downloads aguardando vaga
 let baixando = 0;
+const originais = new Map(); // sha -> promessa da URL da original; a mais antiga sai primeiro
+let aberta = null; // id da foto aberta em tela cheia
 
 // Fila de envio. Cada item: { n, arquivo, id, estado, mensagem }.
 // estado: 'aguardando' | 'enviando' | 'concluido' | 'erro'
@@ -84,6 +87,80 @@ function esquecerMiniaturas() {
   miniaturas.clear();
 }
 
+// Guarda poucas originais: ir e voltar entre vizinhas não baixa de novo, e a memória não enche.
+function baixarOriginal(sha) {
+  if (!originais.has(sha)) {
+    const promessa = github.lerBlob(sha).then((blob) => URL.createObjectURL(blob));
+    promessa.catch(() => originais.delete(sha));
+    originais.set(sha, promessa);
+    for (const antigo of originais.keys()) {
+      if (originais.size <= MAX_ORIGINAIS) break;
+      originais.get(antigo).then(URL.revokeObjectURL, () => {});
+      originais.delete(antigo);
+    }
+  }
+  return originais.get(sha);
+}
+
+function esquecerOriginais() {
+  for (const promessa of originais.values()) promessa.then(URL.revokeObjectURL, () => {});
+  originais.clear();
+}
+
+async function mostrarAberta() {
+  const indice = fotos.findIndex((item) => item.id === aberta);
+  if (indice < 0) {
+    ui.fecharVisor();
+    return;
+  }
+  const item = fotos[indice];
+  ui.renderVisor(item, {
+    posicao: indice + 1,
+    total: fotos.length,
+    temAnterior: indice > 0,
+    temProxima: indice < fotos.length - 1,
+  });
+  try {
+    const url = await baixarOriginal(item.sha);
+    if (aberta === item.id) ui.mostrarOriginal(item, url);
+  } catch (erro) {
+    if (aberta !== item.id) return;
+    if (erro.tipo === 'token') {
+      ui.fecharVisor();
+      github.apagarToken();
+      ui.abrirLogin(erro.message);
+      return;
+    }
+    ui.erroNoVisor(erro.message ?? 'Não deu para carregar a foto.', { podeTentar: true });
+  }
+}
+
+function abrirFoto(id) {
+  if (!fotos?.some((item) => item.id === id)) return;
+  aberta = id;
+  ui.abrirVisor();
+  // O voltar do navegador fecha a foto, em vez de sair do app.
+  history.pushState({ visor: true }, '');
+  mostrarAberta();
+}
+
+// A ordem é a da grade: a próxima é a foto seguinte, mais antiga.
+function passarFoto(sentido) {
+  if (aberta == null) return;
+  const vizinha = fotos[fotos.findIndex((item) => item.id === aberta) + sentido];
+  if (!vizinha) return;
+  aberta = vizinha.id;
+  mostrarAberta();
+}
+
+// Chamado quando o visor fecha, seja pelo botão, pelo Esc ou pelo voltar do navegador.
+function fotoFechada() {
+  const id = aberta;
+  aberta = null;
+  if (history.state?.visor) history.back();
+  if (id != null) ui.voltarParaAFoto(id);
+}
+
 function render() {
   if (!fotos) return;
   ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura);
@@ -147,8 +224,10 @@ function sair() {
   pausadaAte = null;
   ui.esquecerEnvio();
   renderFila();
+  ui.fecharVisor();
   ui.limparPrincipal();
   esquecerMiniaturas();
+  esquecerOriginais();
   ui.mostrarTela(null);
   ui.abrirLogin();
 }
@@ -310,13 +389,20 @@ ui.ligarEventos({
   arquivos: adicionarArquivos,
   tentarDeNovo,
   limparFila: dispensarFalhas,
-  podeEnviar: () => Boolean(fotos && github.lerToken()),
+  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto(),
+  abrirFoto,
+  passarFoto,
+  recarregarFoto: mostrarAberta,
+  fotoFechada,
 });
 
 // A fila vive só nesta página: sair no meio perde o que ainda não subiu.
 window.addEventListener('beforeunload', (evento) => {
   if (fila.some((item) => item.estado === 'aguardando' || item.estado === 'enviando')) evento.preventDefault();
 });
+
+// O voltar do navegador, com a foto aberta, só fecha a foto.
+window.addEventListener('popstate', () => ui.fecharVisor());
 
 // O navegador solta a trava quando a aba some. Ao voltar, com a fila correndo, pede de novo.
 document.addEventListener('visibilitychange', () => {

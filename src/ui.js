@@ -64,21 +64,21 @@ function carregarQuadro(quadro) {
     (url) => {
       const imagem = el('img', jaMostradas.has(foto.miniatura) ? 'grade__imagem' : 'grade__imagem grade__imagem--nova');
       jaMostradas.add(foto.miniatura);
-      imagem.alt = descricaoDaFoto(foto);
+      imagem.alt = ''; // o nome acessível já está no botão
       imagem.decoding = 'async';
       imagem.src = url;
       quadro.classList.remove('grade__quadro--carregando');
-      quadro.append(imagem);
+      quadro.querySelector('.grade__botao').append(imagem);
     },
     () => marcarSemMiniatura(quadro, foto),
   );
 }
 
-// Foto sem miniatura, ou miniatura que não baixou: quadro neutro, com o texto para o leitor de tela.
+// Foto sem miniatura, ou miniatura que não baixou: quadro neutro. Ela ainda abre pelo botão.
 function marcarSemMiniatura(quadro, foto) {
   quadro.classList.remove('grade__quadro--carregando');
   quadro.classList.add('grade__quadro--vazio');
-  quadro.append(el('span', 'so-leitor', `${descricaoDaFoto(foto)}, sem miniatura`));
+  quadro.querySelector('.grade__botao').setAttribute('aria-label', `${descricaoDaFoto(foto)}, sem miniatura`);
 }
 
 // A foto que acabou de subir
@@ -125,8 +125,7 @@ function destacar(id, { comFoco }) {
   marcarDestaque(quadro, true);
   if (!comFoco) return;
   // Foco: as vizinhas recuam por um instante e o teclado vai para a foto.
-  quadro.tabIndex = -1;
-  quadro.focus({ preventScroll: true });
+  quadro.querySelector('.grade__botao').focus({ preventScroll: true });
   if (!podeAnimar()) return;
   $('grade').classList.add('dias--holofote');
   setTimeout(() => $('grade').classList.remove('dias--holofote'), TEMPO_DO_HOLOFOTE);
@@ -338,6 +337,10 @@ export function renderPrincipal(grupos, total, baixar) {
     for (const foto of grupo.fotos) {
       const quadro = el('li', 'grade__quadro');
       quadro.dataset.id = foto.id;
+      const botao = el('button', 'grade__botao');
+      botao.type = 'button';
+      botao.setAttribute('aria-label', descricaoDaFoto(foto));
+      quadro.append(botao);
       if (foto.id === destaqueId) marcarDestaque(quadro, false);
       if (foto.miniatura) {
         quadro.classList.add('grade__quadro--carregando');
@@ -352,6 +355,116 @@ export function renderPrincipal(grupos, total, baixar) {
     $('grade').append(secao);
   }
   deslizarDe(posicoes);
+}
+
+// Foto aberta
+//
+// A foto abre em tela cheia por cima da grade. A miniatura entra na hora, como prévia, e a
+// original toma o lugar dela quando termina de baixar.
+
+let noVisor = null; // id da foto que o visor está mostrando
+let prontaNoVisor = null; // id da foto cuja original já está na tela
+
+export function visorAberto() {
+  return $('visor').open;
+}
+
+export function abrirVisor() {
+  if (!$('visor').open) $('visor').showModal();
+}
+
+export function fecharVisor() {
+  if ($('visor').open) $('visor').close();
+}
+
+// Depois de fechar, o foco volta para a foto que estava aberta, e ela fica à vista.
+export function voltarParaAFoto(id) {
+  const botao = quadroDe(id)?.querySelector('.grade__botao');
+  if (!botao) return;
+  botao.focus({ preventScroll: true });
+  botao.scrollIntoView({ block: 'nearest' });
+}
+
+export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
+  noVisor = foto.id;
+  prontaNoVisor = null;
+  const imagem = $('visor-imagem');
+  imagem.hidden = true;
+  imagem.removeAttribute('src');
+  imagem.alt = descricaoDaFoto(foto);
+  imagem.classList.add('visor__imagem--previa');
+  $('visor-legenda').textContent = descricaoDaFoto(foto).replace('Foto de ', '');
+  $('visor-posicao').textContent = `${posicao} de ${total}`;
+  $('visor-anterior').disabled = !temAnterior;
+  $('visor-proxima').disabled = !temProxima;
+  $('visor-erro').hidden = true;
+  $('visor-carregando').hidden = false;
+  if (!foto.miniatura) return;
+  baixarAtual(foto.miniatura).then(
+    (url) => {
+      // A original pode ter chegado antes, ou a pessoa pode já ter passado para outra foto.
+      if (noVisor !== foto.id || prontaNoVisor === foto.id) return;
+      imagem.src = url;
+      imagem.hidden = false;
+    },
+    () => {},
+  );
+}
+
+export function mostrarOriginal(foto, url) {
+  prontaNoVisor = foto.id;
+  const imagem = $('visor-imagem');
+  imagem.classList.remove('visor__imagem--previa');
+  imagem.src = url;
+  imagem.hidden = false;
+  $('visor-carregando').hidden = true;
+}
+
+export function erroNoVisor(mensagem, { podeTentar }) {
+  $('visor-carregando').hidden = true;
+  $('visor-erro').hidden = false;
+  $('visor-erro-texto').textContent = mensagem;
+  $('visor-tentar').hidden = !podeTentar;
+}
+
+function ligarVisor(acoes) {
+  const visor = $('visor');
+  $('grade').addEventListener('click', (evento) => {
+    const quadro = evento.target.closest('.grade__botao')?.closest('[data-id]');
+    if (quadro) acoes.abrirFoto(quadro.dataset.id);
+  });
+  $('visor-fechar').addEventListener('click', () => visor.close());
+  $('visor-anterior').addEventListener('click', () => acoes.passarFoto(-1));
+  $('visor-proxima').addEventListener('click', () => acoes.passarFoto(1));
+  $('visor-tentar').addEventListener('click', acoes.recarregarFoto);
+  visor.addEventListener('close', acoes.fotoFechada);
+  visor.addEventListener('keydown', (evento) => {
+    if (evento.key === 'ArrowLeft') acoes.passarFoto(-1);
+    if (evento.key === 'ArrowRight') acoes.passarFoto(1);
+  });
+  // O navegador não soube decodificar a original (HEIC fora do Safari, por exemplo).
+  $('visor-imagem').addEventListener('error', () => {
+    if (prontaNoVisor == null) return;
+    $('visor-imagem').hidden = true;
+    erroNoVisor('Este navegador não consegue mostrar o formato desta foto.', { podeTentar: false });
+  });
+
+  // Deslizar no celular passa de foto. Só conta o gesto mais horizontal que vertical.
+  let inicio = null;
+  visor.addEventListener('pointerdown', (evento) => {
+    inicio = evento.pointerType === 'touch' ? { x: evento.clientX, y: evento.clientY } : null;
+  });
+  visor.addEventListener('pointerup', (evento) => {
+    if (!inicio) return;
+    const dx = evento.clientX - inicio.x;
+    const dy = evento.clientY - inicio.y;
+    inicio = null;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    acoes.passarFoto(dx < 0 ? 1 : -1);
+  });
+  visor.addEventListener('pointercancel', () => {
+    inicio = null;
+  });
 }
 
 // Envio
@@ -526,6 +639,7 @@ export function ligarEventos(acoes) {
   $('atalho-ver').addEventListener('click', verPeloAtalho);
   $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
+  ligarVisor(acoes);
 
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.
   const confirmarSair = $('confirmar-sair');

@@ -538,6 +538,32 @@ h2:focus {
   }
 }
 
+/* O quadro inteiro é o botão que abre a foto. */
+.grade__botao {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* O quadro corta o que passa dele, então o contorno de foco vai para dentro. */
+.grade__botao:focus-visible {
+  outline-offset: -2px;
+}
+
+.grade__botao .grade__imagem {
+  transition: transform var(--rapido);
+}
+
+.grade__botao:hover .grade__imagem {
+  transform: scale(1.04);
+}
+
 /* A última foto enviada. O contorno e o selo ficam, para achar a foto na grade a qualquer
    momento. A entrada e o halo (--pousou) acontecem uma vez, no instante em que ela chega.
    Tudo anima só transform e opacity. */
@@ -550,10 +576,6 @@ h2:focus {
   overflow: visible;
   outline: 3px solid var(--azul);
   outline-offset: -3px;
-}
-
-.grade__quadro--destaque:focus-visible {
-  outline-color: var(--foco);
 }
 
 /* Um assentar curto no pouso, para a chegada não parecer um corte. */
@@ -601,6 +623,7 @@ h2:focus {
   color: var(--fundo);
   font-size: var(--fonte-pequena);
   font-weight: 700;
+  pointer-events: none; /* o toque passa para o botão da foto */
 }
 
 .grade__quadro--pousou .grade__selo {
@@ -711,6 +734,127 @@ h2:focus {
   }
 }
 
+/* Foto aberta */
+
+.visor {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+.visor[open] {
+  display: flex;
+  flex-direction: column;
+  animation: surgir var(--rapido);
+}
+
+.visor__topo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  min-height: 56px;
+  padding: env(safe-area-inset-top) var(--e2) 0 var(--e4);
+}
+
+.visor__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--e3);
+  font-weight: 600;
+}
+
+.visor__palco {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: var(--e2) var(--e2) calc(var(--e4) + env(safe-area-inset-bottom));
+  touch-action: pan-y pinch-zoom;
+}
+
+.visor__imagem {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* A miniatura esticada serve de prévia: desfocada, para não parecer a foto pronta. */
+.visor__imagem--previa {
+  width: 100%;
+  height: 100%;
+  filter: blur(var(--e2));
+  opacity: 0.6;
+}
+
+.visor__girador {
+  position: absolute;
+}
+
+.visor__erro {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--e3);
+  max-width: 408px;
+  padding: var(--e5);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  text-align: center;
+}
+
+.visor__seta {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-top: -28px;
+  padding: 0;
+  border-radius: var(--raio-pilula);
+  background: color-mix(in srgb, var(--superficie) 80%, transparent);
+}
+
+.visor__seta:hover {
+  background: var(--superficie);
+}
+
+.visor__seta svg {
+  width: var(--e5);
+  height: var(--e5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.visor__seta--anterior {
+  left: var(--e3);
+}
+
+.visor__seta--proxima {
+  right: var(--e3);
+}
+
+/* Na primeira e na última foto a seta some, em vez de ficar apagada sem explicação. */
+.visor__seta:disabled {
+  visibility: hidden;
+}
+
 /* Diálogos e login */
 
 .dialogo {
@@ -779,8 +923,13 @@ h2:focus {
 @media (prefers-reduced-motion: reduce) {
   .botao,
   .zona,
-  .zona__icone {
+  .zona__icone,
+  .grade__botao .grade__imagem {
     transition: none;
+  }
+
+  .visor[open] {
+    animation: none;
   }
 
   .zona--varrendo::after {
