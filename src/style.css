@@ -1262,6 +1262,13 @@ h2:focus {
   object-fit: cover;
 }
 
+/* Por que o par está na lista: conteúdo idêntico ou só o nome igual. */
+.repetidas__motivo {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fonte-pequena);
+}
+
 /* Com várias repetidas, cada par vira um bloco fechado, e a escolha dele fica numa faixa
    própria embaixo, separada das fotos por uma linha. */
 .repetidas--varias .repetidas__item {

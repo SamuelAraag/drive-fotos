@@ -955,7 +955,8 @@ export function renderFila(itens, situacao) {
 // Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que já existe, à
 // esquerda, e a que está sendo enviada, à direita e em destaque: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
 // `outra.foto` é a foto guardada; vem vazia quando a outra cópia ainda está na fila, e aí a
-// imagem dela vem em `outra.url`. Devolve, na ordem das linhas, quais manter em dobro.
+// imagem dela vem em `outra.url`. `tipo` é 'conteudo' (idêntica) ou 'nome' (só o nome igual).
+// Devolve, na ordem das linhas, quais manter em dobro.
 // Com uma repetida só, são dois botões. Com várias, cada par tem a própria caixa de marcar, e
 // nada vem marcado. Fechar com Esc ou clicando fora é não enviar nenhuma: nada é gravado.
 function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, { nova = false, detalhe = null } = {}) {
@@ -978,6 +979,42 @@ function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, { nova = false, 
   return figura;
 }
 
+// Uma repetida é idêntica a uma foto guardada ('conteudo') ou só tem o mesmo nome ('nome').
+// O título diz qual dos dois casos é, e mistura os dois só quando a leva mistura.
+export function textosDasRepetidas(linhas, totalDaLeva) {
+  const quantas = linhas.length;
+  const soNome = linhas.every((linha) => linha.tipo === 'nome');
+  const soConteudo = linhas.every((linha) => linha.tipo === 'conteudo');
+  if (quantas === 1) {
+    const titulo = soNome
+      ? totalDaLeva === 1
+        ? 'Já existe uma foto com este nome'
+        : `1 das ${totalDaLeva} fotos tem nome que já existe`
+      : totalDaLeva === 1
+        ? 'Esta foto já está guardada'
+        : `1 das ${totalDaLeva} fotos já está guardada`;
+    const detalhe = soNome
+      ? 'O nome é o mesmo, mas o conteúdo é diferente. "Manter as duas" envia a nova com outro nome.'
+      : 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.';
+    return { titulo, detalhe };
+  }
+  const todas = quantas === totalDaLeva;
+  const titulo = soConteudo
+    ? todas
+      ? `As ${quantas} fotos já estão guardadas`
+      : `${quantas} das ${totalDaLeva} fotos já estão guardadas`
+    : soNome
+      ? todas
+        ? `As ${quantas} fotos têm nome que já existe`
+        : `${quantas} das ${totalDaLeva} fotos têm nome que já existe`
+      : todas
+        ? `As ${quantas} fotos parecem repetidas`
+        : `${quantas} das ${totalDaLeva} fotos parecem repetidas`;
+  return { titulo, detalhe: 'Compare cada par: à esquerda, a que já está guardada. Marque as que quer manter em dobro: elas sobem com outro nome.' };
+}
+
+export const rotuloDaRepetida = (tipo) => (tipo === 'nome' ? 'Mesmo nome, conteúdo diferente' : 'Conteúdo idêntico');
+
 const marcadasNasRepetidas = () => [...$('repetidas-lista').querySelectorAll('input[type=checkbox]')];
 
 // O botão principal diz o que vai acontecer com o que está marcado agora.
@@ -994,23 +1031,15 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
   const dialogo = $('repetidas');
   const quantas = linhas.length;
   const varias = quantas > 1;
-  $('repetidas-titulo').textContent =
-    totalDaLeva === 1
-      ? 'Esta foto já está guardada'
-      : quantas === 1
-        ? `1 das ${totalDaLeva} fotos já está guardada`
-        : quantas === totalDaLeva
-          ? `As ${quantas} fotos já estão guardadas`
-          : `${quantas} das ${totalDaLeva} fotos já estão guardadas`;
-  $('repetidas-detalhe').textContent = varias
-    ? 'Cada uma é idêntica à foto guardada ao lado. Marque as que quer manter em dobro: elas sobem de novo, com outro nome.'
-    : 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.';
+  const { titulo, detalhe } = textosDasRepetidas(linhas, totalDaLeva);
+  $('repetidas-titulo').textContent = titulo;
+  $('repetidas-detalhe').textContent = detalhe;
   $('repetidas-concluir').textContent = 'Não enviar';
   $('repetidas-manter').hidden = varias;
   $('repetidas-todas').hidden = !varias;
   $('repetidas-lista').classList.toggle('repetidas--varias', varias);
   $('repetidas-lista').replaceChildren(
-    ...linhas.map(({ nova, outra }) => {
+    ...linhas.map(({ tipo, nova, outra }) => {
       const item = el('li', 'repetidas__item');
       // A que já existe vem primeiro, e a nova, à direita, é a que fica em destaque.
       item.append(
@@ -1019,7 +1048,9 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
           : quadroDaRepetida('Na fila de envio', outra),
         quadroDaRepetida('Enviando agora', nova, { nova: true }),
       );
+      // Com várias, cada par diz por que entrou na lista. Com uma só, o texto de cima já disse.
       if (varias) {
+        item.append(el('p', tipo === 'nome' ? 'repetidas__motivo' : 'repetidas__motivo texto-suave', rotuloDaRepetida(tipo)));
         const escolha = el('label', 'repetidas__escolha');
         const caixa = el('input');
         caixa.type = 'checkbox';

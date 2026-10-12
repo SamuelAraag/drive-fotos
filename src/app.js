@@ -522,6 +522,7 @@ async function carregar() {
     // Se a lista mudou enquanto a leitura corria (um envio, por exemplo), a que está na tela vale.
     if (guardadas && fotos !== guardadas) return;
     armazem.guardarFotos(novas);
+    aquecerNomes();
     if (guardadas && mesmaLista(novas, guardadas)) return;
     fotos = novas;
     render();
@@ -550,9 +551,13 @@ async function conferir() {
     const novas = await lerFotos();
     // A lista mudou enquanto a leitura corria (envio, renomear, apagar): a que está na tela vale.
     if (fotos !== antes || mesmaLista(novas, antes)) return;
+    // Registro trocado em outro aparelho (um renomear): o nome que estava na memória não vale mais.
+    const registroDe = new Map(antes.map((item) => [item.id, item.registro]));
+    for (const item of novas) if (registroDe.get(item.id) !== item.registro) registros.delete(item.id);
     fotos = novas;
     armazem.guardarFotos(fotos);
     render();
+    aquecerNomes();
     // A foto aberta foi apagada em outro aparelho: o visor fecha.
     if (aberta != null && !fotos.some((item) => item.id === aberta)) ui.fecharVisor();
   } catch (erro) {
@@ -584,6 +589,7 @@ async function entrar(token) {
     ui.fecharLogin();
     render();
     ui.focarTela('principal');
+    aquecerNomes();
     bombear(); // o login pode ter sido aberto no meio de uma fila, por token vencido
   } catch (erro) {
     if (anterior) github.salvarToken(anterior);
@@ -664,37 +670,96 @@ function enfileirar(entradas) {
 
 // Fotos repetidas
 //
-// A foto é a mesma quando o conteúdo é idêntico, byte a byte: o sha que o git dá ao arquivo,
-// calculado aqui, bate com o de uma foto da lista. Não custa nenhuma chamada ao GitHub.
-// Conta também a que ainda está na fila e o mesmo arquivo escolhido duas vezes na leva.
+// Dois jeitos de uma foto já existir. Pelo conteúdo: o sha que o git dá ao arquivo, calculado
+// aqui, bate com o de uma foto da lista, e aí as duas são idênticas, byte a byte. Pelo nome: o
+// nome é o de uma foto guardada, mas o conteúdo é outro. O conteúdo não custa nenhuma chamada
+// ao GitHub. O nome mora no registro de cada foto, então depende de os registros terem sido
+// lidos. Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas vezes.
+
+const MAX_REGISTROS_NA_HORA = 80; // registros que o envio aceita esperar; acima disso, vale o que já foi lido
+const LEITORES_DE_REGISTRO = 2;
+let lendoNomes = null; // leitura de registros em curso, para não correr duas ao mesmo tempo
+
+// Lê o registro das fotos que ainda não têm o nome conhecido. Fica guardado no aparelho, então
+// só custa chamadas na primeira vez. Devolve se terminou com todos os nomes em mãos.
+function lerNomes({ limite = Infinity } = {}) {
+  const faltam = (fotos ?? []).filter((item) => item.registro && !registros.has(item.id));
+  if (faltam.length === 0) return Promise.resolve(true);
+  if (faltam.length > limite) return Promise.resolve(false);
+  lendoNomes ??= (async () => {
+    let proximo = 0;
+    let falhas = 0;
+    const leitor = async () => {
+      // Três falhas seguidas (sem rede, limite de ritmo) encerram: tenta de novo na próxima vez.
+      while (proximo < faltam.length && falhas < 3) {
+        const item = faltam[proximo++];
+        falhas = (await lerRegistro(item)) ? 0 : falhas + 1;
+      }
+    };
+    await Promise.all(Array.from({ length: LEITORES_DE_REGISTRO }, leitor));
+    lendoNomes = null;
+    return falhas < 3;
+  })();
+  return lendoNomes;
+}
+
+// Em segundo plano, depois que a grade já pediu as miniaturas dela.
+function aquecerNomes() {
+  if (navigator.connection?.saveData) return;
+  setTimeout(() => lerNomes().catch(() => {}), 3000);
+}
+
+const chaveDoNome = (nome) => nome.toLocaleLowerCase('pt-BR');
+
+// Os nomes que já se conhece, das fotos guardadas. Foto sem registro atende pelo id.
+function nomesGuardados() {
+  const porNome = new Map(); // chave do nome -> foto mais recente com esse nome
+  for (const item of fotos ?? []) {
+    if (item.registro && !registros.has(item.id)) continue; // nome ainda não lido
+    const chave = chaveDoNome(nomeDaFoto(item, registros.get(item.id)));
+    if (!porNome.has(chave)) porNome.set(chave, item);
+  }
+  return porNome;
+}
 
 async function separarRepetidas(arquivos) {
-  const conhecidas = new Map(); // sha -> { foto } já guardada, ou { arquivo } ainda na fila
-  for (const item of fotos ?? []) if (!conhecidas.has(item.sha)) conhecidas.set(item.sha, { foto: item });
+  await lerNomes({ limite: MAX_REGISTROS_NA_HORA });
+  const porConteudo = new Map(); // sha -> { foto } já guardada, ou { arquivo } ainda na fila
+  const porNome = new Map(); // chave do nome -> idem
+  for (const item of fotos ?? []) if (!porConteudo.has(item.sha)) porConteudo.set(item.sha, { foto: item });
+  for (const [chave, item] of nomesGuardados()) porNome.set(chave, { foto: item });
   for (const item of fila) {
-    if (item.sha && item.estado !== 'concluido' && !conhecidas.has(item.sha)) conhecidas.set(item.sha, { arquivo: item.arquivo });
+    if (item.estado === 'concluido') continue;
+    if (item.sha && !porConteudo.has(item.sha)) porConteudo.set(item.sha, { arquivo: item.arquivo });
+    if (!porNome.has(chaveDoNome(item.nome))) porNome.set(chaveDoNome(item.nome), { arquivo: item.arquivo });
   }
   const novas = [];
   const repetidas = [];
   for (const arquivo of arquivos) {
-    // Fora de https e de localhost o navegador não faz a conta: a foto segue como nova.
+    // Fora de https e de localhost o navegador não faz a conta: sobra a comparação pelo nome.
     const sha = await foto.shaDoGit(arquivo).catch(() => null);
-    const par = sha ? conhecidas.get(sha) : null;
-    if (par) {
-      repetidas.push({ arquivo, sha, par });
+    const chave = chaveDoNome(arquivo.name);
+    const igual = sha ? porConteudo.get(sha) : null;
+    const xara = porNome.get(chave);
+    if (igual) {
+      repetidas.push({ arquivo, sha, par: igual, tipo: 'conteudo' });
+    } else if (xara) {
+      repetidas.push({ arquivo, sha, par: xara, tipo: 'nome' });
     } else {
       novas.push({ arquivo, sha });
-      if (sha) conhecidas.set(sha, { arquivo });
+      if (sha) porConteudo.set(sha, { arquivo });
+      porNome.set(chave, { arquivo });
     }
   }
   return { novas, repetidas };
 }
 
-// Os nomes que as cópias de um mesmo conteúdo já usam, guardadas ou na fila.
-async function nomesDasCopias(sha) {
-  const guardadas = (fotos ?? []).filter((item) => item.sha === sha);
-  const nomes = await Promise.all(guardadas.map(async (item) => nomeDaFoto(item, await lerRegistro(item))));
-  return [...nomes, ...fila.filter((item) => item.sha === sha).map((item) => item.nome)];
+// Todos os nomes em uso, guardados ou na fila: a cópia não pode cair em nenhum deles.
+function nomesEmUso() {
+  const guardados = (fotos ?? [])
+    .filter((item) => !item.registro || registros.has(item.id))
+    .map((item) => nomeDaFoto(item, registros.get(item.id)));
+  return [...guardados, ...fila.map((item) => item.nome)];
 }
 
 async function resolverRepetidas(repetidas, totalDaLeva) {
@@ -709,7 +774,7 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
         () => null,
       );
       repetidas = repetidas.filter((repetida) => {
-        if (!repetida.par.foto || !noGitHub || noGitHub.has(repetida.sha)) return true;
+        if (!repetida.par.foto || !noGitHub || noGitHub.has(repetida.par.foto.sha)) return true;
         enfileirar([{ arquivo: repetida.arquivo, sha: repetida.sha }]);
         return false;
       });
@@ -727,8 +792,9 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
       return url;
     };
     const linhas = [];
-    for (const { arquivo, par } of repetidas) {
+    for (const { arquivo, par, tipo } of repetidas) {
       linhas.push({
+        tipo,
         nova: { nome: arquivo.name, tamanho: arquivo.size, url: await previaDe(arquivo) },
         outra: par.foto
           ? { nome: nomeDaFoto(par.foto, await lerRegistro(par.foto)), tamanho: par.foto.tamanho, foto: par.foto }
@@ -742,10 +808,11 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
       ui.repetidasNaoEnviadas(ficamDeFora.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
       ui.anunciarEnvio(ficamDeFora.length === 1 ? 'A foto repetida não foi enviada.' : `${ficamDeFora.length} fotos repetidas não foram enviadas.`);
     }
-    for (const { arquivo, sha, par } of repetidas.filter((_, i) => manter[i])) {
-      const nome = foto.nomeRepetido(arquivo.name, await nomesDasCopias(sha));
-      // Com a original guardada, a cópia aponta para ela. Com a original ainda na fila, sobe normal.
-      enfileirar([{ arquivo, sha, nome, reuso: par.foto ? sha : null }]);
+    for (const { arquivo, sha, par, tipo } of repetidas.filter((_, i) => manter[i])) {
+      const nome = foto.nomeRepetido(arquivo.name, nomesEmUso());
+      // Idêntica a uma foto guardada, a cópia aponta para o arquivo dela, sem enviar de novo.
+      // Só com o nome igual, ou com a original ainda na fila, sobe normal.
+      enfileirar([{ arquivo, sha, nome, reuso: tipo === 'conteudo' && par.foto ? sha : null }]);
     }
   } finally {
     perguntando = false;

@@ -352,15 +352,22 @@ testar na tela.
 
 Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gaps.
 
-- **Como reconhecer a repetida:** pelo conteúdo. O app calcula no navegador a identidade
-  do arquivo (o mesmo `sha` que o git usa) e compara com a lista de fotos, que já traz
-  esse valor. Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas
-  vezes na leva.
+- **Como reconhecer a repetida:** de dois jeitos.
+  - **Pelo conteúdo:** o app calcula no navegador a identidade do arquivo (o mesmo `sha`
+    que o git usa) e compara com a lista de fotos, que já traz esse valor. As duas são
+    idênticas, byte a byte. Não custa nenhuma chamada ao GitHub.
+  - **Pelo nome:** o nome é o de uma foto guardada, mas o conteúdo é outro. O nome mora no
+    registro de cada foto, então o app lê os registros em segundo plano depois de abrir, e
+    eles ficam guardados no aparelho. Na primeira vez custa uma chamada por foto.
+  - Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas vezes na
+    leva.
 - **Um diálogo por leva.** A leva inteira é conferida na entrada. As fotos novas sobem
   direto, sem esperar. As repetidas ficam de fora e aparecem num diálogo só, como "3 das 12
   fotos já estão guardadas".
-- **Lado a lado.** Cada repetida aparece ao lado da foto que já existe, as duas com o
-  tamanho do arquivo no canto inferior direito.
+- **Lado a lado.** A foto que já existe fica à esquerda, um pouco apagada, e a nova à
+  direita, em destaque, as duas com o tamanho do arquivo no canto inferior direito. Com
+  várias, cada par diz por que entrou: "Conteúdo idêntico" ou "Mesmo nome, conteúdo
+  diferente".
 - **Escolha por foto.** Com uma repetida só, dois botões: "Não enviar" e "Manter as duas".
   Com várias, cada par tem a própria caixa "Manter as duas", nenhuma vem marcada, e o botão
   principal diz o resultado ("Não enviar nenhuma", "Manter 2 de 3", "Manter todas"). "Marcar
@@ -368,20 +375,20 @@ Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gap
   - **Não enviar:** nada é gravado, e fica a que já existe. Fechar o diálogo com Esc ou
     clicando fora dá no mesmo. Um atalho embaixo leva até a foto guardada.
   - **Manter as duas:** a cópia sobe com outro nome, "praia (2).jpg", ou o próximo número
-    livre entre as cópias. O arquivo não é enviado de novo: a cópia aponta para o que o
-    repositório já tem, sobe na hora e não ocupa espaço novo.
+    livre entre os nomes em uso. Quando o conteúdo é idêntico, o arquivo não é enviado de
+    novo: a cópia aponta para o que o repositório já tem, sobe na hora e não ocupa espaço
+    novo. Quando só o nome é igual, a nova sobe inteira.
 - **Antes de perguntar, o app relê o repositório.** Se a foto guardada foi apagada em outro
   aparelho, a nova deixa de ser repetida e sobe normalmente. Custa uma leitura por leva com
   repetida.
 - **Apagar uma das cópias** não tira do aparelho o arquivo que a outra ainda usa.
 - **Limites conhecidos:**
-  - Só pega cópia idêntica, byte a byte. O iPhone converte HEIC para JPEG a cada seleção,
-    então a mesma foto reenviada por ele quase nunca bate. No celular o diálogo aparece
-    pouco.
-  - Reconhecer por nome igual com conteúdo diferente exigiria ler todos os registros, que
-    é onde o nome mora. Fica fora.
-  - A conta do `sha` só existe em `https` e em `localhost`. Fora disso a foto segue como
-    nova.
+  - A mesma foto recodificada não bate pelo conteúdo. O iPhone converte HEIC para JPEG a
+    cada seleção, então a foto reenviada por ele só é pega se o nome for o mesmo.
+  - Com muitos registros ainda por ler (mais de 80), o envio não espera: compara com os
+    nomes já lidos, e um nome repetido pode passar até a leitura terminar.
+  - A conta do `sha` só existe em `https` e em `localhost`. Fora disso sobra a comparação
+    pelo nome.
 - **Pronto quando:** enviar duas vezes a mesma foto abre o diálogo; "Não enviar", Esc e
   clique fora não criam nada; "Manter as duas" deixa as duas na grade com nomes diferentes;
   e numa leva com novas e repetidas, as novas sobem sem esperar a resposta.
