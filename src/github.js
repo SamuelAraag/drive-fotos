@@ -2,13 +2,20 @@
 
 const DONO = 'samuelsantosbackupfiles';
 const REPO = 'drive-fotos-dados';
-const BRANCH = 'main';
+const BRANCH_OFICIAL = 'main';
+const BRANCH_DE_TESTES = 'testes';
+
+// Rodando na própria máquina, o app usa a base de testes. A oficial só é lida e gravada
+// pelo app publicado.
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 
 const URL_REPO = `https://api.github.com/repos/${DONO}/${REPO}`;
 const CHAVE_TOKEN = 'drive-fotos.token';
 
 export const REPO_DADOS = `${DONO}/${REPO}`;
 export const BRANCH_DADOS = BRANCH;
+export const BASE_DE_TESTES = LOCAL;
 
 // tipo: 'token' | 'permissao' | 'ausente' | 'vazio' | 'conflito' | 'limite' | 'rede' | 'servidor'
 export class ErroGitHub extends Error {
@@ -47,6 +54,7 @@ function minutosDeEspera(resposta) {
   return resposta.status === 429 ? 1 : null;
 }
 
+// Devolve a resposta já conferida. Quem chama decide se lê como JSON ou como arquivo.
 async function requisitar(caminho, opcoes = {}) {
   let resposta;
   try {
@@ -65,7 +73,7 @@ async function requisitar(caminho, opcoes = {}) {
     throw new ErroGitHub('rede', 'Sem conexão com o GitHub. Confira a internet e tente de novo.');
   }
 
-  if (resposta.ok) return resposta.json();
+  if (resposta.ok) return resposta;
 
   if (resposta.status === 403 || resposta.status === 429) {
     const minutos = minutosDeEspera(resposta);
@@ -103,8 +111,17 @@ async function requisitar(caminho, opcoes = {}) {
 
 // Uma chamada lista o repositório inteiro. Cada item é { caminho, sha, tamanho }.
 export async function lerArvore() {
-  const json = await requisitar(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
+  const resposta = await requisitar(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
+  const json = await resposta.json();
   return json.tree
     .filter((entrada) => entrada.type === 'blob')
     .map((entrada) => ({ caminho: entrada.path, sha: entrada.sha, tamanho: entrada.size }));
+}
+
+// Arquivo de repositório privado não abre por URL direta: vem pela API, com o token.
+export async function lerBlob(sha) {
+  const resposta = await requisitar(`/git/blobs/${sha}`, {
+    headers: { Accept: 'application/vnd.github.raw+json' },
+  });
+  return resposta.blob();
 }
