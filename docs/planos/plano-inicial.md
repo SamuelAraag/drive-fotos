@@ -464,6 +464,23 @@ Pedido em 2026-10-12. Ainda sem data.
   em "Atualizar", sem recarregar a página, e uma falha de rede mostra o aviso com "Tentar
   de novo".
 
+## Pendências
+
+Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
+vez dele.
+
+- [x] A data de envio deve ser isolada da data de criação. Feito no Épico 8.
+  - [x] Enviei hoje uma imagem de 2015, deve salvar em 2015.
+- [ ] Botão de atualizar igual ao do `beba-agua`. É o Épico 9.
+- [ ] Melhorar a performance no envio das imagens.
+- [ ] Rodar a análise de gaps.
+- [ ] Revisar todos os arquivos.
+- [ ] Remover todos os comentários.
+- [ ] Documentar as usabilidades.
+- [ ] Migração de tudo o que tenho até hoje.
+- [ ] Botão ou rotina para enviar as fotos do dia. Bem específico.
+  - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+
 ## Linha do tempo
 
 Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
