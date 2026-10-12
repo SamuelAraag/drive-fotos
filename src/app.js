@@ -29,7 +29,9 @@ let conferindo = false;
 let conferidoEm = 0; // hora da última leitura do repositório
 const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
 
-// Fila de envio. Cada item: { n, arquivo, nome, sha, reuso, id, estado, mensagem }.
+// Fila de envio. Cada item: { n, arquivo, nome, sha, reuso, data, origem, id, estado, mensagem }.
+// `data` é quando a foto foi tirada e `origem` diz de onde ela veio: toda foto entra na fila
+// já com as duas.
 // `sha` é o do conteúdo, para reconhecer foto repetida. `reuso` vem preenchido na cópia de uma
 // foto já guardada: o arquivo não sobe de novo, a cópia aponta para o que o repositório já tem.
 // estado: 'aguardando' | 'enviando' | 'concluido' | 'erro'
@@ -39,8 +41,7 @@ let enviando = false;
 let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
 let progresso = 0; // de 0 a 1, da foto que está subindo agora
-let perguntando = false; // o diálogo de fotos repetidas está aberto
-let conferindoRepetidas = 0; // levas sendo conferidas agora, antes de entrar na fila
+let conferindoLevas = 0; // levas sendo conferidas agora (repetidas e datas), antes de entrar na fila
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
@@ -492,7 +493,7 @@ function render() {
 }
 
 function renderFila() {
-  ui.renderFila(fila, { enviando, pausadaAte, progresso, conferindo: conferindoRepetidas > 0 });
+  ui.renderFila(fila, { enviando, pausadaAte, progresso, conferindo: conferindoLevas > 0 });
 }
 
 async function lerFotos() {
@@ -645,23 +646,33 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   ui.erroNaZona(recusas.length ? `Ficou de fora. ${recusas.join(' ')}` : null);
 
   if (aceitos.length === 0) return;
-  // As novas sobem direto. As repetidas esperam a resposta, sem segurar a fila.
-  // Até o diálogo abrir (ou a fila andar), a zona diz que está conferindo.
-  conferindoRepetidas++;
+  // Cada foto precisa de duas respostas antes de subir: se já existe e quando foi tirada.
+  // As que não deixam dúvida sobem direto. As outras esperam um diálogo, sem segurar a fila.
+  // Até lá, a zona diz que está conferindo, e uma leva nova espera a vez.
+  conferindoLevas++;
   renderFila();
   try {
+    const semData = [];
+    const encaminhar = async (entradas) => {
+      for (const entrada of entradas) {
+        const achada = await foto.dataDaFoto(entrada.arquivo);
+        if (achada) enfileirar([{ ...entrada, ...achada }]);
+        else semData.push(entrada);
+      }
+    };
     const { novas, repetidas } = await separarRepetidas(aceitos);
-    enfileirar(novas);
-    if (repetidas.length > 0) await resolverRepetidas(repetidas, aceitos.length);
+    await encaminhar(novas);
+    if (repetidas.length > 0) await encaminhar(await resolverRepetidas(repetidas, aceitos.length));
+    if (semData.length > 0) enfileirar(await perguntarDatas(semData, aceitos.length));
   } finally {
-    conferindoRepetidas--;
+    conferindoLevas--;
     renderFila();
   }
 }
 
 function enfileirar(entradas) {
-  for (const { arquivo, sha = null, nome = arquivo.name, reuso = null } of entradas) {
-    fila.push({ n: proximoItem++, arquivo, nome, sha, reuso, id: null, estado: 'aguardando', mensagem: null });
+  for (const { arquivo, data, origem, sha = null, nome = arquivo.name, reuso = null } of entradas) {
+    fila.push({ n: proximoItem++, arquivo, nome, sha, reuso, data, origem, id: null, estado: 'aguardando', mensagem: null });
   }
   if (entradas.length === 0) return;
   renderFila();
@@ -762,62 +773,86 @@ function nomesEmUso() {
   return [...guardados, ...fila.map((item) => item.nome)];
 }
 
+// Devolve as fotos que seguem para o envio: as que deixaram de ser repetidas e as cópias pedidas.
 async function resolverRepetidas(repetidas, totalDaLeva) {
-  perguntando = true;
-  try {
-    // "Não enviar" só é seguro se a foto guardada ainda existe: confere no GitHub antes de
-    // perguntar. A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
-    // Sem rede, vale a lista que está na tela.
-    if (repetidas.some(({ par }) => par.foto)) {
-      const noGitHub = await github.lerArvore().then(
-        (arvore) => new Set(arvore.map((arquivo) => arquivo.sha)),
-        () => null,
-      );
-      repetidas = repetidas.filter((repetida) => {
-        if (!repetida.par.foto || !noGitHub || noGitHub.has(repetida.par.foto.sha)) return true;
-        enfileirar([{ arquivo: repetida.arquivo, sha: repetida.sha }]);
-        return false;
-      });
-      if (repetidas.length === 0) return;
-    }
-
-    // A foto que está sendo enviada aparece ao lado da que já existe. A prévia é uma miniatura
-    // feita aqui, para o diálogo não abrir vários arquivos grandes de uma vez.
-    const previas = [];
-    const previaDe = async (arquivo) => {
-      const miniatura = await foto.gerarMiniatura(arquivo);
-      if (!miniatura) return null; // o navegador não decodifica: fica o quadro neutro
-      const url = URL.createObjectURL(miniatura.blob);
-      previas.push(url);
-      return url;
-    };
-    const linhas = [];
-    for (const { arquivo, par, tipo } of repetidas) {
-      linhas.push({
-        tipo,
-        nova: { nome: arquivo.name, tamanho: arquivo.size, url: await previaDe(arquivo) },
-        outra: par.foto
-          ? { nome: nomeDaFoto(par.foto, await lerRegistro(par.foto)), tamanho: par.foto.tamanho, foto: par.foto }
-          : { nome: par.arquivo.name, tamanho: par.arquivo.size, url: await previaDe(par.arquivo) },
-      });
-    }
-    const manter = await ui.perguntarRepetidas(linhas, totalDaLeva);
-    for (const url of previas) URL.revokeObjectURL(url);
-    const ficamDeFora = repetidas.filter((_, i) => !manter[i]);
-    if (ficamDeFora.length > 0) {
-      ui.repetidasNaoEnviadas(ficamDeFora.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
-      ui.anunciarEnvio(ficamDeFora.length === 1 ? 'A foto repetida não foi enviada.' : `${ficamDeFora.length} fotos repetidas não foram enviadas.`);
-    }
-    for (const { arquivo, sha, par, tipo } of repetidas.filter((_, i) => manter[i])) {
-      const nome = foto.nomeRepetido(arquivo.name, nomesEmUso());
-      // Idêntica a uma foto guardada, a cópia aponta para o arquivo dela, sem enviar de novo.
-      // Só com o nome igual, ou com a original ainda na fila, sobe normal.
-      enfileirar([{ arquivo, sha, nome, reuso: tipo === 'conteudo' && par.foto ? sha : null }]);
-    }
-  } finally {
-    perguntando = false;
+  const seguem = [];
+  // "Não enviar" só é seguro se a foto guardada ainda existe: confere no GitHub antes de
+  // perguntar. A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
+  // Sem rede, vale a lista que está na tela.
+  if (repetidas.some(({ par }) => par.foto)) {
+    const noGitHub = await github.lerArvore().then(
+      (arvore) => new Set(arvore.map((arquivo) => arquivo.sha)),
+      () => null,
+    );
+    repetidas = repetidas.filter((repetida) => {
+      if (!repetida.par.foto || !noGitHub || noGitHub.has(repetida.par.foto.sha)) return true;
+      seguem.push({ arquivo: repetida.arquivo, sha: repetida.sha });
+      return false;
+    });
+    if (repetidas.length === 0) return seguem;
   }
+
+  // A foto que está sendo enviada aparece ao lado da que já existe. A prévia é uma miniatura
+  // feita aqui, para o diálogo não abrir vários arquivos grandes de uma vez.
+  const previas = [];
+  const previaDe = async (arquivo) => {
+    const miniatura = await foto.gerarMiniatura(arquivo);
+    if (!miniatura) return null; // o navegador não decodifica: fica o quadro neutro
+    const url = URL.createObjectURL(miniatura.blob);
+    previas.push(url);
+    return url;
+  };
+  const linhas = [];
+  for (const { arquivo, par, tipo } of repetidas) {
+    linhas.push({
+      tipo,
+      nova: { nome: arquivo.name, tamanho: arquivo.size, url: await previaDe(arquivo) },
+      outra: par.foto
+        ? { nome: nomeDaFoto(par.foto, await lerRegistro(par.foto)), tamanho: par.foto.tamanho, foto: par.foto }
+        : { nome: par.arquivo.name, tamanho: par.arquivo.size, url: await previaDe(par.arquivo) },
+    });
+  }
+  const manter = await ui.perguntarRepetidas(linhas, totalDaLeva);
+  for (const url of previas) URL.revokeObjectURL(url);
+  const ficamDeFora = repetidas.filter((_, i) => !manter[i]);
+  if (ficamDeFora.length > 0) {
+    ui.repetidasNaoEnviadas(ficamDeFora.filter(({ par }) => par.foto).map(({ par }) => par.foto.id));
+    ui.anunciarEnvio(ficamDeFora.length === 1 ? 'A foto repetida não foi enviada.' : `${ficamDeFora.length} fotos repetidas não foram enviadas.`);
+  }
+  for (const { arquivo, sha, par, tipo } of repetidas.filter((_, i) => manter[i])) {
+    const nome = foto.nomeRepetido(arquivo.name, [...nomesEmUso(), ...seguem.map((outra) => outra.nome ?? outra.arquivo.name)]);
+    // Idêntica a uma foto guardada, a cópia aponta para o arquivo dela, sem enviar de novo.
+    // Só com o nome igual, ou com a original ainda na fila, sobe normal.
+    seguem.push({ arquivo, sha, nome, reuso: tipo === 'conteudo' && par.foto ? sha : null });
+  }
+  return seguem;
 }
+
+// Fotos sem data: nem o EXIF nem o nome dizem quando foram tiradas. A pessoa escolhe o dia de
+// cada uma, e o campo já vem com hoje. Devolve as que seguem para o envio, já com a data.
+async function perguntarDatas(entradas, totalDaLeva) {
+  const previas = [];
+  const linhas = [];
+  for (const { arquivo, nome = arquivo.name } of entradas) {
+    const miniatura = await foto.gerarMiniatura(arquivo);
+    const url = miniatura ? URL.createObjectURL(miniatura.blob) : null;
+    if (url) previas.push(url);
+    linhas.push({ nome, url, doArquivo: foto.sugestaoDeData(arquivo) });
+  }
+  const dias = await ui.perguntarDatas(linhas, totalDaLeva);
+  for (const url of previas) URL.revokeObjectURL(url);
+  const seguem = [];
+  entradas.forEach((entrada, i) => {
+    const informada = dias[i] && foto.dataInformada(dias[i]);
+    if (informada) seguem.push({ ...entrada, ...informada });
+  });
+  const ficaramDeFora = entradas.length - seguem.length;
+  if (ficaramDeFora > 0) {
+    ui.anunciarEnvio(ficaramDeFora === 1 ? 'A foto sem data não foi enviada.' : `${ficaramDeFora} fotos sem data não foram enviadas.`);
+  }
+  return seguem;
+}
+
 
 async function manterTelaAcordada() {
   try {
@@ -836,12 +871,12 @@ const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
 async function enviarFoto(item) {
   const { arquivo } = item;
-  const data = foto.dataDoArquivo(arquivo);
+  const { data, origem } = item;
   // O id nasce uma vez por item: "tentar de novo" regrava os mesmos caminhos, sem duplicar a foto.
   item.id ??= foto.gerarId(data);
   const caminhos = foto.caminhos(item.id, foto.extensaoDe(arquivo));
   const miniatura = await foto.gerarMiniatura(arquivo);
-  const registro = foto.montarRegistro({ id: item.id, arquivo, nome: item.nome, data, miniatura, blob: caminhos.blob });
+  const registro = foto.montarRegistro({ id: item.id, arquivo, nome: item.nome, data, origem, miniatura, blob: caminhos.blob });
 
   // A cópia de uma foto já guardada não envia o arquivo de novo: o git guarda um conteúdo só.
   const arquivos = [item.reuso ? { caminho: caminhos.blob, sha: item.reuso } : { caminho: caminhos.blob, base64: await foto.paraBase64(arquivo) }];
@@ -954,7 +989,7 @@ ui.ligarEventos({
   arquivos: adicionarArquivos,
   tentarDeNovo,
   limparFila: dispensarFalhas,
-  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && !perguntando,
+  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && conferindoLevas === 0,
   abrirFoto,
   passarFoto,
   recarregarFoto: () => mostrarAberta(),

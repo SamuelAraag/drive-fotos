@@ -1262,6 +1262,43 @@ h2:focus {
   object-fit: cover;
 }
 
+/* Fotos sem data: uma linha por foto, com a miniatura e o campo do dia ao lado. */
+.sem-data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+  max-height: 50dvh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sem-data__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e3);
+}
+
+.sem-data__campos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--e1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sem-data__campos .botao {
+  text-align: left;
+}
+
+/* O navegador desenha o calendário do campo de data conforme o tema: aqui o tema é escuro. */
+.sem-data .campo {
+  color-scheme: dark;
+}
+
 /* Por que o par está na lista: conteúdo idêntico ou só o nome igual. */
 .repetidas__motivo {
   grid-column: 1 / -1;

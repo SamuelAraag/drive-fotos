@@ -186,6 +186,18 @@
     </form>
   </dialog>
 
+  <dialog class="dialogo" id="sem-data" aria-labelledby="sem-data-titulo" aria-describedby="sem-data-detalhe">
+    <form method="dialog">
+      <h2 class="tela__titulo" id="sem-data-titulo"></h2>
+      <p class="texto-suave texto-pequeno" id="sem-data-detalhe"></p>
+      <ul class="sem-data" id="sem-data-lista" tabindex="0" aria-label="Fotos sem data"></ul>
+      <div class="dialogo__acoes">
+        <button type="submit" class="botao botao--primario" value="enviar" id="sem-data-enviar" autofocus>Enviar com a data de hoje</button>
+        <button type="submit" class="botao botao--secundario" value="nao-enviar" formnovalidate>Não enviar</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">
     <form method="dialog">
       <h2 class="tela__titulo" id="confirmar-sair-titulo">Sair e apagar o token?</h2>

@@ -1,6 +1,6 @@
 // Telas.
 
-import { analisar, fmtTamanho } from './foto.js';
+import { analisar, diaEmTexto, fmtTamanho } from './foto.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
@@ -516,8 +516,10 @@ function proporcaoEmTexto(largura, altura) {
   return `${(largura / altura).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}:1`;
 }
 
+const ORIGEM_DA_DATA = { nome: 'pelo nome do arquivo', informada: 'informada no envio', envio: 'data do envio' };
+
 function renderFicha() {
-  const { foto, posicao, total, nome, temNome, largura, altura } = ficha;
+  const { foto, posicao, total, nome, temNome, largura, altura, origem, enviadaEm } = ficha;
   $('painel-tipo').textContent = `${(foto.ext ?? 'foto').toUpperCase()} · ${posicao} de ${total}`;
   // O nome vem do registro, que pode demorar um instante. Foto sem registro mostra o id.
   $('painel-nome').textContent = nome ?? (temNome ? foto.id : 'Carregando o nome...');
@@ -528,7 +530,10 @@ function renderFicha() {
     linhas.push(['Megapixels', `${((largura * altura) / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MP`]);
   }
   if (foto.tamanho) linhas.push(['Tamanho', fmtTamanho(foto.tamanho)]);
-  linhas.push(['Data', descricaoDaFoto(foto).replace('Foto de ', '')]);
+  // A data da foto é a do id. Quando ela não veio da câmera, o painel diz de onde veio.
+  const tirada = descricaoDaFoto(foto).replace('Foto de ', '');
+  linhas.push(['Tirada em', ORIGEM_DA_DATA[origem] ? `${tirada} (${ORIGEM_DA_DATA[origem]})` : tirada]);
+  if (enviadaEm) linhas.push(['Enviada em', enviadaEm]);
   $('painel-dados').replaceChildren(...linhas.flatMap(([termo, valor]) => [el('dt', null, termo), el('dd', null, valor)]));
 }
 
@@ -541,6 +546,12 @@ export function dadosDoRegistro(id, registro) {
     ficha.largura = registro.largura;
     ficha.altura = registro.altura;
   }
+  ficha.origem = registro?.origem_da_data ?? null;
+  const enviada = registro?.enviada_em ? new Date(registro.enviada_em) : null;
+  ficha.enviadaEm =
+    enviada && !Number.isNaN(enviada.getTime())
+      ? enviada.toLocaleString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : null;
   renderFicha();
 }
 
@@ -580,7 +591,7 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('visor-carregando').hidden = false;
   $('painel-analise').hidden = true;
   avisoNoVisor(null);
-  ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null };
+  ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null, origem: null, enviadaEm: null };
   renderFicha();
   ajustarFoto();
 
@@ -1076,6 +1087,80 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
   });
 }
 
+// Fotos sem data: o EXIF e o nome não dizem quando foram tiradas. Cada linha é
+// { nome, url, doArquivo }, e `doArquivo` é a data de modificação, quando serve de sugestão.
+// Todo campo vem com hoje, então abrir e confirmar envia com a data atual. Devolve, na ordem das
+// linhas, o dia escolhido ("2015-03-12"), ou tudo vazio se a pessoa desistiu de enviar.
+const diaPorExtenso = (data) => data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+const camposDeData = () => [...$('sem-data-lista').querySelectorAll('input[type=date]')];
+
+// O botão principal só promete "a data de hoje" enquanto nenhum campo foi mexido.
+function renderEnvioSemData() {
+  const hoje = diaEmTexto(new Date());
+  $('sem-data-enviar').textContent = camposDeData().every((campo) => campo.value === hoje) ? 'Enviar com a data de hoje' : 'Enviar';
+}
+
+export function perguntarDatas(linhas, totalDaLeva) {
+  const dialogo = $('sem-data');
+  const quantas = linhas.length;
+  const hoje = diaEmTexto(new Date());
+  $('sem-data-titulo').textContent =
+    totalDaLeva === 1
+      ? 'Não achei a data desta foto'
+      : quantas === 1
+        ? `1 das ${totalDaLeva} fotos está sem data`
+        : quantas === totalDaLeva
+          ? `As ${quantas} fotos estão sem data`
+          : `${quantas} das ${totalDaLeva} fotos estão sem data`;
+  $('sem-data-detalhe').textContent =
+    quantas === 1
+      ? 'O arquivo e o nome não dizem quando ela foi tirada. Escolha o dia, ou envie com a data de hoje.'
+      : 'O arquivo e o nome não dizem quando foram tiradas. Escolha o dia de cada uma, ou envie com a data de hoje.';
+  $('sem-data-lista').replaceChildren(
+    ...linhas.map(({ nome, url, doArquivo }, i) => {
+      const item = el('li', 'sem-data__item');
+      const miniatura = el('img', 'dialogo__miniatura');
+      miniatura.alt = '';
+      miniatura.width = 64;
+      miniatura.height = 64;
+      if (url) miniatura.src = url;
+      const campos = el('div', 'sem-data__campos');
+      const rotulo = el('label', 'campo__rotulo', nome);
+      const campo = el('input', 'campo');
+      campo.type = 'date';
+      campo.id = `sem-data-${i}`;
+      campo.required = true;
+      campo.min = '1990-01-01';
+      campo.max = hoje;
+      campo.value = hoje;
+      campo.setAttribute('aria-describedby', 'sem-data-detalhe');
+      rotulo.htmlFor = campo.id;
+      campos.append(rotulo, campo);
+      if (doArquivo) {
+        // A data do arquivo pode ser a da foto ou só a da cópia: fica como atalho, nunca como padrão.
+        const atalho = el('button', 'botao botao--fantasma', `Usar a do arquivo: ${diaPorExtenso(doArquivo)}`);
+        atalho.type = 'button';
+        atalho.dataset.dia = diaEmTexto(doArquivo);
+        atalho.dataset.campo = campo.id;
+        campos.append(atalho);
+      }
+      item.append(miniatura, campos);
+      return item;
+    }),
+  );
+  renderEnvioSemData();
+  dialogo.returnValue = '';
+  dialogo.showModal();
+  return new Promise((resolver) => {
+    dialogo.addEventListener(
+      'close',
+      () => resolver(camposDeData().map((campo) => (dialogo.returnValue === 'enviar' ? campo.value : null))),
+      { once: true },
+    );
+  });
+}
+
 // Texto para o leitor de tela quando a leva termina. Na tela, quem conta é o destaque na grade.
 export function anunciarEnvio(texto) {
   $('envio-status').textContent = texto;
@@ -1180,6 +1265,16 @@ export function ligarEventos(acoes) {
 
   $('repetidas').addEventListener('click', (evento) => {
     if (evento.target === $('repetidas')) $('repetidas').close();
+  });
+  $('sem-data').addEventListener('click', (evento) => {
+    if (evento.target === $('sem-data')) $('sem-data').close();
+  });
+  $('sem-data-lista').addEventListener('input', renderEnvioSemData);
+  $('sem-data-lista').addEventListener('click', (evento) => {
+    const atalho = evento.target.closest('button[data-dia]');
+    if (!atalho) return;
+    $(atalho.dataset.campo).value = atalho.dataset.dia;
+    renderEnvioSemData();
   });
   $('repetidas-lista').addEventListener('change', renderEscolhaDasRepetidas);
   $('repetidas-todas').addEventListener('click', () => {
