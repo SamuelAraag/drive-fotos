@@ -1,6 +1,6 @@
 # Drive Fotos
 
-App privado e simples para guardar fotos, no mesmo molde do `beba-agua`: sem servidor, sem
+App simples para guardar fotos, no mesmo molde do `beba-agua`: sem servidor, sem
 build e sem dependências.
 
 ## Estado
