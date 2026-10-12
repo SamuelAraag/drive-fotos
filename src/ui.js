@@ -2,6 +2,7 @@
 
 import { analisar, diaEmTexto, fmtTamanho } from './foto.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
+import { VERSAO_ATUAL } from './novidades.dados.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -10,6 +11,7 @@ const FIM_PUXAR = 64; // descida do conteúdo em que o anel enche; soltar daqui 
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
+$('versao').textContent = VERSAO_ATUAL;
 
 export function mostrarTela(nome) {
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;

@@ -514,26 +514,25 @@ Pedido em 2026-10-12 e feito no mesmo dia, na branch `link-de-download`.
 - **Pronto quando:** copiar o link de uma foto, abrir numa janela anônima e o arquivo
   baixar com o nome da foto; e um link vencido mostrar a mensagem certa.
 
-### Épico 11: Novidades, a página das entregas
+### Épico 11: Novidades (changelog)
 
-Pedido em 2026-10-12. Em andamento na branch `novidades`.
+Pedido em 2026-10-12 e feito no mesmo dia, no molde do changelog do `pr-manager`.
 
-- **O pedido:** um changelog igual ao do `pr-manager`, numa página dedicada só às entregas.
-- **Página própria, `novidades.html`.** Não é uma tela dentro do app: abre sem token, como a
-  página de download, e tem um "Voltar para as fotos".
-- **Uma entrada por entrega,** da mais nova para a mais antiga, com a versão, a data e a
-  hora em que foi para a base principal, um título e a lista do que mudou, escrita para
-  quem usa, sem termo de código.
-- **A lista mora num arquivo só,** `src/novidades.dados.js`. A versão do app é a da primeira
-  entrada, sem número repetido em outro lugar.
-- **Entregas antigas entram também.** Os Épicos 1 a 10 ganham a entrada deles, com a data
-  do merge de cada um.
-- **Rodapé no app** com a versão atual e o botão que leva para a página.
-- **Regra daqui para a frente:** toda entrega acrescenta a própria entrada no topo, no mesmo
-  PR. Sem entrada, a entrega não está pronta.
-- **Em aberto:** avisar na grade quando há versão nova desde a última visita.
-- **Pronto quando:** a página abre numa janela anônima com todas as entregas, a versão do
-  rodapé é a da primeira entrada, e o botão do rodapé leva até ela.
+- **Página "Novidades" (`novidades.html`):** uma versão por bloco, da mais nova para a mais
+  antiga, com o número, a data e a hora, um título e as mudanças em frases curtas. Abre sem
+  token, como a página de download.
+- **Rodapé do site:** mostra "Drive Fotos · versão X" e o botão "Novidades".
+- **Dados num arquivo só:** `src/novidades.dados.js`. A versão do app é a da primeira
+  entrada da lista.
+- **Histórico retroativo:** as onze entregas de 2026-10-12 entraram com a hora real em que
+  cada uma foi para a `main`.
+- **Numeração:** `0.x` enquanto o MVP estava em construção, `1.0.0` quando os Épicos 1 a 6
+  fecharam, e o número do meio sobe a cada funcionalidade nova. Correção sem funcionalidade
+  sobe o último número.
+- **Rotina:** todo PR de funcionalidade acrescenta a entrada dele no topo de
+  `src/novidades.dados.js`. O texto é para quem usa o app, sem jargão de código.
+- **O changelog é público.** O site abre para qualquer pessoa, então as entradas descrevem
+  só o app, nunca as fotos nem o repositório de dados.
 
 ### Épico 12: Selecionar várias fotos para apagar
 
