@@ -8,6 +8,8 @@ const $ = (id) => document.getElementById(id);
 
 const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
 const FIM_PUXAR = 64; // descida do conteúdo em que o anel enche; soltar daqui em diante atualiza
+let atualizacaoOcupada = false;
+let quantasApagarSelecao = 0;
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
@@ -23,7 +25,8 @@ export function mostrarTela(nome) {
 
 // Botão "Atualizar", no molde do beba-agua: enquanto lê, diz que está lendo e não aceita outro toque.
 export function atualizarOcupado(ocupado) {
-  $('atualizar').disabled = ocupado;
+  atualizacaoOcupada = ocupado;
+  $('atualizar').disabled = ocupado || document.body.classList.contains('modo-selecao');
   $('atualizar').textContent = ocupado ? 'Atualizando...' : 'Atualizar';
 }
 
@@ -437,7 +440,7 @@ function renderEspaco(espaco) {
   aviso.textContent = `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`;
 }
 
-export function renderPrincipal(grupos, { total, espaco }, baixar) {
+export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }) {
   encerrarVoo(); // os quadros vão ser trocados: um voo em curso pousa agora
   const posicoes = posicoesVisiveis();
   limparPrincipal();
@@ -449,6 +452,7 @@ export function renderPrincipal(grupos, { total, espaco }, baixar) {
   $('uso-valor').textContent = `${fmtTamanho(espaco)} usados`;
   $('uso-detalhe').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
   renderEspaco(espaco);
+  atualizarSelecao(selecao.ativa, selecao.ids, total);
 
   observador = new IntersectionObserver(
     (entradas) => {
@@ -471,8 +475,15 @@ export function renderPrincipal(grupos, { total, espaco }, baixar) {
   for (const grupo of grupos) {
     const secao = el('section', 'dia');
     const titulo = el('h3', 'dia__titulo', tituloDoDia(grupo.dia));
-    titulo.dataset.dia = grupo.dia;
-    secao.append(titulo);
+    const cabeca = el('div', 'dia__cabeca');
+    cabeca.dataset.dia = grupo.dia;
+    const rotuloDia = el('label', 'dia__selecao');
+    const caixaDia = el('input');
+    caixaDia.type = 'checkbox';
+    caixaDia.setAttribute('aria-label', `Selecionar todas as fotos de ${titulo.textContent}`);
+    rotuloDia.append(caixaDia);
+    cabeca.append(titulo, rotuloDia);
+    secao.append(cabeca);
     const lista = el('ul', 'grade');
     for (const foto of grupo.fotos) {
       const quadro = el('li', 'grade__quadro');
@@ -480,7 +491,9 @@ export function renderPrincipal(grupos, { total, espaco }, baixar) {
       const botao = el('button', 'grade__botao');
       botao.type = 'button';
       botao.setAttribute('aria-label', descricaoDaFoto(foto));
+      if (selecao.ativa) botao.setAttribute('aria-pressed', String(selecao.ids.has(foto.id)));
       quadro.append(botao);
+      quadro.classList.toggle('grade__quadro--selecionado', selecao.ids.has(foto.id));
       if (foto.id === destaqueId) marcarDestaque(quadro, false);
       if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
       if (foto.miniatura) {
@@ -493,10 +506,40 @@ export function renderPrincipal(grupos, { total, espaco }, baixar) {
       observadorDaTela.observe(quadro);
       lista.append(quadro);
     }
+    const marcadas = grupo.fotos.filter((foto) => selecao.ids.has(foto.id)).length;
+    caixaDia.checked = marcadas === grupo.fotos.length;
+    caixaDia.indeterminate = marcadas > 0 && marcadas < grupo.fotos.length;
     secao.append(lista);
     $('grade').append(secao);
   }
   deslizarDe(posicoes);
+}
+
+export function atualizarSelecao(ativa, ids, total) {
+  document.body.classList.toggle('modo-selecao', ativa);
+  $('grade').classList.toggle('grade--selecao', ativa);
+  $('selecao-topo').hidden = total === 0 || ativa;
+  $('barra-selecao').hidden = !ativa;
+  $('zona').disabled = ativa;
+  $('zona-entrada').disabled = ativa;
+  $('atualizar').disabled = atualizacaoOcupada || ativa;
+  $('selecao-contagem').textContent = `${ids.size} ${ids.size === 1 ? 'foto selecionada' : 'fotos selecionadas'}`;
+  $('apagar-selecionadas').disabled = ids.size === 0;
+
+  for (const quadro of $('grade').querySelectorAll('.grade__quadro')) {
+    const selecionada = ids.has(quadro.dataset.id);
+    quadro.classList.toggle('grade__quadro--selecionado', selecionada);
+    const botao = quadro.querySelector('.grade__botao');
+    if (ativa) botao.setAttribute('aria-pressed', String(selecionada));
+    else botao.removeAttribute('aria-pressed');
+  }
+  for (const cabeca of $('grade').querySelectorAll('.dia__cabeca')) {
+    const caixas = [...cabeca.closest('.dia').querySelectorAll('.grade__quadro')];
+    const quantidade = caixas.filter((quadro) => ids.has(quadro.dataset.id)).length;
+    const caixaDia = cabeca.querySelector('input');
+    caixaDia.checked = caixas.length > 0 && quantidade === caixas.length;
+    caixaDia.indeterminate = quantidade > 0 && quantidade < caixas.length;
+  }
 }
 
 // Foto aberta
@@ -900,6 +943,34 @@ export function apagarOcupado(ocupado) {
   $('apagar-confirmar').textContent = ocupado ? 'Apagando...' : 'Apagar foto';
 }
 
+export function abrirApagarSelecao(total) {
+  quantasApagarSelecao = total;
+  erroApagarSelecao(null);
+  apagarSelecaoOcupada(false);
+  $('apagar-selecao-titulo').textContent = `Apagar ${total} ${total === 1 ? 'foto' : 'fotos'}?`;
+  $('apagar-selecao-aviso').textContent = `Você selecionou ${total} ${total === 1 ? 'foto' : 'fotos'}.`;
+  $('apagar-selecao-confirmar').textContent = `Apagar ${total} ${total === 1 ? 'foto' : 'fotos'}`;
+  $('apagar-selecao').showModal();
+}
+
+export function fecharApagarSelecao() {
+  if ($('apagar-selecao').open) $('apagar-selecao').close();
+}
+
+export function erroApagarSelecao(mensagem) {
+  $('apagar-selecao-erro').hidden = !mensagem;
+  $('apagar-selecao-erro').textContent = mensagem ?? '';
+  $('apagar-selecao-confirmar').textContent = mensagem ? 'Tentar de novo' : `Apagar ${quantasApagarSelecao} ${quantasApagarSelecao === 1 ? 'foto' : 'fotos'}`;
+}
+
+export function apagarSelecaoOcupada(ocupada) {
+  const confirmar = $('apagar-selecao-confirmar');
+  confirmar.disabled = ocupada;
+  $('apagar-selecao-cancelar').disabled = ocupada;
+  if (ocupada) confirmar.textContent = 'Apagando...';
+  else erroApagarSelecao($('apagar-selecao-erro').hidden ? null : $('apagar-selecao-erro').textContent);
+}
+
 // "Copiar link" manda o link direto para a área de transferência, sem diálogo. O link ainda
 // está sendo gerado quando a pessoa toca, e o Safari só deixa copiar no toque: por isso o
 // texto vai como promessa. Devolve se copiou.
@@ -977,9 +1048,66 @@ function ligarAcoesDaFoto(acoes) {
 function ligarVisor(acoes) {
   ligarAcoesDaFoto(acoes);
   const visor = $('visor');
+  let pressao = null;
+  let suprimirClique = false;
+  let limparSupressao = null;
+  const cancelarPressao = () => {
+    if (pressao?.temporizador) clearTimeout(pressao.temporizador);
+    pressao = null;
+  };
+  $('grade').addEventListener('pointerdown', (evento) => {
+    const botao = evento.target.closest('.grade__botao');
+    const quadro = botao?.closest('[data-id]');
+    if (evento.pointerType !== 'touch' || !quadro || acoes.estaEmSelecao()) return;
+    cancelarPressao();
+    pressao = {
+      id: quadro.dataset.id,
+      pointerId: evento.pointerId,
+      x: evento.clientX,
+      y: evento.clientY,
+      temporizador: setTimeout(() => {
+        if (!pressao) return;
+        if (acoes.iniciarSelecao(pressao.id)) pressao.disparada = true;
+        else cancelarPressao();
+      }, 550),
+    };
+  });
+  $('grade').addEventListener('pointermove', (evento) => {
+    if (!pressao || evento.pointerId !== pressao.pointerId || pressao.disparada) return;
+    if (Math.hypot(evento.clientX - pressao.x, evento.clientY - pressao.y) > 12) cancelarPressao();
+  });
+  $('grade').addEventListener('pointerup', (evento) => {
+    if (!pressao || evento.pointerId !== pressao.pointerId) return;
+    const disparada = pressao.disparada;
+    cancelarPressao();
+    if (!disparada) return;
+    suprimirClique = true;
+    clearTimeout(limparSupressao);
+    limparSupressao = setTimeout(() => (suprimirClique = false), 600);
+  });
+  $('grade').addEventListener('pointercancel', cancelarPressao);
+  $('grade').addEventListener('contextmenu', (evento) => {
+    if (evento.target.closest('.grade__botao')) evento.preventDefault();
+  });
   $('grade').addEventListener('click', (evento) => {
-    const quadro = evento.target.closest('.grade__botao')?.closest('[data-id]');
-    if (quadro) acoes.abrirFoto(quadro.dataset.id);
+    const botao = evento.target.closest('.grade__botao');
+    const quadro = botao?.closest('[data-id]');
+    if (!quadro) return;
+    if (suprimirClique) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      suprimirClique = false;
+      clearTimeout(limparSupressao);
+      return;
+    }
+    if (acoes.estaEmSelecao()) acoes.alternarFotoSelecionada(quadro.dataset.id);
+    else acoes.abrirFoto(quadro.dataset.id);
+  });
+  $('grade').addEventListener('change', (evento) => {
+    const caixa = evento.target.closest('.dia__selecao input');
+    if (!caixa) return;
+    const ids = [...caixa.closest('.dia').querySelectorAll('.grade__quadro')].map((quadro) => quadro.dataset.id);
+    acoes.definirSelecaoDoDia(ids, caixa.checked);
   });
   $('visor-fechar').addEventListener('click', () => fecharComEfeito());
   $('visor-info').addEventListener('click', alternarPainel);
@@ -1584,12 +1712,29 @@ export function ligarEventos(acoes) {
   $('fila-limpar').addEventListener('click', acoes.limparFila);
   $('atalho-ver').addEventListener('click', verPeloAtalho);
   $('atalho-fechar').addEventListener('click', fecharAtalho);
-  ligarPuxar(acoes.atualizar, () => Boolean(lerToken()));
+  ligarPuxar(acoes.atualizar, () => Boolean(lerToken()) && !acoes.estaEmSelecao());
   $('atualizar').addEventListener('click', acoes.atualizar);
   $('atualizar-de-novo').addEventListener('click', acoes.atualizar);
   ligarArraste(acoes);
   ligarVisor(acoes);
   ligarPendentes(acoes);
+  $('entrar-selecao').addEventListener('click', () => acoes.iniciarSelecao());
+  $('apagar-selecionadas').addEventListener('click', acoes.abrirConfirmacaoSelecao);
+  $('cancelar-selecao').addEventListener('click', acoes.sairDaSelecao);
+  $('apagar-selecao-form').addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    acoes.apagarSelecao();
+  });
+  $('apagar-selecao-cancelar').addEventListener('click', fecharApagarSelecao);
+  $('apagar-selecao').addEventListener('click', (evento) => {
+    if (evento.target === $('apagar-selecao') && !$('apagar-selecao-confirmar').disabled) fecharApagarSelecao();
+  });
+  $('apagar-selecao').addEventListener('cancel', (evento) => {
+    if ($('apagar-selecao-confirmar').disabled) evento.preventDefault();
+  });
+  document.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Escape' && !document.querySelector('dialog[open]')) acoes.sairDaSelecao();
+  });
 
   $('repetidas').addEventListener('click', (evento) => {
     if (evento.target === $('repetidas')) $('repetidas').close();
