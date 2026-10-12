@@ -691,32 +691,43 @@ async function nomesDasCopias(sha) {
 async function resolverRepetidas(repetidas, totalDaLeva) {
   perguntando = true;
   try {
-    // "Não enviar" só é seguro se a foto guardada ainda existe: confere antes de perguntar.
-    // A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
+    // "Não enviar" só é seguro se a foto guardada ainda existe: confere no GitHub antes de
+    // perguntar. A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
+    // Sem rede, vale a lista que está na tela.
     if (repetidas.some(({ par }) => par.foto)) {
-      await atualizarLista();
+      const noGitHub = await github.lerArvore().then(
+        (arvore) => new Set(arvore.map((arquivo) => arquivo.sha)),
+        () => null,
+      );
       repetidas = repetidas.filter((repetida) => {
-        if (!repetida.par.foto) return true;
-        const guardada = fotos?.find((item) => item.sha === repetida.sha);
-        if (guardada) {
-          repetida.par = { foto: guardada };
-          return true;
-        }
+        if (!repetida.par.foto || !noGitHub || noGitHub.has(repetida.sha)) return true;
         enfileirar([{ arquivo: repetida.arquivo, sha: repetida.sha }]);
         return false;
       });
       if (repetidas.length === 0) return;
     }
 
-    const linhas = await Promise.all(
-      repetidas.map(async ({ arquivo, par }) => ({
-        nome: arquivo.name,
-        tamanho: arquivo.size,
-        guardada: par.foto ?? null,
-        nomeDaGuardada: par.foto ? nomeDaFoto(par.foto, await lerRegistro(par.foto)) : par.arquivo.name,
-      })),
-    );
+    // A foto que está sendo enviada aparece ao lado da que já existe. A prévia é uma miniatura
+    // feita aqui, para o diálogo não abrir vários arquivos grandes de uma vez.
+    const previas = [];
+    const previaDe = async (arquivo) => {
+      const miniatura = await foto.gerarMiniatura(arquivo);
+      if (!miniatura) return null; // o navegador não decodifica: fica o quadro neutro
+      const url = URL.createObjectURL(miniatura.blob);
+      previas.push(url);
+      return url;
+    };
+    const linhas = [];
+    for (const { arquivo, par } of repetidas) {
+      linhas.push({
+        nova: { nome: arquivo.name, tamanho: arquivo.size, url: await previaDe(arquivo) },
+        outra: par.foto
+          ? { nome: nomeDaFoto(par.foto, await lerRegistro(par.foto)), tamanho: par.foto.tamanho, foto: par.foto }
+          : { nome: par.arquivo.name, tamanho: par.arquivo.size, url: await previaDe(par.arquivo) },
+      });
+    }
     const escolha = await ui.perguntarRepetidas(linhas, totalDaLeva);
+    for (const url of previas) URL.revokeObjectURL(url);
     if (escolha !== 'manter') {
       ui.anunciarEnvio(repetidas.length === 1 ? 'A foto repetida não foi enviada.' : `${repetidas.length} fotos repetidas não foram enviadas.`);
       return;
@@ -728,22 +739,6 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
     }
   } finally {
     perguntando = false;
-  }
-}
-
-// Relê o repositório agora, fora do intervalo da conferência. No meio de um envio a lista
-// local já está à frente da do GitHub, e fica como está.
-async function atualizarLista() {
-  if (!fotos || enviando || conferindo) return;
-  const antes = fotos;
-  try {
-    const novas = await lerFotos();
-    if (fotos !== antes || mesmaLista(novas, antes)) return;
-    fotos = novas;
-    armazem.guardarFotos(fotos);
-    render();
-  } catch {
-    // sem rede, vale a lista que está na tela
   }
 }
 

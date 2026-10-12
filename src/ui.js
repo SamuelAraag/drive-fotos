@@ -929,9 +929,31 @@ export function renderFila(itens, situacao) {
   $('fila-lista').replaceChildren(...linhas);
 }
 
-// Fotos repetidas: um diálogo por leva. Cada linha é { nome, tamanho, guardada, nomeDaGuardada },
-// e `guardada` vem vazia quando a outra cópia ainda está na fila. Devolve 'nao-enviar' ou 'manter'.
-// Fechar com Esc ou clicando fora é não enviar: nada é gravado.
+// Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que está sendo enviada
+// e a que já existe: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
+// `outra.foto` é a foto guardada; vem vazia quando a outra cópia ainda está na fila, e aí a
+// imagem dela vem em `outra.url`. Devolve 'nao-enviar' ou 'manter'. Fechar com Esc ou clicando
+// fora é não enviar: nada é gravado.
+function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, detalhe) {
+  const figura = el('figure', 'repetidas__foto');
+  const quadro = el('div', 'repetidas__quadro');
+  const imagem = el('img', 'repetidas__imagem');
+  imagem.alt = '';
+  imagem.hidden = true; // sem imagem para mostrar, fica o quadro neutro
+  const mostrar = (endereco) => {
+    imagem.src = endereco;
+    imagem.hidden = false;
+  };
+  if (url) mostrar(url);
+  else if (foto?.miniatura) baixarAtual(foto.miniatura).then(mostrar, () => {});
+  quadro.append(imagem, el('span', 'repetidas__tamanho', fmtTamanho(tamanho)));
+  const legenda = el('figcaption', 'repetidas__legenda');
+  legenda.append(el('span', 'texto-suave texto-pequeno', rotulo), el('span', null, nome));
+  if (detalhe) legenda.append(el('span', 'texto-suave texto-pequeno', detalhe));
+  figura.append(quadro, legenda);
+  return figura;
+}
+
 export function perguntarRepetidas(linhas, totalDaLeva) {
   const dialogo = $('repetidas');
   const quantas = linhas.length;
@@ -945,29 +967,18 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
           : `${quantas} das ${totalDaLeva} fotos já estão guardadas`;
   $('repetidas-detalhe').textContent =
     quantas === 1
-      ? 'O conteúdo é idêntico ao da foto abaixo. "Manter as duas" envia de novo, com outro nome.'
-      : 'O conteúdo é idêntico ao das fotos abaixo. "Manter todas" envia todas de novo, com outro nome.';
+      ? 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.'
+      : 'O conteúdo é idêntico ao das fotos guardadas. "Manter todas" envia todas de novo, com outro nome.';
   $('repetidas-manter').textContent = quantas === 1 ? 'Manter as duas' : 'Manter todas';
   $('repetidas-lista').replaceChildren(
-    ...linhas.map(({ nome, tamanho, guardada, nomeDaGuardada }) => {
+    ...linhas.map(({ nova, outra }) => {
       const item = el('li', 'repetidas__item');
-      const miniatura = el('img', 'dialogo__miniatura');
-      miniatura.alt = '';
-      miniatura.width = 64;
-      miniatura.height = 64;
-      if (guardada?.miniatura) baixarAtual(guardada.miniatura).then((url) => (miniatura.src = url), () => {});
-      const texto = el('div', 'repetidas__texto');
-      texto.append(el('span', null, nome));
-      texto.append(
-        el(
-          'span',
-          'texto-suave texto-pequeno',
-          guardada
-            ? `${fmtTamanho(tamanho)} · guardada como ${nomeDaGuardada}, ${descricaoDaFoto(guardada).replace('Foto de ', 'de ')}`
-            : `${fmtTamanho(tamanho)} · igual a ${nomeDaGuardada}, que está na fila de envio`,
-        ),
+      item.append(
+        quadroDaRepetida('Enviando agora', nova),
+        outra.foto
+          ? quadroDaRepetida('Já guardada', outra, descricaoDaFoto(outra.foto).replace('Foto de ', ''))
+          : quadroDaRepetida('Na fila de envio', outra),
       );
-      item.append(miniatura, texto);
       return item;
     }),
   );
