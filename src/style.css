@@ -1198,6 +1198,31 @@ h2:focus {
   overflow-wrap: anywhere;
 }
 
+/* Fotos repetidas: uma linha por foto, com a que já está guardada ao lado do nome da nova. */
+.repetidas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+  max-height: 40dvh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.repetidas__item {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+}
+
+.repetidas__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .login__passos {
   display: flex;
   flex-direction: column;

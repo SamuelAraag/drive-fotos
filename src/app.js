@@ -29,7 +29,9 @@ let conferindo = false;
 let conferidoEm = 0; // hora da última leitura do repositório
 const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
 
-// Fila de envio. Cada item: { n, arquivo, id, estado, mensagem }.
+// Fila de envio. Cada item: { n, arquivo, nome, sha, reuso, id, estado, mensagem }.
+// `sha` é o do conteúdo, para reconhecer foto repetida. `reuso` vem preenchido na cópia de uma
+// foto já guardada: o arquivo não sobe de novo, a cópia aponta para o que o repositório já tem.
 // estado: 'aguardando' | 'enviando' | 'concluido' | 'erro'
 let fila = [];
 let proximoItem = 1;
@@ -37,6 +39,7 @@ let enviando = false;
 let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
 let progresso = 0; // de 0 a 1, da foto que está subindo agora
+let perguntando = false; // o diálogo de fotos repetidas está aberto
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
@@ -447,18 +450,20 @@ async function apagarFoto() {
   }
   ui.apagarOcupado(false);
 
-  armazem.apagar([item.sha, item.miniatura, item.registro].filter(Boolean));
   registros.delete(item.id);
-  const guardada = originais.get(item.sha);
-  if (guardada) {
-    guardada.promessa.then(URL.revokeObjectURL, () => {});
-    originais.delete(item.sha);
-  }
   tirarDaFilaDeFundo(item.id);
   if (!fotos) return; // saiu da conta enquanto o commit corria
   const indice = fotos.findIndex((outra) => outra.id === item.id);
   fotos = fotos.filter((outra) => outra.id !== item.id);
   armazem.guardarFotos(fotos);
+  // Duas cópias da mesma foto dividem o arquivo: só sai do aparelho o que ninguém mais usa.
+  const emUso = new Set(fotos.flatMap((outra) => [outra.sha, outra.miniatura, outra.registro]));
+  armazem.apagar([item.sha, item.miniatura, item.registro].filter((sha) => sha && !emUso.has(sha)));
+  const guardada = originais.get(item.sha);
+  if (guardada && !emUso.has(item.sha)) {
+    guardada.promessa.then(URL.revokeObjectURL, () => {});
+    originais.delete(item.sha);
+  }
   ui.fecharApagar();
   if (aberta !== item.id) {
     render(); // o visor fechou enquanto o commit corria
@@ -613,7 +618,7 @@ function plural(n, um, varios) {
 }
 
 // Separa o que entra na fila do que fica de fora, com o motivo de cada recusa.
-function adicionarArquivos(arquivos, { temPasta = false } = {}) {
+async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   const recusas = [];
   if (temPasta) recusas.push('Pastas não são aceitas. Solte as fotos de dentro dela.');
 
@@ -632,12 +637,114 @@ function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   }
   ui.erroNaZona(recusas.length ? `Ficou de fora. ${recusas.join(' ')}` : null);
 
-  for (const arquivo of aceitos) {
-    fila.push({ n: proximoItem++, arquivo, id: null, estado: 'aguardando', mensagem: null });
-  }
   if (aceitos.length === 0) return;
+  // As novas sobem direto. As repetidas esperam a resposta, sem segurar a fila.
+  const { novas, repetidas } = await separarRepetidas(aceitos);
+  enfileirar(novas);
+  if (repetidas.length > 0) resolverRepetidas(repetidas, aceitos.length);
+}
+
+function enfileirar(entradas) {
+  for (const { arquivo, sha = null, nome = arquivo.name, reuso = null } of entradas) {
+    fila.push({ n: proximoItem++, arquivo, nome, sha, reuso, id: null, estado: 'aguardando', mensagem: null });
+  }
+  if (entradas.length === 0) return;
   renderFila();
   bombear();
+}
+
+// Fotos repetidas
+//
+// A foto é a mesma quando o conteúdo é idêntico, byte a byte: o sha que o git dá ao arquivo,
+// calculado aqui, bate com o de uma foto da lista. Não custa nenhuma chamada ao GitHub.
+// Conta também a que ainda está na fila e o mesmo arquivo escolhido duas vezes na leva.
+
+async function separarRepetidas(arquivos) {
+  const conhecidas = new Map(); // sha -> { foto } já guardada, ou { arquivo } ainda na fila
+  for (const item of fotos ?? []) if (!conhecidas.has(item.sha)) conhecidas.set(item.sha, { foto: item });
+  for (const item of fila) {
+    if (item.sha && item.estado !== 'concluido' && !conhecidas.has(item.sha)) conhecidas.set(item.sha, { arquivo: item.arquivo });
+  }
+  const novas = [];
+  const repetidas = [];
+  for (const arquivo of arquivos) {
+    // Fora de https e de localhost o navegador não faz a conta: a foto segue como nova.
+    const sha = await foto.shaDoGit(arquivo).catch(() => null);
+    const par = sha ? conhecidas.get(sha) : null;
+    if (par) {
+      repetidas.push({ arquivo, sha, par });
+    } else {
+      novas.push({ arquivo, sha });
+      if (sha) conhecidas.set(sha, { arquivo });
+    }
+  }
+  return { novas, repetidas };
+}
+
+// Os nomes que as cópias de um mesmo conteúdo já usam, guardadas ou na fila.
+async function nomesDasCopias(sha) {
+  const guardadas = (fotos ?? []).filter((item) => item.sha === sha);
+  const nomes = await Promise.all(guardadas.map(async (item) => nomeDaFoto(item, await lerRegistro(item))));
+  return [...nomes, ...fila.filter((item) => item.sha === sha).map((item) => item.nome)];
+}
+
+async function resolverRepetidas(repetidas, totalDaLeva) {
+  perguntando = true;
+  try {
+    // "Não enviar" só é seguro se a foto guardada ainda existe: confere antes de perguntar.
+    // A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
+    if (repetidas.some(({ par }) => par.foto)) {
+      await atualizarLista();
+      repetidas = repetidas.filter((repetida) => {
+        if (!repetida.par.foto) return true;
+        const guardada = fotos?.find((item) => item.sha === repetida.sha);
+        if (guardada) {
+          repetida.par = { foto: guardada };
+          return true;
+        }
+        enfileirar([{ arquivo: repetida.arquivo, sha: repetida.sha }]);
+        return false;
+      });
+      if (repetidas.length === 0) return;
+    }
+
+    const linhas = await Promise.all(
+      repetidas.map(async ({ arquivo, par }) => ({
+        nome: arquivo.name,
+        tamanho: arquivo.size,
+        guardada: par.foto ?? null,
+        nomeDaGuardada: par.foto ? nomeDaFoto(par.foto, await lerRegistro(par.foto)) : par.arquivo.name,
+      })),
+    );
+    const escolha = await ui.perguntarRepetidas(linhas, totalDaLeva);
+    if (escolha !== 'manter') {
+      ui.anunciarEnvio(repetidas.length === 1 ? 'A foto repetida não foi enviada.' : `${repetidas.length} fotos repetidas não foram enviadas.`);
+      return;
+    }
+    for (const { arquivo, sha, par } of repetidas) {
+      const nome = foto.nomeRepetido(arquivo.name, await nomesDasCopias(sha));
+      // Com a original guardada, a cópia aponta para ela. Com a original ainda na fila, sobe normal.
+      enfileirar([{ arquivo, sha, nome, reuso: par.foto ? sha : null }]);
+    }
+  } finally {
+    perguntando = false;
+  }
+}
+
+// Relê o repositório agora, fora do intervalo da conferência. No meio de um envio a lista
+// local já está à frente da do GitHub, e fica como está.
+async function atualizarLista() {
+  if (!fotos || enviando || conferindo) return;
+  const antes = fotos;
+  try {
+    const novas = await lerFotos();
+    if (fotos !== antes || mesmaLista(novas, antes)) return;
+    fotos = novas;
+    armazem.guardarFotos(fotos);
+    render();
+  } catch {
+    // sem rede, vale a lista que está na tela
+  }
 }
 
 async function manterTelaAcordada() {
@@ -662,9 +769,10 @@ async function enviarFoto(item) {
   item.id ??= foto.gerarId(data);
   const caminhos = foto.caminhos(item.id, foto.extensaoDe(arquivo));
   const miniatura = await foto.gerarMiniatura(arquivo);
-  const registro = foto.montarRegistro({ id: item.id, arquivo, data, miniatura, blob: caminhos.blob });
+  const registro = foto.montarRegistro({ id: item.id, arquivo, nome: item.nome, data, miniatura, blob: caminhos.blob });
 
-  const arquivos = [{ caminho: caminhos.blob, base64: await foto.paraBase64(arquivo) }];
+  // A cópia de uma foto já guardada não envia o arquivo de novo: o git guarda um conteúdo só.
+  const arquivos = [item.reuso ? { caminho: caminhos.blob, sha: item.reuso } : { caminho: caminhos.blob, base64: await foto.paraBase64(arquivo) }];
   if (miniatura) arquivos.push({ caminho: caminhos.miniatura, base64: await foto.paraBase64(miniatura.blob) });
   arquivos.push({ caminho: caminhos.registro, texto: textoDoRegistro(registro) });
 
@@ -682,7 +790,7 @@ async function enviarFoto(item) {
     id: item.id,
     dia: item.id.slice(0, 8),
     hora: item.id.slice(9, 15),
-    sha: shas[caminhos.blob],
+    sha: item.reuso ?? shas[caminhos.blob],
     miniatura: shaDaMiniatura,
     // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
     registro: await foto.shaDoGit(textoDoRegistro(registro)),
@@ -774,7 +882,7 @@ ui.ligarEventos({
   arquivos: adicionarArquivos,
   tentarDeNovo,
   limparFila: dispensarFalhas,
-  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto(),
+  podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto() && !perguntando,
   abrirFoto,
   passarFoto,
   recarregarFoto: () => mostrarAberta(),

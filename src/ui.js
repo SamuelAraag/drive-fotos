@@ -901,12 +901,12 @@ export function renderFila(itens, situacao) {
   const atual = itens.find((item) => item.estado === 'enviando');
   const ocupada = Boolean(atual || situacao.pausadaAte);
   // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
-  $('zona-titulo').textContent = atual ? atual.arquivo.name : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
+  $('zona-titulo').textContent = atual ? atual.nome : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
   posicaoNaFila = atual ? resumoDaFila(itens, situacao) : '';
   $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
   $('zona-barra').hidden = !atual;
   if (atual) {
-    $('zona-barra').setAttribute('aria-label', `Envio de ${atual.arquivo.name}`);
+    $('zona-barra').setAttribute('aria-label', `Envio de ${atual.nome}`);
     renderProgresso(situacao.progresso);
   } else {
     $('zona').classList.remove('zona--varrendo');
@@ -918,7 +918,7 @@ export function renderFila(itens, situacao) {
   const linhas = falhas.map((item) => {
     const linha = el('li', 'fila__item');
     const texto = el('div', 'fila__texto');
-    texto.append(el('span', 'fila__nome', item.arquivo.name));
+    texto.append(el('span', 'fila__nome', item.nome));
     texto.append(el('span', 'fila__estado', `${fmtTamanho(item.arquivo.size)} · ${item.mensagem}`));
     const botao = el('button', 'botao botao--fantasma', 'Tentar de novo');
     botao.type = 'button';
@@ -927,6 +927,55 @@ export function renderFila(itens, situacao) {
     return linha;
   });
   $('fila-lista').replaceChildren(...linhas);
+}
+
+// Fotos repetidas: um diálogo por leva. Cada linha é { nome, tamanho, guardada, nomeDaGuardada },
+// e `guardada` vem vazia quando a outra cópia ainda está na fila. Devolve 'nao-enviar' ou 'manter'.
+// Fechar com Esc ou clicando fora é não enviar: nada é gravado.
+export function perguntarRepetidas(linhas, totalDaLeva) {
+  const dialogo = $('repetidas');
+  const quantas = linhas.length;
+  $('repetidas-titulo').textContent =
+    totalDaLeva === 1
+      ? 'Esta foto já está guardada'
+      : quantas === 1
+        ? `1 das ${totalDaLeva} fotos já está guardada`
+        : quantas === totalDaLeva
+          ? `As ${quantas} fotos já estão guardadas`
+          : `${quantas} das ${totalDaLeva} fotos já estão guardadas`;
+  $('repetidas-detalhe').textContent =
+    quantas === 1
+      ? 'O conteúdo é idêntico ao da foto abaixo. "Manter as duas" envia de novo, com outro nome.'
+      : 'O conteúdo é idêntico ao das fotos abaixo. "Manter todas" envia todas de novo, com outro nome.';
+  $('repetidas-manter').textContent = quantas === 1 ? 'Manter as duas' : 'Manter todas';
+  $('repetidas-lista').replaceChildren(
+    ...linhas.map(({ nome, tamanho, guardada, nomeDaGuardada }) => {
+      const item = el('li', 'repetidas__item');
+      const miniatura = el('img', 'dialogo__miniatura');
+      miniatura.alt = '';
+      miniatura.width = 64;
+      miniatura.height = 64;
+      if (guardada?.miniatura) baixarAtual(guardada.miniatura).then((url) => (miniatura.src = url), () => {});
+      const texto = el('div', 'repetidas__texto');
+      texto.append(el('span', null, nome));
+      texto.append(
+        el(
+          'span',
+          'texto-suave texto-pequeno',
+          guardada
+            ? `${fmtTamanho(tamanho)} · guardada como ${nomeDaGuardada}, ${descricaoDaFoto(guardada).replace('Foto de ', 'de ')}`
+            : `${fmtTamanho(tamanho)} · igual a ${nomeDaGuardada}, que está na fila de envio`,
+        ),
+      );
+      item.append(miniatura, texto);
+      return item;
+    }),
+  );
+  dialogo.returnValue = '';
+  dialogo.showModal();
+  return new Promise((resolver) => {
+    dialogo.addEventListener('close', () => resolver(dialogo.returnValue === 'manter' ? 'manter' : 'nao-enviar'), { once: true });
+  });
 }
 
 // Texto para o leitor de tela quando a leva termina. Na tela, quem conta é o destaque na grade.
@@ -1030,6 +1079,10 @@ export function ligarEventos(acoes) {
   $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
   ligarVisor(acoes);
+
+  $('repetidas').addEventListener('click', (evento) => {
+    if (evento.target === $('repetidas')) $('repetidas').close();
+  });
 
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.
   const confirmarSair = $('confirmar-sair');
