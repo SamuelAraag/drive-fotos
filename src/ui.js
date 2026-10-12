@@ -312,18 +312,13 @@ function deslizarDe(posicoes) {
   }
 }
 
-const AVISO_DE_ESPACO = 1024 * 1024 * 1024;
-const AVISO_FORTE_DE_ESPACO = 4 * 1024 * 1024 * 1024;
+const AVISO_DE_ESPACO = 4 * 1024 * 1024 * 1024;
 
 // Só avisa, não bloqueia: o teto recomendado pelo GitHub é de 5 GB por repositório.
 function renderEspaco(espaco) {
   const aviso = $('principal-espaco');
-  const forte = espaco >= AVISO_FORTE_DE_ESPACO;
-  aviso.hidden = espaco < AVISO_DE_ESPACO;
-  aviso.classList.toggle('aviso--forte', forte);
-  aviso.textContent = forte
-    ? `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`
-    : `As fotos já ocupam ${fmtTamanho(espaco)}. O GitHub recomenda ficar abaixo de 5 GB por repositório.`;
+  aviso.hidden = espaco <= AVISO_DE_ESPACO;
+  aviso.textContent = `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`;
 }
 
 export function renderPrincipal(grupos, { total, espaco }, baixar) {

@@ -343,8 +343,8 @@ testar na tela.
 - "Sair" limpa o cache. Feito no Épico 4.
 - Releitura da árvore ao voltar para a tela, para aparecer o que subiu ou foi apagado em
   outro aparelho.
-- Espaço usado na tela, somado dos tamanhos que a árvore já traz. Aviso a partir de 1 GB e
-  outro, mais forte, em 4 GB. Só avisa, não bloqueia.
+- Espaço usado na tela, somado dos tamanhos que a árvore já traz. Aviso só quando passa de
+  4 GB. Só avisa, não bloqueia.
 - **Pronto quando:** reabrir o app não baixa de novo o que já foi visto, e o espaço usado
   aparece.
 
