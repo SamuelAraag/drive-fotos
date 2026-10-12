@@ -7,6 +7,7 @@
   --texto-suave: #9aa8bd;
   --azul: #3b9dff;
   --erro: #ff8585;
+  --atencao: #f5a524; /* o --excesso do beba-agua: pede atenção, não é erro */
   --foco: #a9d3ff;
 
   --e1: 4px;
@@ -138,7 +139,7 @@ h2:focus {
   font-weight: 400;
 }
 
-/* Recado que fica na tela, sem bloquear nada. O forte é para o que pede uma atitude. */
+/* Recado que fica na tela, sem bloquear nada. O forte é para o que pede atenção, e não é erro. */
 .aviso {
   padding: var(--e3) var(--e4);
   border: 1px solid var(--trilho);
@@ -148,8 +149,8 @@ h2:focus {
 }
 
 .aviso--forte {
-  border-color: var(--erro);
-  color: var(--erro);
+  border-color: var(--atencao);
+  color: var(--atencao);
 }
 
 .pagina {
