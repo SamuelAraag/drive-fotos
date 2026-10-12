@@ -692,11 +692,11 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
 - **Antes de enviar, fazer o levantamento.** Informar totais, tamanho e formatos, comparar
   com o espaço conhecido do repositório e apresentar uma prévia do que será enviado,
   ignorado ou precisa de decisão. Não começar a transferência até a pessoa confirmar.
-- **Capacidade como barreira de segurança.** Um repositório tem recomendação de até 5 GB e o
-  aviso do app começa em 4 GB. Se a previsão ultrapassar o aviso, pausar no resumo e pedir
-  que a pessoa reduza a seleção ou decida como dividir o acervo. Não começar uma migração
-  que não cabe nem escolher/criar outro repositório automaticamente; vários repositórios
-  exigem resolver antes o RG04.
+- **Capacidade: só avisa.** Um repositório tem recomendação de até 5 GB e o aviso do app
+  começa em 4 GB. Quando a previsão passa do aviso, o resumo mostra a estimativa e o risco,
+  e o envio segue liberado. O bloqueio que existia aqui saiu em 2026-10-12, a pedido, para
+  o acervo de cerca de 8 GB subir num repositório só. Vários repositórios seguem dependendo
+  do RG04.
 - **O que não entra:** vídeos, arquivos vazios, formatos que o app não reconhece como imagem
   e imagens acima do limite atual de 25 MB. Listar cada item ignorado com o motivo, para não
   parecer que foi importado.
