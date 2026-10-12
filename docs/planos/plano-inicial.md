@@ -29,6 +29,10 @@ navegador.
 - **Acesso da conta principal:** ela tem acesso de owner ao `drive-fotos-dados`. Serve para
   administrar e para a cópia de segurança por `git clone`. O app não usa esse acesso: ele
   entra só com o token da conta separada.
+- **Duas branches no repositório de dados.** `main` é a base oficial, usada pelo app
+  publicado. `testes` é a base de testes, usada pelo app rodando em `localhost`. O app
+  escolhe pelo endereço da página e mostra "base de testes" na tela quando é o caso. Foto
+  de teste nunca entra na `main`.
 - **Dono e nome do repositório de dados ficam fixos no código**, como no `beba-agua`. O
   nome da conta já é público neste plano, então esconder no login não protegeria nada.
 - **Cada foto é um commit no repositório de dados**, com três arquivos:

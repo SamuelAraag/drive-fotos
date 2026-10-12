@@ -1,12 +1,13 @@
 // Telas.
 
-import { REPO_DADOS, lerToken } from './github.js';
+import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
 
 const TELAS = ['carregando', 'erro', 'principal'];
 
 $('login-repo').textContent = REPO_DADOS;
+$('base-de-testes').hidden = !BASE_DE_TESTES;
 
 export function mostrarTela(nome) {
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;
@@ -40,7 +41,8 @@ function tituloDoDia(dia) {
   const distancia = Math.round((hoje - data) / 86400000);
   if (distancia === 0) return 'Hoje';
   if (distancia === 1) return 'Ontem';
-  const formato = { weekday: 'long', day: 'numeric', month: 'long' };
+  // Curto, para caber em cima de um dia de uma foto só.
+  const formato = { weekday: 'short', day: 'numeric', month: 'short' };
   if (data.getFullYear() !== hoje.getFullYear()) formato.year = 'numeric';
   const texto = data.toLocaleDateString('pt-BR', formato);
   return texto.charAt(0).toUpperCase() + texto.slice(1);

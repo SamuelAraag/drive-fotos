@@ -2,13 +2,20 @@
 
 const DONO = 'samuelsantosbackupfiles';
 const REPO = 'drive-fotos-dados';
-const BRANCH = 'main';
+const BRANCH_OFICIAL = 'main';
+const BRANCH_DE_TESTES = 'testes';
+
+// Rodando na própria máquina, o app usa a base de testes. A oficial só é lida e gravada
+// pelo app publicado.
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 
 const URL_REPO = `https://api.github.com/repos/${DONO}/${REPO}`;
 const CHAVE_TOKEN = 'drive-fotos.token';
 
 export const REPO_DADOS = `${DONO}/${REPO}`;
 export const BRANCH_DADOS = BRANCH;
+export const BASE_DE_TESTES = LOCAL;
 
 // tipo: 'token' | 'permissao' | 'ausente' | 'vazio' | 'conflito' | 'limite' | 'rede' | 'servidor'
 export class ErroGitHub extends Error {

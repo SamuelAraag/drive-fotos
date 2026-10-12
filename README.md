@@ -9,6 +9,16 @@ Este repositório só tem a interface. As fotos ficam em outro repositório, pri
 conta do GitHub, e o app lê e grava nele pela API do GitHub. O plano está em
 `docs/planos/plano-inicial.md` e os requisitos em `docs/requisitos.md`.
 
+## Base oficial e base de testes
+
+O repositório de dados tem duas branches:
+
+- `main`: a base oficial. É a que o app usa quando está publicado.
+- `testes`: a base de testes. É a que o app usa quando roda em `localhost`, e a tela mostra
+  "base de testes" ao lado do nome.
+
+A escolha é pelo endereço da página, em `src/github.js`. O mesmo token serve para as duas.
+
 ## Login
 
 Você entra com um token pessoal do GitHub, que fica guardado só no navegador.

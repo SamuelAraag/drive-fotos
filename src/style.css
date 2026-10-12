@@ -96,7 +96,7 @@ h2:focus {
 .topo,
 .pagina {
   width: 100%;
-  max-width: 960px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 0 var(--e4);
 }
@@ -126,6 +126,14 @@ h2:focus {
   font-size: var(--fonte-base);
   font-weight: 600;
   color: var(--texto-suave);
+}
+
+.etiqueta {
+  padding: 0 var(--e2);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio-pilula);
+  font-size: var(--fonte-pequena);
+  font-weight: 400;
 }
 
 .pagina {
@@ -229,34 +237,78 @@ h2:focus {
 
 /* Grade */
 
+/* O número de colunas vem da largura da tela, e o quadro ocupa a fatia exata dele.
+   Assim a miniatura cresce com a tela e a linha cheia fecha rente à borda. */
 .dias {
+  --colunas: 3;
+  container-type: inline-size;
   display: flex;
-  flex-direction: column;
-  gap: var(--e5);
+  flex-wrap: wrap;
+  gap: var(--e5) var(--e4);
 }
 
 .dia {
   display: flex;
+  flex: 0 0 100%;
   flex-direction: column;
   gap: var(--e2);
+  min-width: 0;
 }
 
 .dia__titulo {
-  font-size: var(--fonte-base);
+  font-size: var(--fonte-pequena);
   font-weight: 600;
 }
 
 .grade {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--e1);
 }
 
 .grade__quadro {
   position: relative;
+  /* O 0.1px absorve o arredondamento, que senão derruba o último quadro da linha. */
+  width: calc((100cqw - (var(--colunas) - 1) * var(--e1)) / var(--colunas) - 0.1px);
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--superficie);
+}
+
+@media (min-width: 480px) {
+  .dias {
+    --colunas: 4;
+  }
+}
+
+@media (min-width: 640px) {
+  .dias {
+    --colunas: 5;
+  }
+}
+
+/* Em tela larga, dia com poucas fotos divide a linha com o dia seguinte. */
+@media (min-width: 900px) {
+  .dias {
+    --colunas: 6;
+  }
+
+  .dia {
+    flex: 0 1 auto;
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dias {
+    --colunas: 7;
+  }
+}
+
+@media (min-width: 1500px) {
+  .dias {
+    --colunas: 8;
+  }
 }
 
 .grade__quadro--carregando {
