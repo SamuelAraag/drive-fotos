@@ -1198,6 +1198,116 @@ h2:focus {
   overflow-wrap: anywhere;
 }
 
+/* Fotos repetidas: cada linha põe lado a lado a foto que está sendo enviada e a que já está
+   guardada, com o tamanho do arquivo no canto de cada uma, para comparar de relance. */
+.repetidas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+  max-height: 50dvh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.repetidas__item {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--e3);
+}
+
+.repetidas__foto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  min-width: 0;
+  margin: 0;
+}
+
+.repetidas__legenda {
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.repetidas__quadro {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--e2);
+  background: var(--trilho);
+}
+
+/* A nova é a que está em jogo: ganha o contorno do destaque da grade e o rótulo em azul. A que
+   já existe fica um pouco apagada, sem deixar de dar para comparar. */
+.repetidas__foto--nova .repetidas__quadro {
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+}
+
+.repetidas__foto--nova .repetidas__legenda > :first-child {
+  color: var(--azul);
+  font-weight: 600;
+}
+
+.repetidas__foto--outra .repetidas__imagem {
+  filter: saturate(0.45) brightness(0.75);
+}
+
+.repetidas__imagem {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Por que o par está na lista: conteúdo idêntico ou só o nome igual. */
+.repetidas__motivo {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fonte-pequena);
+}
+
+/* Com várias repetidas, cada par vira um bloco fechado, e a escolha dele fica numa faixa
+   própria embaixo, separada das fotos por uma linha. */
+.repetidas--varias .repetidas__item {
+  padding: var(--e3);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+}
+
+.repetidas__escolha {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--e2);
+  min-height: 44px;
+  margin: var(--e1) calc(var(--e3) * -1) calc(var(--e3) * -1);
+  padding: var(--e1) var(--e3);
+  border-top: 1px solid var(--trilho);
+  cursor: pointer;
+}
+
+.repetidas__escolha input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--azul);
+}
+
+.repetidas__tamanho {
+  position: absolute;
+  right: var(--e2);
+  bottom: var(--e2);
+  padding: 0 var(--e2);
+  border-radius: var(--raio-pilula);
+  background: color-mix(in srgb, var(--fundo) 80%, transparent);
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums;
+}
+
 .login__passos {
   display: flex;
   flex-direction: column;

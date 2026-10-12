@@ -348,28 +348,99 @@ testar na tela.
 - **Pronto quando:** reabrir o app não baixa de novo o que já foi visto, e o espaço usado
   aparece.
 
-### Épico 7: Fotos duplicadas (backlog)
+### Épico 7: Fotos duplicadas
+
+Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gaps.
+
+- **Como reconhecer a repetida:** de dois jeitos.
+  - **Pelo conteúdo:** o app calcula no navegador a identidade do arquivo (o mesmo `sha`
+    que o git usa) e compara com a lista de fotos, que já traz esse valor. As duas são
+    idênticas, byte a byte. Não custa nenhuma chamada ao GitHub.
+  - **Pelo nome:** o nome é o de uma foto guardada, mas o conteúdo é outro. O nome mora no
+    registro de cada foto, então o app lê os registros em segundo plano depois de abrir, e
+    eles ficam guardados no aparelho. Na primeira vez custa uma chamada por foto.
+  - Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas vezes na
+    leva.
+- **Um diálogo por leva.** A leva inteira é conferida na entrada. As fotos novas sobem
+  direto, sem esperar. As repetidas ficam de fora e aparecem num diálogo só, como "3 das 12
+  fotos já estão guardadas".
+- **Lado a lado.** A foto que já existe fica à esquerda, um pouco apagada, e a nova à
+  direita, em destaque, as duas com o tamanho do arquivo no canto inferior direito. Com
+  várias, cada par diz por que entrou: "Conteúdo idêntico" ou "Mesmo nome, conteúdo
+  diferente".
+- **Escolha por foto.** Com uma repetida só, dois botões: "Não enviar" e "Manter as duas".
+  Com várias, cada par tem a própria caixa "Manter as duas", nenhuma vem marcada, e o botão
+  principal diz o resultado ("Não enviar nenhuma", "Manter 2 de 3", "Manter todas"). "Marcar
+  todas" resolve a leva de uma vez.
+  - **Não enviar:** nada é gravado, e fica a que já existe. Fechar o diálogo com Esc ou
+    clicando fora dá no mesmo. Um atalho embaixo leva até a foto guardada.
+  - **Manter as duas:** a cópia sobe com outro nome, "praia (2).jpg", ou o próximo número
+    livre entre os nomes em uso. Quando o conteúdo é idêntico, o arquivo não é enviado de
+    novo: a cópia aponta para o que o repositório já tem, sobe na hora e não ocupa espaço
+    novo. Quando só o nome é igual, a nova sobe inteira.
+- **Antes de perguntar, o app relê o repositório.** Se a foto guardada foi apagada em outro
+  aparelho, a nova deixa de ser repetida e sobe normalmente. Custa uma leitura por leva com
+  repetida.
+- **Apagar uma das cópias** não tira do aparelho o arquivo que a outra ainda usa.
+- **Limites conhecidos:**
+  - A mesma foto recodificada não bate pelo conteúdo. O iPhone converte HEIC para JPEG a
+    cada seleção, então a foto reenviada por ele só é pega se o nome for o mesmo.
+  - Com muitos registros ainda por ler (mais de 80), o envio não espera: compara com os
+    nomes já lidos, e um nome repetido pode passar até a leitura terminar.
+  - A conta do `sha` só existe em `https` e em `localhost`. Fora disso sobra a comparação
+    pelo nome.
+- **Pronto quando:** enviar duas vezes a mesma foto abre o diálogo; "Não enviar", Esc e
+  clique fora não criam nada; "Manter as duas" deixa as duas na grade com nomes diferentes;
+  e numa leva com novas e repetidas, as novas sobem sem esperar a resposta.
+
+### Épico 8: Data da foto separada da data de envio (backlog)
 
 Pedido em 2026-10-12. Ainda sem data.
 
-- Ao enviar uma foto que já existe, o app para antes de gravar e abre um diálogo dizendo
-  que o arquivo já existe, com a foto nova e a que já está guardada lado a lado.
-- O diálogo oferece duas saídas:
-  - **Mesclar:** confirma que são a mesma foto. Nada novo é enviado, e fica a que já
-    existe.
-  - **Manter as duas:** envia a nova com o nome alterado, para as duas conviverem. O
-    formato do nome está em aberto: um "2" na frente, ou "(2)" antes da extensão.
-- Numa leva com várias repetidas, o diálogo permite aplicar a mesma escolha a todas.
-- **Como reconhecer a repetida:** pelo conteúdo. O app calcula no navegador a identidade
-  do arquivo (o mesmo `sha` que o git usa) e compara com a lista de fotos, que já traz
-  esse valor. Não custa nenhuma chamada ao GitHub.
-- **Limites conhecidos:**
-  - Só pega cópia idêntica, byte a byte. A mesma foto reenviada pelo iPhone pode vir
-    recodificada e passar como nova.
-  - Reconhecer por nome igual com conteúdo diferente exigiria ler todos os registros, que
-    é onde o nome mora. Fica fora, a menos que valha o custo.
-- **Pronto quando:** enviar duas vezes a mesma foto abre o diálogo, "Mesclar" não cria
-  nada novo, e "Manter as duas" deixa as duas na grade com nomes diferentes.
+- **O problema:** a data da foto hoje é a data de modificação do arquivo. Uma imagem de
+  2015 enviada hoje pode chegar com a data de hoje (arquivo baixado, copiado, vindo de um
+  app de mensagens, ou escolhido no iPhone). Aí ela cai no dia do envio, e o `id` e a pasta
+  do ano saem errados.
+- **A data da foto passa a ser a da captura.** O app lê o `DateTimeOriginal` do EXIF, com
+  um leitor pequeno escrito à mão, sem biblioteca. A ordem é: EXIF, depois a data de
+  modificação do arquivo, e só no fim a data do envio.
+- **A data de envio fica só em `enviada_em`.** Ela nunca decide onde a foto mora nem em que
+  dia aparece.
+- **O `id` e a pasta do ano saem da data da foto.** A imagem de 2015 enviada hoje é gravada
+  em `fotos/2015/` e aparece na grade em 2015.
+- **Painel de informações:** mostra as duas datas, "Tirada em" e "Enviada em".
+- **Em aberto:**
+  - Fotos já guardadas com a data errada. Corrigir muda o `id`, então exige um commit que
+    move os três arquivos, e ler o EXIF pede baixar a original. Decidir se entra como ação
+    na foto aberta ("Corrigir data"), como passada única, ou se fica de fora.
+  - Foto sem EXIF e com data de modificação de hoje (print, imagem de mensagem). Decidir
+    se o app pergunta a data, deixa editar depois ou aceita o dia do envio.
+  - Formatos além do JPEG. HEIC e PNG também carregam a data, em outro lugar do arquivo.
+    Decidir quais entram.
+  - Fuso. O EXIF quase nunca traz o fuso. A proposta é tratar a hora como local, como o
+    `id` já faz.
+- **Pronto quando:** uma imagem de 2015 enviada hoje aparece em 2015 na grade, fica em
+  `fotos/2015/`, e o registro traz a `data` de 2015 e o `enviada_em` de hoje.
+
+### Épico 9: Botão de atualizar (backlog)
+
+Pedido em 2026-10-12. Ainda sem data.
+
+- **Botão "Atualizar" no topo, igual ao do `beba-agua`:** ao lado de "Sair". Enquanto lê,
+  vira "Atualizando..." e fica desabilitado.
+- **Relê o repositório na hora.** A releitura automática do Épico 6 só roda ao voltar para
+  a aba e no máximo a cada 30 segundos. O botão não tem intervalo. A grade só é redesenhada
+  se algo mudou.
+- **Avisa quando falha.** A releitura automática é silenciosa. A pedida pela pessoa mostra
+  "Não deu para atualizar", com o motivo e um "Tentar de novo", como no `beba-agua`. Token
+  vencido abre o login.
+- **No meio de um envio,** espera a fila terminar antes de ler, como o `beba-agua` espera a
+  gravação.
+- **Em aberto:** o `beba-agua` também atualiza ao puxar a tela para baixo. Decidir se o
+  gesto entra aqui, onde a tela rola muito mais.
+- **Pronto quando:** uma foto enviada ou apagada em outro aparelho aparece ou some ao tocar
+  em "Atualizar", sem recarregar a página, e uma falha de rede mostra o aviso com "Tentar
+  de novo".
 
 ## Linha do tempo
 
@@ -384,7 +455,9 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 4 | Foto aberta | 1 dia | 2 |
 | 5 | Renomear, baixar e apagar | 0,5 dia | 4 |
 | 6 | Cache e tamanho | 1 dia | 3 e 4 |
-| 7 | Fotos duplicadas (backlog) | a estimar | 3 e 5 |
+| 7 | Fotos duplicadas | 1 dia | 3 e 5 |
+| 8 | Data da foto separada da data de envio (backlog) | a estimar | 3 |
+| 9 | Botão de atualizar (backlog) | 0,5 dia | 6 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
@@ -401,10 +474,8 @@ A partir do dia 4 o app já é usável: entrar, enviar e ver.
 - **Álbum curado ou backup da câmera.** Com 1.000 a 1.600 fotos por repositório, o desenho
   atual serve para álbum. Para backup, seria preciso abrir um repositório de dados novo
   quando o atual encher, e o app teria que ler vários.
-- **Data da foto no iPhone.** O Safari do iOS costuma entregar a hora da seleção, não a da
-  captura, e aí toda foto cairia no dia do envio. Testar com uma foto antiga antes do
-  Épico 3. Se confirmar, a saída é ler só a data do EXIF, com um leitor pequeno escrito à
-  mão.
+- **Data da foto.** Confirmado em 2026-10-12: uma imagem de 2015 enviada hoje foi gravada
+  com a data de hoje. Virou o Épico 8.
 - **Original no iPhone.** Com `accept="image/*"`, o iOS converte HEIC para JPEG antes de
   entregar. O que sobe é a cópia convertida, e Live Photo perde o movimento. Aceitar, ou
   pedir HEIC e perder a visualização no Chrome.

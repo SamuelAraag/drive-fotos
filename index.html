@@ -173,6 +173,19 @@
     </form>
   </dialog>
 
+  <dialog class="dialogo" id="repetidas" aria-labelledby="repetidas-titulo" aria-describedby="repetidas-detalhe">
+    <form method="dialog">
+      <h2 class="tela__titulo" id="repetidas-titulo"></h2>
+      <p class="texto-suave texto-pequeno" id="repetidas-detalhe"></p>
+      <ul class="repetidas" id="repetidas-lista" tabindex="0" aria-label="Fotos repetidas"></ul>
+      <div class="dialogo__acoes">
+        <button type="submit" class="botao botao--primario" value="concluir" id="repetidas-concluir" autofocus>Não enviar</button>
+        <button type="submit" class="botao botao--secundario" value="manter" id="repetidas-manter">Manter as duas</button>
+        <button type="button" class="botao botao--secundario" id="repetidas-todas" hidden>Marcar todas</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">
     <form method="dialog">
       <h2 class="tela__titulo" id="confirmar-sair-titulo">Sair e apagar o token?</h2>

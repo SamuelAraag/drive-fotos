@@ -104,16 +104,28 @@ export function separarNome(nome) {
   return partes[1] ? [partes[1], partes[2] ?? ''] : [nome, ''];
 }
 
-// O sha que o git dá a um arquivo de texto, calculado aqui: o mesmo que aparece na árvore
-// do repositório depois da gravação.
-export async function shaDoGit(texto) {
-  const conteudo = new TextEncoder().encode(texto);
+// O sha que o git dá a um arquivo, calculado aqui: o mesmo que aparece na árvore do repositório.
+// Serve para saber o sha de um registro sem perguntar ao GitHub e para reconhecer uma foto que
+// já está guardada. Aceita texto ou arquivo.
+export async function shaDoGit(origem) {
+  const conteudo = typeof origem === 'string' ? new TextEncoder().encode(origem) : new Uint8Array(await origem.arrayBuffer());
   const cabecalho = new TextEncoder().encode(`blob ${conteudo.length}\0`);
   const bytes = new Uint8Array(cabecalho.length + conteudo.length);
   bytes.set(cabecalho);
   bytes.set(conteudo, cabecalho.length);
   const resumo = await crypto.subtle.digest('SHA-1', bytes);
   return [...new Uint8Array(resumo)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+// Nome para a cópia de uma foto que já existe: "praia.jpg" vira "praia (2).jpg", ou o próximo
+// número livre entre os nomes que as outras cópias já usam.
+export function nomeRepetido(nome, usados) {
+  const [inteira, extensao] = separarNome(nome);
+  const base = inteira.replace(/ \(\d+\)$/, '');
+  for (let n = 2; ; n++) {
+    const candidato = `${base} (${n})${extensao}`;
+    if (!usados.includes(candidato)) return candidato;
+  }
 }
 
 export function caminhos(id, extensao) {
@@ -125,11 +137,11 @@ export function caminhos(id, extensao) {
   };
 }
 
-export function montarRegistro({ id, arquivo, data, miniatura, blob }) {
+export function montarRegistro({ id, arquivo, nome, data, miniatura, blob }) {
   return {
     versao: 1,
     id,
-    nome: arquivo.name,
+    nome,
     tipo: arquivo.type || null,
     tamanho: arquivo.size,
     largura: miniatura?.largura ?? null,

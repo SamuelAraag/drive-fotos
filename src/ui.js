@@ -97,6 +97,7 @@ const TEMPO_DO_HOLOFOTE = 900;
 
 let destaqueId = null; // a foto marcada com contorno e selo
 let distantes = []; // ids das fotos que subiram fora da tela, à espera do atalho
+let atalhoDeRepetidas = false; // o atalho fala de repetidas que não subiram, e não de fotos que chegaram
 let voo = null; // pêndulo em andamento: { encerrar }
 let fotosPorId = new Map();
 let baixarAtual = null;
@@ -210,6 +211,9 @@ export function fotoChegou(id, { ultimaDaLeva }) {
   const quadro = quadroDe(id);
   if (!quadro) return;
   if (!estaNaTela(quadro)) {
+    // Foto que chega toma o atalho de um aviso de repetidas que ainda estivesse aberto.
+    if (atalhoDeRepetidas) distantes = [];
+    atalhoDeRepetidas = false;
     distantes.push(id);
     renderAtalho();
     return;
@@ -238,8 +242,14 @@ function renderAtalho() {
   barra.hidden = distantes.length === 0;
   if (distantes.length === 0) return;
   const varias = distantes.length > 1;
-  $('atalho-texto').textContent = varias ? `${distantes.length} fotos enviadas` : 'Foto enviada';
-  $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver foto';
+  if (atalhoDeRepetidas) {
+    // Curto de propósito: o atalho é estreito, e o diálogo acabou de dizer que eram repetidas.
+    $('atalho-texto').textContent = varias ? `${distantes.length} não enviadas` : 'Não enviada';
+    $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver a guardada';
+  } else {
+    $('atalho-texto').textContent = varias ? `${distantes.length} fotos enviadas` : 'Foto enviada';
+    $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver foto';
+  }
   const foto = fotosPorId.get(distantes.at(-1));
   const moldura = $('atalho-foto');
   moldura.replaceChildren();
@@ -258,15 +268,26 @@ function renderAtalho() {
 
 async function verPeloAtalho() {
   const id = distantes.at(-1);
-  distantes = [];
-  renderAtalho();
+  const repetida = atalhoDeRepetidas;
+  fecharAtalho();
   if (id == null) return;
   await rolarAte(id);
-  destacar(id, { comFoco: true });
+  // A guardada não acabou de chegar: só recebe o foco, sem o selo de "Enviada agora".
+  if (repetida) quadroDe(id)?.querySelector('.grade__botao')?.focus({ preventScroll: true });
+  else destacar(id, { comFoco: true });
 }
 
 function fecharAtalho() {
   distantes = [];
+  atalhoDeRepetidas = false;
+  renderAtalho();
+}
+
+// Depois de "Não enviar": o atalho diz que nada subiu e leva até a foto que já estava guardada.
+export function repetidasNaoEnviadas(ids) {
+  if (ids.length === 0) return;
+  distantes = ids;
+  atalhoDeRepetidas = true;
   renderAtalho();
 }
 
@@ -900,16 +921,18 @@ export function renderProgresso(fracao) {
 export function renderFila(itens, situacao) {
   const atual = itens.find((item) => item.estado === 'enviando');
   const ocupada = Boolean(atual || situacao.pausadaAte);
+  // Sem nada subindo, a conferência das repetidas é o que a zona tem para contar.
+  const conferindo = !ocupada && situacao.conferindo;
   // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
-  $('zona-titulo').textContent = atual ? atual.arquivo.name : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
+  $('zona-titulo').textContent = atual ? atual.nome : situacao.pausadaAte ? 'Envio em pausa' : conferindo ? 'Conferindo as fotos' : TITULO_DA_ZONA;
   posicaoNaFila = atual ? resumoDaFila(itens, situacao) : '';
-  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
+  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : conferindo ? 'Vendo se alguma já está guardada...' : DETALHE_DA_ZONA;
   $('zona-barra').hidden = !atual;
   if (atual) {
-    $('zona-barra').setAttribute('aria-label', `Envio de ${atual.arquivo.name}`);
+    $('zona-barra').setAttribute('aria-label', `Envio de ${atual.nome}`);
     renderProgresso(situacao.progresso);
   } else {
-    $('zona').classList.remove('zona--varrendo');
+    $('zona').classList.toggle('zona--varrendo', conferindo);
   }
 
   const falhas = itens.filter((item) => item.estado === 'erro');
@@ -918,7 +941,7 @@ export function renderFila(itens, situacao) {
   const linhas = falhas.map((item) => {
     const linha = el('li', 'fila__item');
     const texto = el('div', 'fila__texto');
-    texto.append(el('span', 'fila__nome', item.arquivo.name));
+    texto.append(el('span', 'fila__nome', item.nome));
     texto.append(el('span', 'fila__estado', `${fmtTamanho(item.arquivo.size)} · ${item.mensagem}`));
     const botao = el('button', 'botao botao--fantasma', 'Tentar de novo');
     botao.type = 'button';
@@ -927,6 +950,130 @@ export function renderFila(itens, situacao) {
     return linha;
   });
   $('fila-lista').replaceChildren(...linhas);
+}
+
+// Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que já existe, à
+// esquerda, e a que está sendo enviada, à direita e em destaque: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
+// `outra.foto` é a foto guardada; vem vazia quando a outra cópia ainda está na fila, e aí a
+// imagem dela vem em `outra.url`. `tipo` é 'conteudo' (idêntica) ou 'nome' (só o nome igual).
+// Devolve, na ordem das linhas, quais manter em dobro.
+// Com uma repetida só, são dois botões. Com várias, cada par tem a própria caixa de marcar, e
+// nada vem marcado. Fechar com Esc ou clicando fora é não enviar nenhuma: nada é gravado.
+function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, { nova = false, detalhe = null } = {}) {
+  const figura = el('figure', nova ? 'repetidas__foto repetidas__foto--nova' : 'repetidas__foto repetidas__foto--outra');
+  const quadro = el('div', 'repetidas__quadro');
+  const imagem = el('img', 'repetidas__imagem');
+  imagem.alt = '';
+  imagem.hidden = true; // sem imagem para mostrar, fica o quadro neutro
+  const mostrar = (endereco) => {
+    imagem.src = endereco;
+    imagem.hidden = false;
+  };
+  if (url) mostrar(url);
+  else if (foto?.miniatura) baixarAtual(foto.miniatura).then(mostrar, () => {});
+  quadro.append(imagem, el('span', 'repetidas__tamanho', fmtTamanho(tamanho)));
+  const legenda = el('figcaption', 'repetidas__legenda');
+  legenda.append(el('span', 'texto-suave texto-pequeno', rotulo), el('span', null, nome));
+  if (detalhe) legenda.append(el('span', 'texto-suave texto-pequeno', detalhe));
+  figura.append(quadro, legenda);
+  return figura;
+}
+
+// Uma repetida é idêntica a uma foto guardada ('conteudo') ou só tem o mesmo nome ('nome').
+// O título diz qual dos dois casos é, e mistura os dois só quando a leva mistura.
+export function textosDasRepetidas(linhas, totalDaLeva) {
+  const quantas = linhas.length;
+  const soNome = linhas.every((linha) => linha.tipo === 'nome');
+  const soConteudo = linhas.every((linha) => linha.tipo === 'conteudo');
+  if (quantas === 1) {
+    const titulo = soNome
+      ? totalDaLeva === 1
+        ? 'Já existe uma foto com este nome'
+        : `1 das ${totalDaLeva} fotos tem nome que já existe`
+      : totalDaLeva === 1
+        ? 'Esta foto já está guardada'
+        : `1 das ${totalDaLeva} fotos já está guardada`;
+    const detalhe = soNome
+      ? 'O nome é o mesmo, mas o conteúdo é diferente. "Manter as duas" envia a nova com outro nome.'
+      : 'O conteúdo é idêntico ao da foto guardada. "Manter as duas" envia de novo, com outro nome.';
+    return { titulo, detalhe };
+  }
+  const todas = quantas === totalDaLeva;
+  const titulo = soConteudo
+    ? todas
+      ? `As ${quantas} fotos já estão guardadas`
+      : `${quantas} das ${totalDaLeva} fotos já estão guardadas`
+    : soNome
+      ? todas
+        ? `As ${quantas} fotos têm nome que já existe`
+        : `${quantas} das ${totalDaLeva} fotos têm nome que já existe`
+      : todas
+        ? `As ${quantas} fotos parecem repetidas`
+        : `${quantas} das ${totalDaLeva} fotos parecem repetidas`;
+  return { titulo, detalhe: 'Compare cada par: à esquerda, a que já está guardada. Marque as que quer manter em dobro: elas sobem com outro nome.' };
+}
+
+export const rotuloDaRepetida = (tipo) => (tipo === 'nome' ? 'Mesmo nome, conteúdo diferente' : 'Conteúdo idêntico');
+
+const marcadasNasRepetidas = () => [...$('repetidas-lista').querySelectorAll('input[type=checkbox]')];
+
+// O botão principal diz o que vai acontecer com o que está marcado agora.
+function renderEscolhaDasRepetidas() {
+  const caixas = marcadasNasRepetidas();
+  if (caixas.length === 0) return; // uma repetida só: os dois botões já dizem tudo
+  const marcadas = caixas.filter((caixa) => caixa.checked).length;
+  $('repetidas-concluir').textContent =
+    marcadas === 0 ? 'Não enviar nenhuma' : marcadas === caixas.length ? 'Manter todas' : `Manter ${marcadas} de ${caixas.length}`;
+  $('repetidas-todas').textContent = marcadas === caixas.length ? 'Desmarcar todas' : 'Marcar todas';
+}
+
+export function perguntarRepetidas(linhas, totalDaLeva) {
+  const dialogo = $('repetidas');
+  const quantas = linhas.length;
+  const varias = quantas > 1;
+  const { titulo, detalhe } = textosDasRepetidas(linhas, totalDaLeva);
+  $('repetidas-titulo').textContent = titulo;
+  $('repetidas-detalhe').textContent = detalhe;
+  $('repetidas-concluir').textContent = 'Não enviar';
+  $('repetidas-manter').hidden = varias;
+  $('repetidas-todas').hidden = !varias;
+  $('repetidas-lista').classList.toggle('repetidas--varias', varias);
+  $('repetidas-lista').replaceChildren(
+    ...linhas.map(({ tipo, nova, outra }) => {
+      const item = el('li', 'repetidas__item');
+      // A que já existe vem primeiro, e a nova, à direita, é a que fica em destaque.
+      item.append(
+        outra.foto
+          ? quadroDaRepetida('Já guardada', outra, { detalhe: descricaoDaFoto(outra.foto).replace('Foto de ', '') })
+          : quadroDaRepetida('Na fila de envio', outra),
+        quadroDaRepetida('Enviando agora', nova, { nova: true }),
+      );
+      // Com várias, cada par diz por que entrou na lista. Com uma só, o texto de cima já disse.
+      if (varias) {
+        item.append(el('p', tipo === 'nome' ? 'repetidas__motivo' : 'repetidas__motivo texto-suave', rotuloDaRepetida(tipo)));
+        const escolha = el('label', 'repetidas__escolha');
+        const caixa = el('input');
+        caixa.type = 'checkbox';
+        escolha.append(caixa, el('span', null, 'Manter as duas'));
+        item.append(escolha);
+      }
+      return item;
+    }),
+  );
+  renderEscolhaDasRepetidas();
+  dialogo.returnValue = '';
+  dialogo.showModal();
+  return new Promise((resolver) => {
+    dialogo.addEventListener(
+      'close',
+      () => {
+        const resposta = dialogo.returnValue;
+        if (!varias) resolver([resposta === 'manter']);
+        else resolver(marcadasNasRepetidas().map((caixa) => resposta === 'concluir' && caixa.checked));
+      },
+      { once: true },
+    );
+  });
 }
 
 // Texto para o leitor de tela quando a leva termina. Na tela, quem conta é o destaque na grade.
@@ -1030,6 +1177,17 @@ export function ligarEventos(acoes) {
   $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
   ligarVisor(acoes);
+
+  $('repetidas').addEventListener('click', (evento) => {
+    if (evento.target === $('repetidas')) $('repetidas').close();
+  });
+  $('repetidas-lista').addEventListener('change', renderEscolhaDasRepetidas);
+  $('repetidas-todas').addEventListener('click', () => {
+    const caixas = marcadasNasRepetidas();
+    const marcar = caixas.some((caixa) => !caixa.checked);
+    for (const caixa of caixas) caixa.checked = marcar;
+    renderEscolhaDasRepetidas();
+  });
 
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.
   const confirmarSair = $('confirmar-sair');
