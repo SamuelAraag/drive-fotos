@@ -220,6 +220,16 @@ h2:focus {
   color: var(--texto);
 }
 
+/* Ação secundária com corpo: o cancelar dos diálogos, que precisa parecer botão ao lado da ação. */
+.botao--secundario {
+  background: var(--trilho);
+  color: var(--texto);
+}
+
+.botao--secundario:hover {
+  background: color-mix(in srgb, var(--trilho) 85%, var(--texto));
+}
+
 /* Carregando */
 
 .girador {
