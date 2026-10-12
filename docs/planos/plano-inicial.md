@@ -444,25 +444,23 @@ Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gap
   sem data nenhuma abre a pergunta e sobe com hoje em um clique; e essa imagem aparece em
   "Fotos sem data", de onde vai para o dia certo ao salvar.
 
-### Épico 9: Botão de atualizar (backlog)
+### Épico 9: Botão de atualizar
 
-Pedido em 2026-10-12. Ainda sem data.
+Pedido em 2026-10-12 e feito no mesmo dia.
 
 - **Botão "Atualizar" no topo, igual ao do `beba-agua`:** ao lado de "Sair". Enquanto lê,
   vira "Atualizando..." e fica desabilitado.
 - **Relê o repositório na hora.** A releitura automática do Épico 6 só roda ao voltar para
   a aba e no máximo a cada 30 segundos. O botão não tem intervalo. A grade só é redesenhada
   se algo mudou.
+- **Diz quando terminou.** Ao lado do botão aparece "Atualizado às 14:02". Em tela estreita
+  o texto não cabe e fica só para o leitor de tela.
 - **Avisa quando falha.** A releitura automática é silenciosa. A pedida pela pessoa mostra
-  "Não deu para atualizar", com o motivo e um "Tentar de novo", como no `beba-agua`. Token
-  vencido abre o login.
-- **No meio de um envio,** espera a fila terminar antes de ler, como o `beba-agua` espera a
-  gravação.
-- **Em aberto:** o `beba-agua` também atualiza ao puxar a tela para baixo. Decidir se o
-  gesto entra aqui, onde a tela rola muito mais.
-- **Pronto quando:** uma foto enviada ou apagada em outro aparelho aparece ou some ao tocar
-  em "Atualizar", sem recarregar a página, e uma falha de rede mostra o aviso com "Tentar
-  de novo".
+  "Não deu para atualizar", com o motivo e um "Tentar de novo". Token vencido abre o login.
+- **No meio de um envio,** espera a fila terminar antes de ler. Com a fila pausada pelo
+  limite do GitHub, não espera.
+- **Em aberto:** o `beba-agua` também atualiza ao puxar a tela para baixo. O gesto não
+  entrou aqui, onde a tela rola muito mais.
 
 ## Pendências
 
@@ -471,7 +469,7 @@ vez dele.
 
 - [x] A data de envio deve ser isolada da data de criação. Feito no Épico 8.
   - [x] Enviei hoje uma imagem de 2015, deve salvar em 2015.
-- [ ] Botão de atualizar igual ao do `beba-agua`. É o Épico 9.
+- [x] Botão de atualizar igual ao do `beba-agua`. Feito no Épico 9.
 - [ ] Melhorar a performance no envio das imagens.
 - [ ] Rodar a análise de gaps.
 - [ ] Revisar todos os arquivos.
@@ -496,7 +494,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 6 | Cache e tamanho | 1 dia | 3 e 4 |
 | 7 | Fotos duplicadas | 1 dia | 3 e 5 |
 | 8 | Data da foto separada da data de envio | 1 dia | 3 |
-| 9 | Botão de atualizar (backlog) | 0,5 dia | 6 |
+| 9 | Botão de atualizar | 0,5 dia | 6 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.

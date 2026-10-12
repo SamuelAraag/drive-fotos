@@ -19,11 +19,17 @@
   <header class="topo">
     <h1 class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos<span class="etiqueta" id="base-de-testes" hidden>base de testes</span></h1>
     <div class="topo__acoes">
+      <span class="texto-suave texto-pequeno topo__sincronia" id="sincronia" role="status"></span>
+      <button type="button" class="botao botao--fantasma" id="atualizar" hidden>Atualizar</button>
       <button type="button" class="botao botao--fantasma" id="sair" hidden>Sair</button>
     </div>
   </header>
 
   <main class="pagina">
+    <div class="aviso aviso--erro" id="atualizar-erro" role="alert" hidden>
+      <p id="atualizar-erro-texto"></p>
+      <button type="button" class="botao botao--secundario" id="atualizar-de-novo">Tentar de novo</button>
+    </div>
     <section class="tela tela--centro" id="tela-carregando" hidden>
       <div class="girador" aria-hidden="true"></div>
       <p role="status">Carregando suas fotos...</p>

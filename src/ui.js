@@ -13,6 +13,24 @@ $('base-de-testes').hidden = !BASE_DE_TESTES;
 export function mostrarTela(nome) {
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;
   $('sair').hidden = !lerToken();
+  $('atualizar').hidden = !lerToken();
+}
+
+// Botão "Atualizar", no molde do beba-agua: enquanto lê, diz que está lendo e não aceita outro toque.
+export function atualizarOcupado(ocupado) {
+  $('atualizar').disabled = ocupado;
+  $('atualizar').textContent = ocupado ? 'Atualizando...' : 'Atualizar';
+}
+
+// "Atualizado às 14:02", ou vazio.
+export function mostrarSincronia(texto) {
+  $('sincronia').textContent = texto;
+}
+
+// A releitura pedida pela pessoa avisa quando falha, com o motivo e a saída ao lado.
+export function erroAoAtualizar(mensagem) {
+  $('atualizar-erro').hidden = !mensagem;
+  $('atualizar-erro-texto').textContent = mensagem ?? '';
 }
 
 export function focarTela(nome) {
@@ -1415,6 +1433,8 @@ export function ligarEventos(acoes) {
   $('fila-limpar').addEventListener('click', acoes.limparFila);
   $('atalho-ver').addEventListener('click', verPeloAtalho);
   $('atalho-fechar').addEventListener('click', fecharAtalho);
+  $('atualizar').addEventListener('click', acoes.atualizar);
+  $('atualizar-de-novo').addEventListener('click', acoes.atualizar);
   ligarArraste(acoes);
   ligarVisor(acoes);
   ligarPendentes(acoes);
