@@ -37,10 +37,14 @@ src/ui.js        telas
 ## Repositório de dados
 
 ```
-fotos/<id>.<ext>         blob original
-miniaturas/<id>.jpg      miniatura
-registros/<id>.json      registro
+fotos/AAAA/<id>.<ext>         blob original
+miniaturas/AAAA/<id>.jpg      miniatura
+registros/AAAA/<id>.json      registro
 ```
+
+- **Uma pasta por ano:** o GitHub recomenda no máximo 3.000 entradas por pasta. Com uma
+  pasta por ano, cada uma comporta até 3.000 fotos naquele ano, o que cobre o uso esperado.
+  O ano da pasta é o ano do `id`, então o caminho de qualquer foto sai do próprio `id`.
 
 - **`id`:** gerado no navegador, com a data na frente e um sufixo aleatório, por exemplo
   `20261012T153045-a1b2`. Como o `id` é o nome dos três arquivos, a lista de caminhos do
@@ -60,8 +64,8 @@ registros/<id>.json      registro
   "altura": 3024,
   "data": "2026-10-12T15:30:45-03:00",
   "enviada_em": "2026-10-12T18:02:11-03:00",
-  "blob": "fotos/20261012T153045-a1b2.jpg",
-  "miniatura": "miniaturas/20261012T153045-a1b2.jpg"
+  "blob": "fotos/2026/20261012T153045-a1b2.jpg",
+  "miniatura": "miniaturas/2026/20261012T153045-a1b2.jpg"
 }
 ```
 

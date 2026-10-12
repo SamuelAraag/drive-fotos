@@ -101,7 +101,7 @@ poucos GB e pouco tráfego, a chance é baixa, mas o custo de uma suspensão é 
 | # | Restrição | Motivo |
 | --- | --- | --- |
 | RG01 | Teto de 25 MB por foto | Folga sobre os 100 MiB e sobre a memória do celular |
-| RG02 | Pastas por ano e mês: `fotos/AAAA/MM/`, e o mesmo para miniaturas e registros | 3.000 entradas por pasta |
+| RG02 | Pastas por ano: `fotos/AAAA/`, e o mesmo para miniaturas e registros. Comporta até 3.000 fotos por ano | 3.000 entradas por pasta |
 | RG03 | Aviso em 4 GB e bloqueio de envio em 5 GB por repositório de dados | Recomendação de tamanho |
 | RG04 | Repositório de dados configurável, para abrir um novo quando o atual encher | Capacidade |
 | RG05 | Lote grande vai em commits de várias fotos, não um commit por foto | 500 escritas por hora |
@@ -123,9 +123,9 @@ poucos GB e pouco tráfego, a chance é baixa, mas o custo de uma suspensão é 
 
 ## Impacto no plano
 
-Se aceitos, estes requisitos mudam o plano em quatro pontos:
+O RG02 já está no plano, com pastas por ano. Se aceitos, os demais mudam o plano em três
+pontos:
 
-- caminhos passam de `fotos/<id>` para `fotos/AAAA/MM/<id>` (RG02);
 - o repositório de dados deixa de ser fixo no código (RG04);
 - a gravação passa para uma branch própria (RG08);
 - entra um épico zero de preparo: repositórios, commit inicial, branch, token e hospedagem
