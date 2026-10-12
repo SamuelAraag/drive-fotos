@@ -684,6 +684,7 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('visor-carregando').hidden = false;
   $('painel-analise').hidden = true;
   avisoNoVisor(null);
+  estadoDoLink(null);
   ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null, origem: null, enviadaEm: null };
   renderFicha();
   ajustarFoto();
@@ -896,69 +897,41 @@ export function apagarOcupado(ocupado) {
   $('apagar-confirmar').textContent = ocupado ? 'Apagando...' : 'Apagar foto';
 }
 
-// Diálogo do link para enviar. Abre na hora, dizendo que está gerando, e os botões só acendem
-// com o link no campo: assim copiar e compartilhar acontecem no toque da pessoa, que é quando o
-// navegador deixa.
-export function abrirLink() {
-  $('link-endereco').value = '';
-  $('link-estado').textContent = 'Gerando o link...';
-  $('link-erro').hidden = true;
-  $('link-copiar').disabled = true;
-  $('link-copiar').textContent = 'Copiar link';
-  $('link-compartilhar').disabled = true;
-  $('link-compartilhar').hidden = !navigator.share;
-  $('link').showModal();
-}
-
-export function linkPronto(endereco) {
-  if (!$('link').open) return;
-  $('link-endereco').value = endereco;
-  $('link-estado').textContent = '';
-  $('link-copiar').disabled = false;
-  $('link-compartilhar').disabled = false;
-  $('link-copiar').focus();
-}
-
-export function erroNoLink(mensagem) {
-  $('link-estado').textContent = '';
-  $('link-erro').hidden = false;
-  $('link-erro').textContent = mensagem;
-}
-
-export function fecharLink() {
-  if ($('link').open) $('link').close();
-}
-
-async function copiarLink() {
-  const campo = $('link-endereco');
+// "Copiar link" manda o link direto para a área de transferência, sem diálogo. O link ainda
+// está sendo gerado quando a pessoa toca, e o Safari só deixa copiar no toque: por isso o
+// texto vai como promessa. Devolve se copiou.
+export async function copiarTexto(promessa) {
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      const comoArquivo = promessa.then((texto) => new Blob([texto], { type: 'text/plain' }));
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': comoArquivo })]);
+      return true;
+    } catch {
+      // navegador que não aceita promessa aqui: tenta do jeito simples, logo abaixo
+    }
+  }
   try {
-    await navigator.clipboard.writeText(campo.value);
-    $('link-copiar').textContent = 'Copiado';
-    $('link-estado').textContent = 'Link copiado. Agora é só colar na conversa.';
+    await navigator.clipboard.writeText(await promessa);
+    return true;
   } catch {
-    // Sem permissão para copiar: o link fica selecionado, para copiar à mão.
-    campo.focus();
-    campo.select();
-    $('link-estado').textContent = 'Não deu para copiar sozinho. O link está selecionado: copie com Ctrl+C ou segurando o dedo.';
+    return false;
   }
 }
 
-async function compartilharLink() {
-  try {
-    await navigator.share({ url: $('link-endereco').value });
-  } catch (erro) {
-    if (erro.name !== 'AbortError') $('link-estado').textContent = 'Não deu para abrir o compartilhar. Use "Copiar link".';
-  }
+let voltaDoLink = null; // temporizador que devolve o botão ao texto normal
+
+// estado: 'copiando' | 'copiado' | null
+export function estadoDoLink(estado) {
+  clearTimeout(voltaDoLink);
+  const botao = $('visor-link');
+  botao.disabled = estado === 'copiando';
+  botao.textContent = estado === 'copiando' ? 'Copiando...' : estado === 'copiado' ? 'Link copiado' : 'Copiar link';
+  // A confirmação fica um instante no próprio botão e depois ele volta ao normal.
+  if (estado === 'copiado') voltaDoLink = setTimeout(() => estadoDoLink(null), 2500);
 }
 
 function ligarAcoesDaFoto(acoes) {
-  $('visor-link').addEventListener('click', acoes.pedirLink);
-  $('link-copiar').addEventListener('click', copiarLink);
-  $('link-compartilhar').addEventListener('click', compartilharLink);
-  $('link-endereco').addEventListener('focus', () => $('link-endereco').select());
-  $('link').addEventListener('click', (evento) => {
-    if (evento.target === $('link')) $('link').close();
-  });
+  $('visor-link').addEventListener('click', acoes.copiarLink);
   $('visor-baixar').addEventListener('click', acoes.baixarFoto);
   $('visor-renomear').addEventListener('click', acoes.pedirRenomear);
   $('visor-apagar').addEventListener('click', acoes.pedirApagar);

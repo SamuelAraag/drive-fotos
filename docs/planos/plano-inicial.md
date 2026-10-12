@@ -492,10 +492,10 @@ Pedido em 2026-10-12 e feito no mesmo dia, na branch `link-de-download`.
   - Quando o navegador segura o download automático (acontece em navegador embutido de
     aplicativo de mensagem), a página mostra a foto e um botão "Baixar".
   - Link vencido: a página diz que venceu e pede um novo a quem enviou.
-- **Na foto aberta:** o botão "Enviar link", ao lado de "Baixar", abre um diálogo com o link
-  num campo, "Copiar link" e, onde o navegador tem, "Compartilhar". O diálogo abre na hora
-  e os botões só acendem com o link pronto, para copiar e compartilhar acontecerem no toque
-  da pessoa.
+- **Na foto aberta:** o botão "Copiar link", ao lado de "Baixar", manda o link direto para a
+  área de transferência, sem diálogo. Enquanto gera, o botão diz "Copiando..."; depois,
+  "Link copiado" por um instante. A cópia é pedida no próprio toque, com o link ainda por
+  chegar, porque o Safari só deixa copiar assim.
 - **Quem recebe não precisa do app nem de token.** A página de download é aberta a qualquer
   um e só aceita endereço do repositório de fotos, para não virar um baixador de link
   alheio.
