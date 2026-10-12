@@ -142,7 +142,9 @@ export function montarRegistro({ id, arquivo, data, miniatura, blob }) {
 }
 
 export const fmtTamanho = (bytes) =>
-  bytes >= 1024 * 1024
+  bytes >= 1024 * 1024 * 1024
+    ? `${(bytes / (1024 * 1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} GB`
+    : bytes >= 1024 * 1024
     ? `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('pt-BR')} KB`;
 

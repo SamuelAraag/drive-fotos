@@ -312,7 +312,21 @@ function deslizarDe(posicoes) {
   }
 }
 
-export function renderPrincipal(grupos, total, baixar) {
+const AVISO_DE_ESPACO = 1024 * 1024 * 1024;
+const AVISO_FORTE_DE_ESPACO = 4 * 1024 * 1024 * 1024;
+
+// Só avisa, não bloqueia: o teto recomendado pelo GitHub é de 5 GB por repositório.
+function renderEspaco(espaco) {
+  const aviso = $('principal-espaco');
+  const forte = espaco >= AVISO_FORTE_DE_ESPACO;
+  aviso.hidden = espaco < AVISO_DE_ESPACO;
+  aviso.classList.toggle('aviso--forte', forte);
+  aviso.textContent = forte
+    ? `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`
+    : `As fotos já ocupam ${fmtTamanho(espaco)}. O GitHub recomenda ficar abaixo de 5 GB por repositório.`;
+}
+
+export function renderPrincipal(grupos, { total, espaco }, baixar) {
   encerrarVoo(); // os quadros vão ser trocados: um voo em curso pousa agora
   const posicoes = posicoesVisiveis();
   limparPrincipal();
@@ -320,7 +334,9 @@ export function renderPrincipal(grupos, total, baixar) {
   fotosPorId = new Map(grupos.flatMap((grupo) => grupo.fotos).map((foto) => [foto.id, foto]));
   $('principal-vazia').hidden = total > 0;
   $('principal-total').hidden = total === 0;
-  $('principal-total').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
+  const quantas = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
+  $('principal-total').textContent = `${quantas} · ${fmtTamanho(espaco)}`;
+  renderEspaco(espaco);
 
   observador = new IntersectionObserver(
     (entradas) => {

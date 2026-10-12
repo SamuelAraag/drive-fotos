@@ -138,6 +138,20 @@ h2:focus {
   font-weight: 400;
 }
 
+/* Recado que fica na tela, sem bloquear nada. O forte é para o que pede uma atitude. */
+.aviso {
+  padding: var(--e3) var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  font-size: var(--fonte-pequena);
+}
+
+.aviso--forte {
+  border-color: var(--erro);
+  color: var(--erro);
+}
+
 .pagina {
   padding-bottom: calc(var(--e7) + env(safe-area-inset-bottom));
 }
