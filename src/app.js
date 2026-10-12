@@ -34,7 +34,8 @@ const registros = new Map(); // id -> registro já lido (nome, dimensões), ou n
 // já com as duas.
 // `sha` é o do conteúdo, para reconhecer foto repetida. `reuso` vem preenchido na cópia de uma
 // foto já guardada: o arquivo não sobe de novo, a cópia aponta para o que o repositório já tem.
-// estado: 'aguardando' | 'enviando' | 'concluido' | 'erro'
+// estado: 'aguardando' | 'enviando' | 'gravando' | 'concluido' | 'erro'
+// 'gravando' é a foto cujos arquivos já subiram e que espera o commit do lote.
 let fila = [];
 let proximoItem = 1;
 let enviando = false;
@@ -1034,9 +1035,18 @@ function soltarTela() {
 
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
-async function enviarFoto(item) {
-  const { arquivo } = item;
-  const { data, origem } = item;
+// O envio de uma foto tem duas metades. Primeiro os arquivos dela sobem para o GitHub, a
+// original e a miniatura ao mesmo tempo. Depois um commit os põe no repositório. O commit é
+// por lote: várias fotos entram num só, porque árvore, commit e avanço da branch custam o
+// mesmo para uma foto ou para dez.
+
+const TAMANHO_DO_LOTE = 10; // fotos por commit; uma leva maior aparece na grade de dez em dez
+
+// Sobe os arquivos da foto e deixa em `item.pronta` o que o commit e a grade vão precisar.
+// "Tentar de novo" depois de uma falha no commit não sobe nada outra vez.
+async function subirFoto(item) {
+  if (item.pronta) return;
+  const { arquivo, data, origem } = item;
   // O id nasce uma vez por item: "tentar de novo" regrava os mesmos caminhos, sem duplicar a foto.
   item.id ??= foto.gerarId(data);
   const caminhos = foto.caminhos(item.id, foto.extensaoDe(arquivo));
@@ -1044,60 +1054,132 @@ async function enviarFoto(item) {
   const registro = foto.montarRegistro({ id: item.id, arquivo, nome: item.nome, data, origem, miniatura, blob: caminhos.blob });
 
   // A cópia de uma foto já guardada não envia o arquivo de novo: o git guarda um conteúdo só.
-  const arquivos = [item.reuso ? { caminho: caminhos.blob, sha: item.reuso } : { caminho: caminhos.blob, base64: await foto.paraBase64(arquivo) }];
-  if (miniatura) arquivos.push({ caminho: caminhos.miniatura, base64: await foto.paraBase64(miniatura.blob) });
-  arquivos.push({ caminho: caminhos.registro, texto: textoDoRegistro(registro) });
-
-  const shas = await github.gravar(arquivos, `foto: ${item.id}`, (fracao) => {
-    progresso = fracao;
+  const [original, reduzida] = await Promise.all([item.reuso ? null : foto.paraBase64(arquivo), miniatura ? foto.paraBase64(miniatura.blob) : null]);
+  // O progresso é o das duas subidas somadas, cada uma pesando o que tem de tamanho.
+  const total = (original?.length ?? 0) + (reduzida?.length ?? 0);
+  const subido = [0, 0];
+  const andar = (qual, tamanho) => (fracao) => {
+    subido[qual] = fracao * tamanho;
+    progresso = total ? (subido[0] + subido[1]) / total : 1;
     ui.renderProgresso(progresso);
-  });
-
-  // A miniatura recém-gerada já serve para a grade, sem baixar de volta.
-  const shaDaMiniatura = miniatura ? shas[caminhos.miniatura] : null;
-  if (shaDaMiniatura && !miniaturas.has(shaDaMiniatura)) {
-    miniaturas.set(shaDaMiniatura, Promise.resolve(URL.createObjectURL(miniatura.blob)));
-  }
-  const nova = {
-    id: item.id,
-    dia: item.id.slice(0, 8),
-    hora: item.id.slice(9, 15),
-    sha: item.reuso ?? shas[caminhos.blob],
-    miniatura: shaDaMiniatura,
-    // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
-    registro: await foto.shaDoGit(textoDoRegistro(registro)),
-    tamanho: arquivo.size,
-    peso: arquivo.size + (miniatura?.blob.size ?? 0) + new Blob([textoDoRegistro(registro)]).size,
-    ext: foto.extensaoDe(arquivo),
   };
-  registros.set(nova.id, registro);
-  // O que acabou de subir já está aqui: vai para o aparelho sem precisar baixar de volta.
-  armazem.guardar(nova.sha, arquivo, { original: true });
-  if (shaDaMiniatura) armazem.guardar(shaDaMiniatura, miniatura.blob, { original: false });
-  if (fotos) {
-    fotos = [nova, ...fotos.filter((existente) => existente.id !== nova.id)].sort(porIdDecrescente);
-    armazem.guardarFotos(fotos);
-    render();
-    // O efeito de chegada corre por conta própria: a fila não espera por ele.
-    ui.fotoChegou(nova.id, { ultimaDaLeva: !fila.some((outro) => outro.estado === 'aguardando') });
+  const [shaDaOriginal, shaDaMiniatura] = await Promise.all([
+    original ? github.enviarBlob(original, andar(0, original.length)) : item.reuso,
+    reduzida ? github.enviarBlob(reduzida, andar(1, reduzida.length)) : null,
+  ]);
+
+  const texto = textoDoRegistro(registro);
+  const arquivos = [{ caminho: caminhos.blob, sha: shaDaOriginal }];
+  if (shaDaMiniatura) arquivos.push({ caminho: caminhos.miniatura, sha: shaDaMiniatura });
+  arquivos.push({ caminho: caminhos.registro, texto });
+  item.pronta = {
+    arquivos,
+    registro,
+    miniatura,
+    nova: {
+      id: item.id,
+      dia: item.id.slice(0, 8),
+      hora: item.id.slice(9, 15),
+      sha: shaDaOriginal,
+      miniatura: shaDaMiniatura,
+      // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
+      registro: await foto.shaDoGit(texto),
+      tamanho: arquivo.size,
+      peso: arquivo.size + (miniatura?.blob.size ?? 0) + new Blob([texto]).size,
+      ext: foto.extensaoDe(arquivo),
+    },
+  };
+}
+
+// Com o commit feito, as fotos do lote passam a existir: entram na lista, no aparelho e na grade.
+function registrarLote(lote) {
+  for (const { arquivo, pronta } of lote) {
+    const { nova, registro, miniatura } = pronta;
+    // A miniatura recém-gerada já serve para a grade, sem baixar de volta.
+    if (nova.miniatura && !miniaturas.has(nova.miniatura)) {
+      miniaturas.set(nova.miniatura, Promise.resolve(URL.createObjectURL(miniatura.blob)));
+    }
+    registros.set(nova.id, registro);
+    // O que acabou de subir já está aqui: vai para o aparelho sem precisar baixar de volta.
+    armazem.guardar(nova.sha, arquivo, { original: true });
+    if (nova.miniatura) armazem.guardar(nova.miniatura, miniatura.blob, { original: false });
+  }
+  if (!fotos) return;
+  const novas = lote.map((item) => item.pronta.nova);
+  const ids = new Set(novas.map((nova) => nova.id));
+  fotos = [...novas, ...fotos.filter((existente) => !ids.has(existente.id))].sort(porIdDecrescente);
+  armazem.guardarFotos(fotos);
+  render();
+  // O efeito de chegada corre por conta própria: a fila não espera por ele.
+  const acabou = !fila.some((outro) => outro.estado === 'aguardando');
+  novas.forEach((nova, i) => ui.fotoChegou(nova.id, { ultimaDaLeva: acabou && i === novas.length - 1 }));
+}
+
+// Fecha o lote com um commit. Devolve false quando o token venceu e a fila precisa parar.
+async function fecharLote(lote) {
+  if (lote.length === 0) return true;
+  renderFila();
+  const arquivos = lote.flatMap((item) => item.pronta.arquivos);
+  const mensagem = lote.length === 1 ? `foto: ${lote[0].id}` : `fotos: ${lote.length}`;
+  for (;;) {
+    try {
+      await github.gravar(arquivos, mensagem);
+      registrarLote(lote);
+      for (const item of lote) item.estado = 'concluido';
+      renderFila();
+      return true;
+    } catch (erro) {
+      if (erro.tipo === 'limite') {
+        // Não é falha das fotos: espera o GitHub liberar e tenta o commit de novo.
+        pausadaAte = new Date(Date.now() + erro.esperaMs);
+        renderFila();
+        await dormir(erro.esperaMs);
+        pausadaAte = null;
+        continue;
+      }
+      if (erro.tipo === 'token') {
+        // Os arquivos já subiram: depois do novo login só falta o commit.
+        for (const item of lote) item.estado = 'aguardando';
+        github.apagarToken();
+        ui.abrirLogin(erro.message);
+        return false;
+      }
+      for (const item of lote) {
+        item.estado = 'erro';
+        item.mensagem = mensagemDe(erro, 'Não deu para guardar a foto. Tente de novo.');
+      }
+      renderFila();
+      return true;
+    }
   }
 }
 
-// Fila única: uma foto por vez. Falha em uma não para as outras.
+// Fila única: uma foto sobe por vez, e o commit sai a cada lote. Falha em uma não para as outras.
 async function bombear() {
   if (enviando || !github.lerToken()) return;
   enviando = true;
   await manterTelaAcordada();
+  const inicio = performance.now();
+  let lote = [];
   for (;;) {
     const item = fila.find((candidato) => candidato.estado === 'aguardando');
-    if (!item) break;
+    // Sem mais fotos esperando, ou com o lote cheio, é hora do commit.
+    if (!item || lote.length >= TAMANHO_DO_LOTE) {
+      const segue = await fecharLote(lote);
+      lote = [];
+      if (!segue) break;
+      // Enquanto o commit corria, pode ter chegado foto nova na fila.
+      if (!fila.some((candidato) => candidato.estado === 'aguardando')) break;
+      continue;
+    }
     item.estado = 'enviando';
     item.mensagem = null;
     progresso = 0;
     renderFila();
     try {
-      await enviarFoto(item);
-      item.estado = 'concluido';
+      await subirFoto(item);
+      item.estado = 'gravando';
+      lote.push(item);
     } catch (erro) {
       if (erro.tipo === 'limite') {
         // Não é falha da foto: espera o GitHub liberar e retoma sozinha.
@@ -1111,6 +1193,7 @@ async function bombear() {
       if (erro.tipo === 'token') {
         // As que faltam ficam na fila e sobem depois do novo login.
         item.estado = 'aguardando';
+        for (const pronto of lote) pronto.estado = 'aguardando';
         github.apagarToken();
         ui.abrirLogin(erro.message);
         break;
@@ -1129,6 +1212,9 @@ async function bombear() {
   renderFila();
   if (enviadas > 0) {
     ui.anunciarEnvio(enviadas === 1 ? 'Foto enviada.' : `${enviadas} fotos enviadas.`);
+    // Medida da leva, para comparar o envio antes e depois de uma mudança.
+    const segundos = (performance.now() - inicio) / 1000;
+    console.info(`Drive Fotos: ${enviadas} foto(s) em ${segundos.toFixed(1)} s, ${(segundos / enviadas).toFixed(1)} s por foto.`);
   }
 }
 
@@ -1171,7 +1257,7 @@ ui.ligarEventos({
 
 // A fila vive só nesta página: sair no meio perde o que ainda não subiu.
 window.addEventListener('beforeunload', (evento) => {
-  if (fila.some((item) => item.estado === 'aguardando' || item.estado === 'enviando')) evento.preventDefault();
+  if (fila.some((item) => ['aguardando', 'enviando', 'gravando'].includes(item.estado))) evento.preventDefault();
 });
 
 // O voltar do navegador, com a foto aberta, só fecha a foto.
