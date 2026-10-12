@@ -55,6 +55,8 @@ function descricaoDaFoto(foto) {
 }
 
 let observador = null; // carrega a miniatura quando o quadro chega perto da tela
+let observadorDaTela = null; // avisa o app de quais fotos estão de fato na tela
+let avisarVisibilidade = () => {};
 const baixarDoQuadro = new WeakMap();
 const jaMostradas = new Set(); // miniaturas que já surgiram uma vez: redesenhar a grade não anima de novo
 
@@ -280,6 +282,9 @@ export function esquecerEnvio() {
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
+  observadorDaTela?.disconnect();
+  observadorDaTela = null;
+  avisarVisibilidade(null); // os quadros vão ser trocados: o que estava na tela deixa de valer
   $('grade').replaceChildren();
 }
 
@@ -327,6 +332,13 @@ export function renderPrincipal(grupos, total, baixar) {
     },
     { rootMargin: '400px 0px' },
   );
+  // Sem margem e com metade do quadro à vista: é o que a pessoa pode tocar agora.
+  observadorDaTela = new IntersectionObserver(
+    (entradas) => {
+      for (const entrada of entradas) avisarVisibilidade(entrada.target.dataset.id, entrada.isIntersecting);
+    },
+    { threshold: 0.5 },
+  );
 
   for (const grupo of grupos) {
     const secao = el('section', 'dia');
@@ -349,6 +361,7 @@ export function renderPrincipal(grupos, total, baixar) {
       } else {
         marcarSemMiniatura(quadro, foto);
       }
+      observadorDaTela.observe(quadro);
       lista.append(quadro);
     }
     secao.append(lista);
@@ -625,6 +638,7 @@ export function loginOcupado(ocupado) {
 }
 
 export function ligarEventos(acoes) {
+  avisarVisibilidade = acoes.visibilidade;
   const entrada = $('zona-entrada');
   $('zona').addEventListener('click', () => entrada.click());
   entrada.addEventListener('change', () => {

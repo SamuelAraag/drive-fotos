@@ -53,6 +53,7 @@ src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
 src/foto.js      id, miniatura e registro de cada foto
+src/armazem.js   o que fica guardado no aparelho
 src/ui.js        telas
 ```
 
@@ -219,10 +220,26 @@ No molde do Google Fotos.
 
 ### Fluxo de leitura
 
-1. Ao abrir, o app lê a árvore do repositório de dados e monta a grade.
-2. As miniaturas entram conforme aparecem na tela, não todas de uma vez.
-3. Miniaturas baixadas ficam em cache no navegador, pela identidade do blob, que nunca
-   muda. Originais também, com um teto de espaço, e as mais antigas saem primeiro.
+A regra é usar ao máximo o que já está no aparelho, para o app parecer imediato.
+
+1. Ao abrir, o app mostra na hora a lista de fotos guardada no aparelho e confere com o
+   GitHub por trás. Só redesenha a grade se algo mudou.
+2. As miniaturas entram conforme aparecem na tela, não todas de uma vez. Toda miniatura
+   baixada fica guardada no aparelho, sem limite, porque é pequena.
+3. Toda foto que fica na tela por mais de 0,6 s entra numa fila de fundo, que baixa a
+   original para o aparelho, duas por vez. Ao tocar numa foto visível, ela abre sem
+   chamar o GitHub. Rolar depressa não dispara downloads, e a fila cede a vez ao envio.
+4. Com a foto aberta, a anterior e a próxima ficam prontas na memória, para a seta passar
+   sem espera.
+5. Limites: as originais guardadas no aparelho têm teto de 1 GB, e as menos usadas saem
+   primeiro. Na memória da aba o teto é de 150 MB. Os dois são em bytes, não em número de
+   fotos, porque uma foto pode ter 300 KB ou 25 MB.
+6. O que acabou de ser enviado já fica guardado, sem baixar de volta.
+7. "Sair" apaga tudo que está guardado. Quem ativou economia de dados no navegador não tem
+   a fila de fundo.
+
+O arquivo é identificado pelo conteúdo (o `sha` do git), então o que está guardado nunca
+fica desatualizado.
 
 ### Renomear, baixar e apagar
 
@@ -316,9 +333,8 @@ testar na tela.
 
 ### Épico 6: Cache e tamanho
 
-- Cache de miniaturas e originais no navegador, pela identidade do blob, com teto para as
-  originais.
-- "Sair" limpa o cache.
+- Cache de miniaturas e originais no navegador. Feito no Épico 4.
+- "Sair" limpa o cache. Feito no Épico 4.
 - Releitura da árvore ao voltar para a tela, para aparecer o que subiu ou foi apagado em
   outro aparelho.
 - Espaço usado na tela, somado dos tamanhos que a árvore já traz. Aviso a partir de 1 GB e

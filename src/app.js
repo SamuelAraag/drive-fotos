@@ -1,11 +1,14 @@
 // Estado, regras e eventos.
 
+import * as armazem from './armazem.js';
 import * as foto from './foto.js';
 import * as github from './github.js';
 import * as ui from './ui.js';
 
 const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
-const MAX_ORIGINAIS = 8; // originais guardadas na memória enquanto a pessoa passa de foto
+const TETO_NA_MEMORIA = 150 * 1024 * 1024; // originais abertas ou prontas para abrir, em bytes
+const MAX_DE_FUNDO = 2; // originais baixando em segundo plano ao mesmo tempo
+const ESPERA_DE_FUNDO = 600; // ms que a foto precisa ficar na tela antes de entrar na fila de fundo
 
 // fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano e id.
 const CAMINHO = /^(fotos|miniaturas)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.[0-9a-z]+$/i;
@@ -14,7 +17,12 @@ let fotos = null; // última leitura do repositório, da mais recente para a mai
 const miniaturas = new Map(); // sha -> promessa da URL da imagem já baixada
 const espera = []; // downloads aguardando vaga
 let baixando = 0;
-const originais = new Map(); // sha -> promessa da URL da original; a mais antiga sai primeiro
+const buscando = new Map(); // sha -> promessa do Blob em download agora, para não baixar duas vezes
+const originais = new Map(); // sha -> { promessa da URL, tamanho }; a menos usada sai primeiro
+const naTela = new Map(); // id -> temporizador das fotos visíveis, à espera da fila de fundo
+const filaDeFundo = []; // ids das fotos visíveis cuja original ainda não está no aparelho
+let fundoAtivos = 0;
+let fundoPausadoAte = 0;
 let aberta = null; // id da foto aberta em tela cheia
 
 // Fila de envio. Cada item: { n, arquivo, id, estado, mensagem }.
@@ -37,9 +45,11 @@ function montarFotos(arvore) {
     if (!partes) continue;
     const [, pasta, ano, id, dia, hora] = partes;
     if (!id.startsWith(ano)) continue;
-    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null };
-    if (pasta === 'fotos') item.sha = arquivo.sha;
-    else item.miniatura = arquivo.sha;
+    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, tamanho: 0 };
+    if (pasta === 'fotos') {
+      item.sha = arquivo.sha;
+      item.tamanho = arquivo.tamanho ?? 0;
+    } else item.miniatura = arquivo.sha;
     porId.set(id, item);
   }
   return [...porId.values()].filter((item) => item.sha).sort(porIdDecrescente);
@@ -55,12 +65,31 @@ function agruparPorDia(lista) {
   return grupos;
 }
 
+// Todo arquivo passa por aqui: primeiro o que já está guardado no aparelho, depois o GitHub.
+// O que vem do GitHub fica guardado para a próxima vez.
+function obterBlob(sha, { original }) {
+  if (!buscando.has(sha)) {
+    const promessa = (async () => {
+      const guardado = await armazem.ler(sha);
+      if (guardado) return guardado;
+      const blob = await github.lerBlob(sha);
+      armazem.guardar(sha, blob, { original }); // não espera: guardar não pode atrasar a tela
+      return blob;
+    })();
+    promessa.then(
+      () => buscando.delete(sha),
+      () => buscando.delete(sha),
+    );
+    buscando.set(sha, promessa);
+  }
+  return buscando.get(sha);
+}
+
 function proximoDownload() {
   if (baixando >= MAX_DOWNLOADS || espera.length === 0) return;
   baixando++;
   const { sha, resolver, rejeitar } = espera.shift();
-  github
-    .lerBlob(sha)
+  obterBlob(sha, { original: false })
     .then((blob) => resolver(URL.createObjectURL(blob)), rejeitar)
     .finally(() => {
       baixando--;
@@ -68,7 +97,7 @@ function proximoDownload() {
     });
 }
 
-// Cada miniatura é baixada uma vez por sessão. A que falha sai do mapa para poder tentar de novo.
+// Cada miniatura é lida uma vez por sessão. A que falha sai do mapa para poder tentar de novo.
 function baixarMiniatura(sha) {
   if (!miniaturas.has(sha)) {
     const promessa = new Promise((resolver, rejeitar) => {
@@ -87,24 +116,101 @@ function esquecerMiniaturas() {
   miniaturas.clear();
 }
 
-// Guarda poucas originais: ir e voltar entre vizinhas não baixa de novo, e a memória não enche.
-function baixarOriginal(sha) {
-  if (!originais.has(sha)) {
-    const promessa = github.lerBlob(sha).then((blob) => URL.createObjectURL(blob));
-    promessa.catch(() => originais.delete(sha));
-    originais.set(sha, promessa);
-    for (const antigo of originais.keys()) {
-      if (originais.size <= MAX_ORIGINAIS) break;
-      originais.get(antigo).then(URL.revokeObjectURL, () => {});
-      originais.delete(antigo);
-    }
+// Originais prontas na memória: a aberta, as vizinhas e as vistas há pouco. O teto é em bytes,
+// porque uma foto pode ter 300 KB ou 25 MB. A foto aberta nunca sai.
+function baixarOriginal(item) {
+  const guardada = originais.get(item.sha);
+  if (guardada) {
+    // Volta para o fim da fila: foi a usada mais recentemente.
+    originais.delete(item.sha);
+    originais.set(item.sha, guardada);
+    return guardada.promessa;
   }
-  return originais.get(sha);
+  const promessa = obterBlob(item.sha, { original: true }).then((blob) => URL.createObjectURL(blob));
+  promessa.catch(() => originais.delete(item.sha));
+  originais.set(item.sha, { promessa, tamanho: item.tamanho });
+
+  const shaAberta = fotos?.find((outra) => outra.id === aberta)?.sha;
+  let total = [...originais.values()].reduce((soma, entrada) => soma + entrada.tamanho, 0);
+  for (const [sha, entrada] of originais) {
+    if (total <= TETO_NA_MEMORIA) break;
+    if (sha === shaAberta || sha === item.sha) continue;
+    entrada.promessa.then(URL.revokeObjectURL, () => {});
+    originais.delete(sha);
+    total -= entrada.tamanho;
+  }
+  return promessa;
 }
 
 function esquecerOriginais() {
-  for (const promessa of originais.values()) promessa.then(URL.revokeObjectURL, () => {});
+  for (const { promessa } of originais.values()) promessa.then(URL.revokeObjectURL, () => {});
   originais.clear();
+}
+
+// Fila de fundo: baixa para o aparelho a original de toda foto que está na tela, para ela
+// abrir na hora quando for tocada. Vai para o disco, não para a memória.
+
+function tirarDaFilaDeFundo(id) {
+  const posicao = filaDeFundo.indexOf(id);
+  if (posicao >= 0) filaDeFundo.splice(posicao, 1);
+}
+
+// A interface avisa quando uma foto entra ou sai da tela. Sem id, a grade foi redesenhada.
+function visibilidade(id, visivel) {
+  if (id == null) {
+    for (const temporizador of naTela.values()) clearTimeout(temporizador);
+    naTela.clear();
+    filaDeFundo.length = 0;
+    return;
+  }
+  if (!visivel) {
+    clearTimeout(naTela.get(id));
+    naTela.delete(id);
+    tirarDaFilaDeFundo(id); // saiu da tela antes da vez dela: não baixa
+    return;
+  }
+  // Quem pediu economia de dados ao navegador não tem download que não pediu.
+  if (naTela.has(id) || navigator.connection?.saveData) return;
+  // Só entra na fila a foto que ficou na tela: rolar depressa não dispara downloads.
+  naTela.set(
+    id,
+    setTimeout(() => {
+      filaDeFundo.push(id);
+      proximoDeFundo();
+    }, ESPERA_DE_FUNDO),
+  );
+}
+
+async function proximoDeFundo() {
+  // O envio tem a vez: os dois disputam a mesma rede e o mesmo limite do GitHub.
+  if (enviando || fundoAtivos >= MAX_DE_FUNDO || filaDeFundo.length === 0 || Date.now() < fundoPausadoAte) return;
+  const item = fotos?.find((candidato) => candidato.id === filaDeFundo[0]);
+  filaDeFundo.shift();
+  if (!item) {
+    proximoDeFundo();
+    return;
+  }
+  fundoAtivos++;
+  try {
+    if (!(await armazem.tem(item.sha))) await obterBlob(item.sha, { original: true });
+  } catch (erro) {
+    // Em segundo plano nada vira aviso. O limite de ritmo só faz a fila esperar.
+    if (erro.tipo === 'limite') {
+      fundoPausadoAte = Date.now() + erro.esperaMs;
+      setTimeout(proximoDeFundo, erro.esperaMs);
+    }
+    if (erro.tipo === 'token') filaDeFundo.length = 0;
+  } finally {
+    fundoAtivos--;
+    proximoDeFundo();
+  }
+}
+
+// Deixa as vizinhas prontas na memória, para a seta passar de foto sem espera.
+function prepararVizinhas(indice) {
+  for (const vizinha of [fotos[indice + 1], fotos[indice - 1]]) {
+    if (vizinha) baixarOriginal(vizinha).catch(() => {});
+  }
 }
 
 async function mostrarAberta() {
@@ -121,8 +227,10 @@ async function mostrarAberta() {
     temProxima: indice < fotos.length - 1,
   });
   try {
-    const url = await baixarOriginal(item.sha);
-    if (aberta === item.id) ui.mostrarOriginal(item, url);
+    const url = await baixarOriginal(item);
+    if (aberta !== item.id) return;
+    ui.mostrarOriginal(item, url);
+    prepararVizinhas(fotos.findIndex((outra) => outra.id === item.id));
   } catch (erro) {
     if (aberta !== item.id) return;
     if (erro.tipo === 'token') {
@@ -175,10 +283,26 @@ async function lerFotos() {
   return montarFotos(await github.lerArvore());
 }
 
+function mesmaLista(a, b) {
+  return a.length === b.length && a.every((item, i) => item.id === b[i].id && item.sha === b[i].sha && item.miniatura === b[i].miniatura);
+}
+
+// A lista guardada no aparelho aparece na hora, e a do GitHub confere por trás.
 async function carregar() {
-  ui.mostrarTela('carregando');
+  const guardadas = armazem.lerFotos();
+  if (guardadas) {
+    fotos = guardadas;
+    render();
+  } else {
+    ui.mostrarTela('carregando');
+  }
   try {
-    fotos = await lerFotos();
+    const novas = await lerFotos();
+    // Se a lista mudou enquanto a leitura corria (um envio, por exemplo), a que está na tela vale.
+    if (guardadas && fotos !== guardadas) return;
+    armazem.guardarFotos(novas);
+    if (guardadas && mesmaLista(novas, guardadas)) return;
+    fotos = novas;
     render();
   } catch (erro) {
     if (erro.tipo === 'token') {
@@ -186,6 +310,8 @@ async function carregar() {
       ui.abrirLogin(erro.message);
       return;
     }
+    // Com a lista guardada na tela, falha de rede não tira o que já está aparecendo.
+    if (guardadas) return;
     ui.renderErro(erro.message);
     ui.mostrarTela('erro');
     ui.focarTela('erro');
@@ -204,6 +330,8 @@ async function entrar(token) {
   ui.loginOcupado(true);
   try {
     fotos = await lerFotos();
+    armazem.guardarFotos(fotos);
+    armazem.pedirPermanencia();
     ui.fecharLogin();
     render();
     ui.focarTela('principal');
@@ -226,8 +354,10 @@ function sair() {
   renderFila();
   ui.fecharVisor();
   ui.limparPrincipal();
+  visibilidade(null);
   esquecerMiniaturas();
   esquecerOriginais();
+  armazem.limpar();
   ui.mostrarTela(null);
   ui.abrirLogin();
 }
@@ -310,9 +440,14 @@ async function enviarFoto(item) {
     hora: item.id.slice(9, 15),
     sha: shas[caminhos.blob],
     miniatura: shaDaMiniatura,
+    tamanho: arquivo.size,
   };
+  // O que acabou de subir já está aqui: vai para o aparelho sem precisar baixar de volta.
+  armazem.guardar(nova.sha, arquivo, { original: true });
+  if (shaDaMiniatura) armazem.guardar(shaDaMiniatura, miniatura.blob, { original: false });
   if (fotos) {
     fotos = [nova, ...fotos.filter((existente) => existente.id !== nova.id)].sort(porIdDecrescente);
+    armazem.guardarFotos(fotos);
     render();
     // O efeito de chegada corre por conta própria: a fila não espera por ele.
     ui.fotoChegou(nova.id, { ultimaDaLeva: !fila.some((outro) => outro.estado === 'aguardando') });
@@ -358,6 +493,7 @@ async function bombear() {
   }
   enviando = false;
   soltarTela();
+  proximoDeFundo(); // a fila de fundo esperou o envio terminar
   // A leva acabou: o que subiu sai da fila, e só as falhas ficam na tela.
   const enviadas = fila.filter((item) => item.estado === 'concluido').length;
   fila = fila.filter((item) => item.estado !== 'concluido');
@@ -394,6 +530,7 @@ ui.ligarEventos({
   passarFoto,
   recarregarFoto: mostrarAberta,
   fotoFechada,
+  visibilidade,
 });
 
 // A fila vive só nesta página: sair no meio perde o que ainda não subiu.
