@@ -1008,6 +1008,7 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
   $('repetidas-concluir').textContent = 'Não enviar';
   $('repetidas-manter').hidden = varias;
   $('repetidas-todas').hidden = !varias;
+  $('repetidas-lista').classList.toggle('repetidas--varias', varias);
   $('repetidas-lista').replaceChildren(
     ...linhas.map(({ nova, outra }) => {
       const item = el('li', 'repetidas__item');

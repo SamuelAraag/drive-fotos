@@ -1246,13 +1246,23 @@ h2:focus {
   object-fit: cover;
 }
 
-/* Com várias repetidas, cada par tem a própria escolha, na largura das duas fotos. */
+/* Com várias repetidas, cada par vira um bloco fechado, e a escolha dele fica numa faixa
+   própria embaixo, separada das fotos por uma linha. */
+.repetidas--varias .repetidas__item {
+  padding: var(--e3);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+}
+
 .repetidas__escolha {
   display: flex;
   grid-column: 1 / -1;
   align-items: center;
   gap: var(--e2);
   min-height: 44px;
+  margin: var(--e1) calc(var(--e3) * -1) calc(var(--e3) * -1);
+  padding: var(--e1) var(--e3);
+  border-top: 1px solid var(--trilho);
   cursor: pointer;
 }
 
