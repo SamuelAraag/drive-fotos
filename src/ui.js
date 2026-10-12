@@ -328,9 +328,10 @@ export function renderPrincipal(grupos, { total, espaco }, baixar) {
   baixarAtual = baixar;
   fotosPorId = new Map(grupos.flatMap((grupo) => grupo.fotos).map((foto) => [foto.id, foto]));
   $('principal-vazia').hidden = total > 0;
-  $('principal-total').hidden = total === 0;
-  const quantas = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
-  $('principal-total').textContent = `${quantas} · ${fmtTamanho(espaco)}`;
+  // Sem fotos a pílula de uso some: "0 MB" não diz nada que a tela vazia já não diga.
+  $('uso').hidden = total === 0;
+  $('uso-valor').textContent = `${fmtTamanho(espaco)} usados`;
+  $('uso-detalhe').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
   renderEspaco(espaco);
 
   observador = new IntersectionObserver(

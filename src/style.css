@@ -21,6 +21,9 @@
   /* Respiro entre o conteúdo e a borda da tela. Cresce com a largura, para nada colar na borda. */
   --margem: var(--e4);
 
+  /* Altura da pílula de uso, que flutua embaixo: o atalho e o fim da página abrem espaço para ela. */
+  --altura-uso: calc(var(--e2) * 2 + 1.5 * var(--fonte-pequena) + 2px);
+
   --raio: 12px;
   --raio-pilula: 999px;
 
@@ -175,7 +178,48 @@ h2:focus {
 }
 
 .pagina {
-  padding-bottom: calc(var(--e7) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--e7) + var(--altura-uso) + env(safe-area-inset-bottom));
+}
+
+/* Espaço ocupado e total de fotos: uma pílula flutuante no canto de baixo, sempre à vista.
+   Sem barra e sem percentual, porque aqui não há limite, só o total. */
+.uso {
+  position: fixed;
+  right: var(--margem);
+  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  z-index: 1; /* abaixo do véu de arraste, que vem depois na página */
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  padding: var(--e2) var(--e4);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie);
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums;
+}
+
+.uso[hidden] {
+  display: none;
+}
+
+.uso__icone {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: var(--azul);
+}
+
+.uso__valor {
+  font-weight: 600;
+}
+
+.uso__detalhe {
+  color: var(--texto-suave);
+}
+
+.uso__detalhe::before {
+  content: '· ';
 }
 
 .topo__acoes {
@@ -708,9 +752,10 @@ h2:focus {
 .atalho {
   position: fixed;
   right: var(--margem);
-  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  /* Fica acima da pílula de uso, que mora no mesmo canto. */
+  bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
   left: var(--margem);
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--e3);
