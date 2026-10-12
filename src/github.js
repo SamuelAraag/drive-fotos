@@ -188,8 +188,8 @@ async function lerPonta() {
 }
 
 // Grava vários arquivos num commit só, pela API de Git Data: ou entram todos, ou nenhum.
-// Cada arquivo é { caminho, base64 } ou { caminho, texto }. Devolve { caminho: sha } dos
-// que subiram em base64. `aoProgredir` recebe de 0 a 1: os blobs levam a conta até
+// Cada arquivo é { caminho, base64 }, { caminho, texto } ou { caminho, apagar: true }.
+// Devolve { caminho: sha } dos que subiram em base64. `aoProgredir` recebe de 0 a 1: os blobs levam a conta até
 // PARTE_DOS_BLOBS, e a árvore, o commit e a branch fecham o resto.
 export async function gravar(arquivos, mensagem, aoProgredir = () => {}) {
   const entradas = [];
@@ -198,7 +198,9 @@ export async function gravar(arquivos, mensagem, aoProgredir = () => {}) {
   let jaSubiu = 0;
   for (const arquivo of arquivos) {
     const entrada = { path: arquivo.caminho, mode: '100644', type: 'blob' };
-    if (arquivo.texto != null) {
+    if (arquivo.apagar) {
+      entrada.sha = null; // sha nulo tira o arquivo da árvore
+    } else if (arquivo.texto != null) {
       entrada.content = arquivo.texto; // o GitHub cria o blob junto com a árvore
     } else {
       const tamanho = arquivo.base64.length;

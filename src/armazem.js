@@ -101,6 +101,18 @@ export async function guardar(sha, blob, { original }) {
   }
 }
 
+// Tira do aparelho os arquivos de uma foto apagada.
+export async function apagar(shas) {
+  const arquivos = await abrir();
+  if (!arquivos) return;
+  const indice = lerIndice();
+  for (const sha of shas) {
+    await arquivos.delete(endereco(sha)).catch(() => {});
+    delete indice[sha];
+  }
+  gravarIndice(indice);
+}
+
 export function lerFotos() {
   try {
     const lista = JSON.parse(localStorage.getItem(CHAVE_FOTOS));

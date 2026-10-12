@@ -220,6 +220,16 @@ h2:focus {
   color: var(--texto);
 }
 
+/* Ação secundária com corpo: o cancelar dos diálogos, que precisa parecer botão ao lado da ação. */
+.botao--secundario {
+  background: var(--trilho);
+  color: var(--texto);
+}
+
+.botao--secundario:hover {
+  background: color-mix(in srgb, var(--trilho) 85%, var(--texto));
+}
+
 /* Carregando */
 
 .girador {
@@ -823,7 +833,7 @@ h2:focus {
   flex: 1;
   gap: var(--e5);
   min-height: 0;
-  padding: 0 var(--e4) calc(var(--e4) + env(safe-area-inset-bottom));
+  padding: 0 var(--e4) var(--e2);
 }
 
 .visor__palco {
@@ -911,6 +921,27 @@ h2:focus {
 /* Na primeira e na última foto a seta some, em vez de ficar apagada sem explicação. */
 .visor__seta:disabled {
   visibility: hidden;
+}
+
+/* Ações da foto aberta: valem no celular e no computador, por isso ficam fora do painel. */
+.visor__rodape {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--e1);
+  padding: 0 var(--e4) calc(var(--e2) + env(safe-area-inset-bottom));
+}
+
+.visor__botoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--e2);
+}
+
+.visor__rodape .botao--fantasma {
+  color: var(--texto);
 }
 
 /* Painel de informações. Só existe em tela larga: no celular a foto fica com a tela toda. */
@@ -1040,6 +1071,52 @@ h2:focus {
   gap: var(--e3);
 }
 
+/* Ações de um diálogo curto: a ação primeiro, cancelar depois, do tamanho do texto.
+   No celular os dois dividem a largura, para o toque. */
+.dialogo__acoes {
+  display: flex;
+  gap: var(--e2);
+  margin-top: var(--e2);
+}
+
+.dialogo__acoes .botao {
+  flex: 1;
+}
+
+@media (min-width: 480px) {
+  .dialogo__acoes {
+    justify-content: flex-end;
+  }
+
+  .dialogo__acoes .botao {
+    flex: none;
+  }
+}
+
+/* O que o diálogo vai afetar: a miniatura da foto, com o nome ao lado. */
+.dialogo__alvo {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+}
+
+.dialogo__miniatura {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--e2);
+  background: var(--trilho);
+  object-fit: cover;
+}
+
+.dialogo__alvo-texto {
+  min-width: 0;
+}
+
+.dialogo__nome {
+  overflow-wrap: anywhere;
+}
+
 .login__passos {
   display: flex;
   flex-direction: column;
@@ -1067,6 +1144,13 @@ h2:focus {
   background: var(--fundo);
   color: var(--texto);
   font: inherit;
+}
+
+/* Campo com um trecho fixo ao lado, como a extensão do arquivo, que não se edita. */
+.campo-com-sufixo {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
 }
 
 .campo[aria-invalid='true'] {

@@ -92,6 +92,30 @@ export function paraBase64(blob) {
   });
 }
 
+const TIPO_DA_EXTENSAO = Object.fromEntries(Object.entries(EXTENSAO_DO_TIPO).map(([tipo, extensao]) => [extensao, tipo]));
+
+export function tipoDaExtensao(extensao) {
+  return TIPO_DA_EXTENSAO[extensao] ?? (extensao === 'jpeg' ? 'image/jpeg' : 'application/octet-stream');
+}
+
+// "praia.de.itapua.jpg" -> ["praia.de.itapua", ".jpg"]. Sem extensão, o segundo vem vazio.
+export function separarNome(nome) {
+  const partes = /^(.*?)(\.[0-9a-z]{1,5})?$/i.exec(nome);
+  return partes[1] ? [partes[1], partes[2] ?? ''] : [nome, ''];
+}
+
+// O sha que o git dá a um arquivo de texto, calculado aqui: o mesmo que aparece na árvore
+// do repositório depois da gravação.
+export async function shaDoGit(texto) {
+  const conteudo = new TextEncoder().encode(texto);
+  const cabecalho = new TextEncoder().encode(`blob ${conteudo.length}\0`);
+  const bytes = new Uint8Array(cabecalho.length + conteudo.length);
+  bytes.set(cabecalho);
+  bytes.set(conteudo, cabecalho.length);
+  const resumo = await crypto.subtle.digest('SHA-1', bytes);
+  return [...new Uint8Array(resumo)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function caminhos(id, extensao) {
   const ano = id.slice(0, 4);
   return {
