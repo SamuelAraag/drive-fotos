@@ -685,6 +685,7 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('painel-analise').hidden = true;
   avisoNoVisor(null);
   estadoDoLink(null);
+  confirmarNoVisor(null);
   ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null, origem: null, enviadaEm: null };
   renderFicha();
   ajustarFoto();
@@ -918,6 +919,21 @@ export async function copiarTexto(promessa) {
   }
 }
 
+let fimDaConfirmacao = null;
+
+// Confirmação no meio da foto aberta, que some sozinha. Sem texto, some na hora.
+export function confirmarNoVisor(texto) {
+  clearTimeout(fimDaConfirmacao);
+  const confirmacao = $('visor-confirmacao');
+  confirmacao.hidden = true;
+  if (!texto) return;
+  $('visor-confirmacao-texto').textContent = texto;
+  // Mostrar de novo é o que faz a animação de entrada tocar a cada confirmação.
+  void confirmacao.offsetWidth;
+  confirmacao.hidden = false;
+  fimDaConfirmacao = setTimeout(() => (confirmacao.hidden = true), 2500);
+}
+
 let voltaDoLink = null; // temporizador que devolve o botão ao texto normal
 
 // estado: 'copiando' | 'copiado' | null
@@ -926,8 +942,11 @@ export function estadoDoLink(estado) {
   const botao = $('visor-link');
   botao.disabled = estado === 'copiando';
   botao.textContent = estado === 'copiando' ? 'Copiando...' : estado === 'copiado' ? 'Link copiado' : 'Copiar link';
-  // A confirmação fica um instante no próprio botão e depois ele volta ao normal.
-  if (estado === 'copiado') voltaDoLink = setTimeout(() => estadoDoLink(null), 2500);
+  // A confirmação aparece no meio da foto e no próprio botão, e depois os dois voltam ao normal.
+  if (estado === 'copiado') {
+    confirmarNoVisor('Link copiado');
+    voltaDoLink = setTimeout(() => estadoDoLink(null), 2500);
+  }
 }
 
 function ligarAcoesDaFoto(acoes) {

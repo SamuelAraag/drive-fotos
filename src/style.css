@@ -1207,6 +1207,51 @@ html {
   visibility: hidden;
 }
 
+/* Confirmação de uma ação na foto aberta: aparece no meio da tela, por cima da foto, e some
+   sozinha. É a resposta de quem tocou num botão lá embaixo e está olhando para a foto. */
+.visor__confirmacao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  margin: 0;
+  padding: var(--e4) var(--e5);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  font-size: var(--fonte-titulo);
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: confirmar var(--expandir);
+}
+
+.visor__confirmacao[hidden] {
+  display: none;
+}
+
+.visor__confirmacao-icone {
+  flex: none;
+  width: var(--e5);
+  height: var(--e5);
+  fill: none;
+  stroke: var(--azul);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes confirmar {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+}
+
 /* Ações da foto aberta: valem no celular e no computador, por isso ficam fora do painel. */
 .visor__rodape {
   display: flex;
@@ -1707,6 +1752,10 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .visor__confirmacao {
+    animation: none;
+  }
+
   .puxar-soltando .topo,
   .puxar-soltando .pagina,
   .puxar-soltando .puxar {
