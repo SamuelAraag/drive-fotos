@@ -35,7 +35,7 @@ navegador.
   de teste nunca entra na `main`.
 - **Dono e nome do repositório de dados ficam fixos no código**, como no `beba-agua`. O
   nome da conta já é público neste plano, então esconder no login não protegeria nada.
-- **Cada foto é um commit no repositório de dados**, com três arquivos:
+- **Cada foto são três arquivos no repositório de dados**, gravados por commit, em lotes de até dez fotos:
   - o blob, que é a foto de fato e o asset mais importante, guardado como o navegador
     entrega;
   - a miniatura, gerada no navegador;
@@ -100,8 +100,13 @@ registros/AAAA/<id>.json      registro
 - **Um commit com os três arquivos:** a API de Contents grava um arquivo por commit. Para a
   foto entrar inteira ou não entrar, o envio usa a API de Git Data, que a mesma permissão
   de Contents cobre.
-- **Cinco escritas por foto:** blob da original, blob da miniatura, árvore, commit e
-  avanço da branch. O registro vai embutido na árvore, sem chamada própria.
+- **Duas escritas por foto e três por lote.** Por foto sobem o blob da original e o da
+  miniatura, os dois ao mesmo tempo. Árvore, commit e avanço da branch saem uma vez por
+  lote de até dez fotos. O registro vai embutido na árvore, sem chamada própria.
+- **A ponta da branch não é relida a cada gravação.** O app guarda a que ele mesmo deixou
+  no último commit, e só lê de novo quando o GitHub recusa o avanço.
+- **Medida de 2026-10-12,** com quatro fotos de 1,2 MB na base de testes, uma rodada de
+  cada: 19,9 s com um commit por foto (5,0 s por foto) e 8,5 s em lote (2,1 s por foto).
 - **Dois aparelhos ao mesmo tempo:** os arquivos nunca colidem, porque cada foto tem os
   seus. O que pode acontecer é a branch ter andado entre o início e o fim do envio. O
   GitHub responde 422 no avanço da branch. O app relê a ponta, refaz a árvore e o commit e
@@ -122,7 +127,8 @@ Detalhe e fontes em `../requisitos.md`. O que pesa no desenho:
 
 - **Espaço:** recomendado abaixo de 5 GB por repositório, o que dá de 1.000 a 1.600 fotos
   de 3 a 5 MB. É o teto que chega primeiro, antes das 3.000 fotos por pasta.
-- **Ritmo:** 500 escritas por hora. A cinco por foto, cerca de 100 fotos por hora.
+- **Ritmo:** 500 escritas por hora. Com duas por foto e três por lote de dez, cerca de 215
+  fotos por hora.
 - **Apagar não devolve espaço:** a foto continua no histórico do git.
 
 ## Miniatura
@@ -219,9 +225,11 @@ No molde do Google Fotos.
 ### Fluxo de envio
 
 1. A pessoa escolhe ou solta as fotos. O app descarta o que não entra e monta a fila.
-2. Para cada foto, em sequência: gera o `id`, gera a miniatura, monta o registro e faz o
-   commit dos três arquivos.
-3. A foto entra na grade assim que o commit dela termina, sem esperar o resto da fila.
+2. Para cada foto, em sequência: gera o `id`, gera a miniatura, monta o registro e sobe a
+   original e a miniatura. A cada dez fotos, ou quando a fila acaba, um commit guarda o
+   lote.
+3. As fotos entram na grade quando o commit do lote termina: de dez em dez numa leva
+   grande, e todas juntas numa leva pequena.
 4. Falha em uma foto não para a fila. O item fica com erro e "tentar de novo".
 
 ### Fluxo de leitura
@@ -472,7 +480,8 @@ vez dele.
 - [x] A data de envio deve ser isolada da data de criação. Feito no Épico 8.
   - [x] Enviei hoje uma imagem de 2015, deve salvar em 2015.
 - [x] Botão de atualizar igual ao do `beba-agua`. Feito no Épico 9.
-- [ ] Melhorar a performance no envio das imagens.
+- [ ] Melhorar a performance no envio das imagens. Primeira rodada feita em 2026-10-12:
+  lote, ponta reaproveitada e subida em paralelo. Em teste.
 - [ ] Rodar a análise de gaps.
 - [ ] Revisar todos os arquivos.
 - [ ] Remover todos os comentários.
@@ -521,6 +530,6 @@ A partir do dia 4 o app já é usável: entrar, enviar e ver.
 - **Origem do app.** Servido pelo GitHub Pages da conta principal, ele divide o
   armazenamento do navegador com os outros sites dela, que conseguiriam ler o token e o
   cache. A saída é um domínio próprio ou publicar a interface pelo Pages da conta separada.
-- **Um commit por foto ou por lote.** Um por foto dá cerca de 100 por hora. Agrupar várias
-  num commit sobe para perto de 240, mas a foto deixa de entrar na grade uma a uma. Medir
-  o limite real no Épico 3 antes de decidir.
+- **Tamanho do lote.** Decidido em 2026-10-12 que o commit é por lote. O lote de dez fotos
+  é um chute: maior é mais rápido, mas a grade demora mais a mostrar a primeira foto e uma
+  falha no commit atinge mais fotos. Ajustar depois de testar com levas reais.

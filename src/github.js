@@ -11,7 +11,6 @@ const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 
 const MAX_TENTATIVAS_DE_COMMIT = 4;
-const PARTE_DOS_BLOBS = 0.95; // fatia do progresso de uma foto que cabe ao envio dos arquivos
 
 const URL_REPO = `https://api.github.com/repos/${DONO}/${REPO}`;
 const CHAVE_TOKEN = 'drive-fotos.token';
@@ -45,6 +44,7 @@ export function salvarToken(token) {
 
 export function apagarToken() {
   localStorage.removeItem(CHAVE_TOKEN);
+  esquecerPonta();
 }
 
 // O GitHub usa 403 e 429 tanto para falta de permissão quanto para limite de ritmo.
@@ -187,49 +187,46 @@ async function lerPonta() {
   return { commit: json.commit.sha, arvore: json.commit.commit.tree.sha };
 }
 
-// Grava vários arquivos num commit só, pela API de Git Data: ou entram todos, ou nenhum.
-// Cada arquivo é { caminho, base64 }, { caminho, texto }, { caminho, apagar: true } ou
-// { caminho, sha }, que aponta para um arquivo que o repositório já tem, sem enviar de novo.
-// Devolve { caminho: sha } dos que subiram em base64. `aoProgredir` recebe de 0 a 1: os blobs levam a conta até
-// PARTE_DOS_BLOBS, e a árvore, o commit e a branch fecham o resto.
-export async function gravar(arquivos, mensagem, aoProgredir = () => {}) {
-  const entradas = [];
-  const shas = {};
-  const total = arquivos.reduce((soma, arquivo) => soma + (arquivo.base64?.length ?? 0), 0);
-  let jaSubiu = 0;
-  for (const arquivo of arquivos) {
-    const entrada = { path: arquivo.caminho, mode: '100644', type: 'blob' };
-    if (arquivo.apagar) {
-      entrada.sha = null; // sha nulo tira o arquivo da árvore
-    } else if (arquivo.sha) {
-      entrada.sha = arquivo.sha;
-    } else if (arquivo.texto != null) {
-      entrada.content = arquivo.texto; // o GitHub cria o blob junto com a árvore
-    } else {
-      const tamanho = arquivo.base64.length;
-      const blob = await enviarComProgresso('/git/blobs', { content: arquivo.base64, encoding: 'base64' }, (fracao) =>
-        aoProgredir(((jaSubiu + fracao * tamanho) / total) * PARTE_DOS_BLOBS),
-      );
-      jaSubiu += tamanho;
-      aoProgredir((jaSubiu / total) * PARTE_DOS_BLOBS);
-      entrada.sha = blob.sha;
-      shas[arquivo.caminho] = blob.sha;
-    }
-    entradas.push(entrada);
-  }
+// Envia um arquivo em base64 e devolve o sha dele. O arquivo fica no GitHub, mas só passa a
+// existir no repositório quando um commit aponta para ele (ver `gravar`).
+export async function enviarBlob(base64, aoProgredir = () => {}) {
+  const blob = await enviarComProgresso('/git/blobs', { content: base64, encoding: 'base64' }, aoProgredir);
+  return blob.sha;
+}
 
-  // Os blobs já estão no GitHub. Se outro aparelho moveu a branch no meio do caminho,
-  // refaz só a árvore e o commit sobre a ponta nova.
+// A ponta da branch, como este aparelho a deixou no último commit que fez. Poupa uma leitura a
+// cada gravação. Se outro aparelho gravou no meio tempo, o GitHub recusa o avanço, e aí a
+// ponta é lida de novo.
+let pontaConhecida = null;
+
+export function esquecerPonta() {
+  pontaConhecida = null;
+}
+
+// Grava vários arquivos num commit só, pela API de Git Data: ou entram todos, ou nenhum.
+// Cada arquivo é { caminho, sha }, que aponta para um arquivo que o GitHub já tem (enviado por
+// `enviarBlob` ou já guardado no repositório), { caminho, texto } ou { caminho, apagar: true }.
+export async function gravar(arquivos, mensagem) {
+  const entradas = arquivos.map((arquivo) => {
+    const entrada = { path: arquivo.caminho, mode: '100644', type: 'blob' };
+    if (arquivo.apagar) entrada.sha = null; // sha nulo tira o arquivo da árvore
+    else if (arquivo.sha) entrada.sha = arquivo.sha;
+    else entrada.content = arquivo.texto; // o GitHub cria o blob junto com a árvore
+    return entrada;
+  });
+
   for (let tentativa = 1; ; tentativa++) {
-    const ponta = await lerPonta();
+    const ponta = pontaConhecida ?? (await lerPonta());
     const arvore = await enviar('POST', '/git/trees', { base_tree: ponta.arvore, tree: entradas });
     const commit = await enviar('POST', '/git/commits', { message: mensagem, tree: arvore.sha, parents: [ponta.commit] });
     try {
       await enviar('PATCH', `/git/refs/heads/${encodeURIComponent(BRANCH)}`, { sha: commit.sha });
-      aoProgredir(1);
-      return shas;
+      pontaConhecida = { commit: commit.sha, arvore: arvore.sha };
+      return;
     } catch (erro) {
-      // 422 (ou 409) aqui quer dizer que a branch andou e o commit não é mais a continuação dela.
+      // 422 (ou 409) aqui quer dizer que a branch andou e o commit não é mais a continuação dela:
+      // refaz a árvore e o commit sobre a ponta nova, lida agora.
+      pontaConhecida = null;
       if (erro.status !== 422 && erro.status !== 409) throw erro;
       if (tentativa >= MAX_TENTATIVAS_DE_COMMIT) {
         throw new ErroGitHub('conflito', 'Outro aparelho está gravando ao mesmo tempo. Tente de novo em instantes.');

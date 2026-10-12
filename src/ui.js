@@ -989,7 +989,8 @@ export function erroNaZona(mensagem) {
 }
 
 function resumoDaFila(itens, { enviando, pausadaAte }) {
-  const concluidos = itens.filter((item) => item.estado === 'concluido').length;
+  // A foto que já subiu e espera o commit do lote conta como feita na contagem.
+  const concluidos = itens.filter((item) => item.estado === 'concluido' || item.estado === 'gravando').length;
   const comErro = itens.filter((item) => item.estado === 'erro').length;
   if (pausadaAte) {
     const hora = pausadaAte.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -1013,7 +1014,8 @@ let posicaoNaFila = ''; // "Enviando 2 de 5", repetido ao lado do percentual
 // está andando, para a barra parada não parecer travada.
 export function renderProgresso(fracao) {
   const percentual = Math.round(fracao * 100);
-  const fase = fracao <= 0 ? 'Preparando...' : fracao >= 0.95 && fracao < 1 ? 'Concluindo...' : `${percentual}%`;
+  // Com tudo enviado ainda falta o GitHub confirmar que recebeu os arquivos.
+  const fase = fracao <= 0 ? 'Preparando...' : fracao >= 1 ? 'Concluindo...' : `${percentual}%`;
   $('zona-barra-cheia').style.setProperty('--progresso', fracao);
   $('zona-barra').setAttribute('aria-valuenow', percentual);
   $('zona-detalhe').textContent = `${posicaoNaFila} · ${fase}`;
@@ -1025,18 +1027,36 @@ export function renderProgresso(fracao) {
 export function renderFila(itens, situacao) {
   const atual = itens.find((item) => item.estado === 'enviando');
   const ocupada = Boolean(atual || situacao.pausadaAte);
+  // Os arquivos já subiram e falta o commit que põe as fotos no repositório.
+  const gravando = ocupada ? 0 : itens.filter((item) => item.estado === 'gravando').length;
   // Sem nada subindo, a conferência das repetidas é o que a zona tem para contar.
-  const conferindo = !ocupada && situacao.conferindo;
+  const conferindo = !ocupada && !gravando && situacao.conferindo;
   // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
-  $('zona-titulo').textContent = atual ? atual.nome : situacao.pausadaAte ? 'Envio em pausa' : conferindo ? 'Conferindo as fotos' : TITULO_DA_ZONA;
+  $('zona-titulo').textContent = atual
+    ? atual.nome
+    : situacao.pausadaAte
+      ? 'Envio em pausa'
+      : gravando
+        ? gravando === 1
+          ? 'Guardando a foto'
+          : `Guardando ${gravando} fotos`
+        : conferindo
+          ? 'Conferindo as fotos'
+          : TITULO_DA_ZONA;
   posicaoNaFila = atual ? resumoDaFila(itens, situacao) : '';
-  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : conferindo ? 'Vendo se alguma já está guardada...' : DETALHE_DA_ZONA;
+  $('zona-detalhe').textContent = ocupada
+    ? resumoDaFila(itens, situacao)
+    : gravando
+      ? 'Concluindo...'
+      : conferindo
+        ? 'Vendo se alguma já está guardada...'
+        : DETALHE_DA_ZONA;
   $('zona-barra').hidden = !atual;
   if (atual) {
     $('zona-barra').setAttribute('aria-label', `Envio de ${atual.nome}`);
     renderProgresso(situacao.progresso);
   } else {
-    $('zona').classList.toggle('zona--varrendo', conferindo);
+    $('zona').classList.toggle('zona--varrendo', Boolean(gravando) || conferindo);
   }
 
   const falhas = itens.filter((item) => item.estado === 'erro');
