@@ -81,13 +81,17 @@ function marcarSemMiniatura(quadro, foto) {
   quadro.append(el('span', 'so-leitor', `${descricaoDaFoto(foto)}, sem miniatura`));
 }
 
+export function mostrarDestaque() {
+  document.querySelector('.grade__quadro--destaque')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
   $('grade').replaceChildren();
 }
 
-export function renderPrincipal(grupos, total, baixar) {
+export function renderPrincipal(grupos, total, baixar, destaque) {
   limparPrincipal();
   $('principal-vazia').hidden = total > 0;
   $('principal-total').hidden = total === 0;
@@ -110,6 +114,10 @@ export function renderPrincipal(grupos, total, baixar) {
     const lista = el('ul', 'grade');
     for (const foto of grupo.fotos) {
       const quadro = el('li', 'grade__quadro');
+      if (foto.id === destaque) {
+        quadro.classList.add('grade__quadro--destaque');
+        quadro.append(el('span', 'grade__selo', 'Enviada agora'));
+      }
       if (foto.miniatura) {
         quadro.classList.add('grade__quadro--carregando');
         baixarDoQuadro.set(quadro, { foto, baixar });
@@ -142,48 +150,42 @@ function resumoDaFila(itens, { enviando, pausadaAte }) {
     // Conta também as que falharam, para o número não andar para trás depois de um erro.
     return `Enviando ${Math.min(itens.length, concluidos + comErro + 1)} de ${itens.length}`;
   }
-  if (itens.some((item) => item.estado === 'aguardando')) return 'Envio parado. Entre de novo para continuar.';
-  if (comErro > 0) {
-    const enviadas = concluidos === 1 ? '1 enviada' : `${concluidos} enviadas`;
-    return `${enviadas}, ${comErro} com falha`;
-  }
-  return concluidos === 1 ? 'Foto enviada.' : `${concluidos} fotos enviadas.`;
+  return '';
 }
 
 const TITULO_DA_ZONA = $('zona-titulo').textContent;
 const DETALHE_DA_ZONA = $('zona-detalhe').textContent;
 
-const ROTULO_DO_ESTADO = { aguardando: 'Na fila', enviando: 'Enviando...', concluido: 'Enviada' };
-
+// Não há histórico de envio: o que subiu aparece na grade, com a última em destaque.
+// Aqui ficam só as fotos que falharam, porque elas precisam do "Tentar de novo".
 export function renderFila(itens, situacao) {
-  // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
   const atual = itens.find((item) => item.estado === 'enviando');
+  const ocupada = Boolean(atual || situacao.pausadaAte);
+  // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
   $('zona').classList.toggle('zona--enviando', Boolean(atual));
-  $('zona-titulo').textContent = atual ? atual.arquivo.name : TITULO_DA_ZONA;
-  $('zona-detalhe').textContent = atual ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
+  $('zona-titulo').textContent = atual ? atual.arquivo.name : situacao.pausadaAte ? 'Envio em pausa' : TITULO_DA_ZONA;
+  $('zona-detalhe').textContent = ocupada ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
 
-  $('fila').hidden = itens.length === 0;
-  if (itens.length === 0) return;
-  $('fila-resumo').textContent = resumoDaFila(itens, situacao);
-  $('fila-limpar').hidden = !itens.some((item) => item.estado === 'concluido' || item.estado === 'erro');
-
-  const linhas = itens.map((item) => {
-    const linha = el('li', `fila__item fila__item--${item.estado}`);
+  const falhas = itens.filter((item) => item.estado === 'erro');
+  $('fila').hidden = falhas.length === 0;
+  $('fila-resumo').textContent = falhas.length === 1 ? '1 foto não subiu' : `${falhas.length} fotos não subiram`;
+  const linhas = falhas.map((item) => {
+    const linha = el('li', 'fila__item');
     const texto = el('div', 'fila__texto');
     texto.append(el('span', 'fila__nome', item.arquivo.name));
-    // O estado vai em texto, porque só a cor não comunica.
-    const estado = item.estado === 'erro' ? item.mensagem : ROTULO_DO_ESTADO[item.estado];
-    texto.append(el('span', 'fila__estado', `${fmtTamanho(item.arquivo.size)} · ${estado}`));
-    linha.append(texto);
-    if (item.estado === 'erro') {
-      const botao = el('button', 'botao botao--fantasma', 'Tentar de novo');
-      botao.type = 'button';
-      botao.dataset.n = item.n;
-      linha.append(botao);
-    }
+    texto.append(el('span', 'fila__estado', `${fmtTamanho(item.arquivo.size)} · ${item.mensagem}`));
+    const botao = el('button', 'botao botao--fantasma', 'Tentar de novo');
+    botao.type = 'button';
+    botao.dataset.n = item.n;
+    linha.append(texto, botao);
     return linha;
   });
   $('fila-lista').replaceChildren(...linhas);
+}
+
+// Texto para o leitor de tela quando a leva termina. Na tela, quem conta é o destaque na grade.
+export function anunciarEnvio(texto) {
+  $('envio-status').textContent = texto;
 }
 
 // Arrastar e soltar. Os ouvintes ficam na janela: soltar em qualquer canto da página envia.

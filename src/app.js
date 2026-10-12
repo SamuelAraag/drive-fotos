@@ -21,6 +21,7 @@ let proximoItem = 1;
 let enviando = false;
 let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
+let destaque = null; // id da última foto enviada nesta sessão, marcada na grade
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
@@ -85,7 +86,7 @@ function esquecerMiniaturas() {
 
 function render() {
   if (!fotos) return;
-  ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura);
+  ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura, destaque);
   ui.mostrarTela('principal');
 }
 
@@ -144,6 +145,7 @@ function sair() {
   fotos = null;
   fila = [];
   pausadaAte = null;
+  destaque = null;
   renderFila();
   ui.limparPrincipal();
   esquecerMiniaturas();
@@ -229,6 +231,7 @@ async function enviarFoto(item) {
   };
   if (fotos) {
     fotos = [nova, ...fotos.filter((existente) => existente.id !== nova.id)].sort(porIdDecrescente);
+    destaque = nova.id;
     render();
   }
 }
@@ -271,7 +274,14 @@ async function bombear() {
   }
   enviando = false;
   soltarTela();
+  // A leva acabou: o que subiu sai da fila, e só as falhas ficam na tela.
+  const enviadas = fila.filter((item) => item.estado === 'concluido').length;
+  fila = fila.filter((item) => item.estado !== 'concluido');
   renderFila();
+  if (enviadas > 0) {
+    ui.anunciarEnvio(enviadas === 1 ? 'Foto enviada.' : `${enviadas} fotos enviadas.`);
+    ui.mostrarDestaque();
+  }
 }
 
 function tentarDeNovo(n) {
@@ -283,8 +293,8 @@ function tentarDeNovo(n) {
   bombear();
 }
 
-function limparFila() {
-  fila = fila.filter((item) => item.estado === 'aguardando' || item.estado === 'enviando');
+function dispensarFalhas() {
+  fila = fila.filter((item) => item.estado !== 'erro');
   renderFila();
 }
 
@@ -295,7 +305,7 @@ ui.ligarEventos({
   trocarToken: () => ui.abrirLogin(),
   arquivos: adicionarArquivos,
   tentarDeNovo,
-  limparFila,
+  limparFila: dispensarFalhas,
   podeEnviar: () => Boolean(fotos && github.lerToken()),
 });
 

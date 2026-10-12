@@ -156,9 +156,11 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
 - **Zona durante o envio:** mostra o nome da foto que está subindo e "Enviando 2 de 5", com
   uma varredura de luz no lugar da barra, porque não há percentual por foto. No arraste,
   um véu nasce da zona e cobre a tela, como no `cloud-files`.
-- **Fila de envio:** uma foto por vez, em sequência. Cada item tem estado (na fila,
-  enviando, enviado, erro), e a fila mostra "Enviando 2 de 5", o que falhou e um "tentar de
-  novo" por item, sem refazer a seleção.
+- **Fila de envio:** uma foto por vez, em sequência. Não há histórico na tela: o que subiu
+  aparece direto na grade, e a última foto enviada fica em destaque, com contorno, selo
+  "Enviada agora" e um halo que se abre duas vezes.
+- **Falhas:** só as fotos que não subiram ficam listadas, cada uma com o motivo e um
+  "tentar de novo", sem refazer a seleção.
 - **Recusas na entrada:** arquivo vazio, pasta, o que não for imagem e foto acima de 25 MB
   ficam de fora, com aviso.
 - **Limite de ritmo:** quando o GitHub responde que o limite estourou, a fila pausa, mostra
