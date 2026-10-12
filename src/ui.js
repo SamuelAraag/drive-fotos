@@ -952,14 +952,14 @@ export function renderFila(itens, situacao) {
   $('fila-lista').replaceChildren(...linhas);
 }
 
-// Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que está sendo enviada
-// e a que já existe: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
+// Fotos repetidas: um diálogo por leva. Cada linha põe lado a lado a foto que já existe, à
+// esquerda, e a que está sendo enviada, à direita e em destaque: { nova: { nome, tamanho, url }, outra: { nome, tamanho, url, foto } }.
 // `outra.foto` é a foto guardada; vem vazia quando a outra cópia ainda está na fila, e aí a
 // imagem dela vem em `outra.url`. Devolve, na ordem das linhas, quais manter em dobro.
 // Com uma repetida só, são dois botões. Com várias, cada par tem a própria caixa de marcar, e
 // nada vem marcado. Fechar com Esc ou clicando fora é não enviar nenhuma: nada é gravado.
-function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, detalhe) {
-  const figura = el('figure', 'repetidas__foto');
+function quadroDaRepetida(rotulo, { nome, tamanho, url, foto }, { nova = false, detalhe = null } = {}) {
+  const figura = el('figure', nova ? 'repetidas__foto repetidas__foto--nova' : 'repetidas__foto repetidas__foto--outra');
   const quadro = el('div', 'repetidas__quadro');
   const imagem = el('img', 'repetidas__imagem');
   imagem.alt = '';
@@ -1012,11 +1012,12 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
   $('repetidas-lista').replaceChildren(
     ...linhas.map(({ nova, outra }) => {
       const item = el('li', 'repetidas__item');
+      // A que já existe vem primeiro, e a nova, à direita, é a que fica em destaque.
       item.append(
-        quadroDaRepetida('Enviando agora', nova),
         outra.foto
-          ? quadroDaRepetida('Já guardada', outra, descricaoDaFoto(outra.foto).replace('Foto de ', ''))
+          ? quadroDaRepetida('Já guardada', outra, { detalhe: descricaoDaFoto(outra.foto).replace('Foto de ', '') })
           : quadroDaRepetida('Na fila de envio', outra),
+        quadroDaRepetida('Enviando agora', nova, { nova: true }),
       );
       if (varias) {
         const escolha = el('label', 'repetidas__escolha');

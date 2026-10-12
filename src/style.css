@@ -1239,6 +1239,22 @@ h2:focus {
   background: var(--trilho);
 }
 
+/* A nova é a que está em jogo: ganha o contorno do destaque da grade e o rótulo em azul. A que
+   já existe fica um pouco apagada, sem deixar de dar para comparar. */
+.repetidas__foto--nova .repetidas__quadro {
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+}
+
+.repetidas__foto--nova .repetidas__legenda > :first-child {
+  color: var(--azul);
+  font-weight: 600;
+}
+
+.repetidas__foto--outra .repetidas__imagem {
+  filter: saturate(0.45) brightness(0.75);
+}
+
 .repetidas__imagem {
   display: block;
   width: 100%;
