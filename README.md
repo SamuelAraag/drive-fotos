@@ -45,5 +45,5 @@ src/ui.js        telas
 
 ## Estado
 
-Em construção. Já dá para entrar com o token e ver quantas fotos estão guardadas. A grade,
-o envio e a foto aberta ainda não existem.
+Em construção. Já dá para entrar com o token e ver a grade de miniaturas, agrupada por dia.
+O envio e a foto aberta ainda não existem.

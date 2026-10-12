@@ -47,6 +47,7 @@ function minutosDeEspera(resposta) {
   return resposta.status === 429 ? 1 : null;
 }
 
+// Devolve a resposta já conferida. Quem chama decide se lê como JSON ou como arquivo.
 async function requisitar(caminho, opcoes = {}) {
   let resposta;
   try {
@@ -65,7 +66,7 @@ async function requisitar(caminho, opcoes = {}) {
     throw new ErroGitHub('rede', 'Sem conexão com o GitHub. Confira a internet e tente de novo.');
   }
 
-  if (resposta.ok) return resposta.json();
+  if (resposta.ok) return resposta;
 
   if (resposta.status === 403 || resposta.status === 429) {
     const minutos = minutosDeEspera(resposta);
@@ -103,8 +104,17 @@ async function requisitar(caminho, opcoes = {}) {
 
 // Uma chamada lista o repositório inteiro. Cada item é { caminho, sha, tamanho }.
 export async function lerArvore() {
-  const json = await requisitar(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
+  const resposta = await requisitar(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
+  const json = await resposta.json();
   return json.tree
     .filter((entrada) => entrada.type === 'blob')
     .map((entrada) => ({ caminho: entrada.path, sha: entrada.sha, tamanho: entrada.size }));
+}
+
+// Arquivo de repositório privado não abre por URL direta: vem pela API, com o token.
+export async function lerBlob(sha) {
+  const resposta = await requisitar(`/git/blobs/${sha}`, {
+    headers: { Accept: 'application/vnd.github.raw+json' },
+  });
+  return resposta.blob();
 }

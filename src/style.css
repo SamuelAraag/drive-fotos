@@ -48,12 +48,15 @@ body {
 
 h1,
 h2,
+h3,
 p,
-ol {
+ol,
+ul {
   margin: 0;
 }
 
-ol {
+ol,
+ul {
   padding: 0;
   list-style: none;
 }
@@ -71,6 +74,15 @@ h2:focus {
   outline: none;
 }
 
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .texto-suave {
   color: var(--texto-suave);
 }
@@ -84,7 +96,7 @@ h2:focus {
 .topo,
 .pagina {
   width: 100%;
-  max-width: 440px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 var(--e4);
 }
@@ -132,6 +144,9 @@ h2:focus {
 
 .tela--centro {
   align-items: center;
+  width: 100%;
+  max-width: 408px;
+  margin: 0 auto;
   padding-top: var(--e7);
   text-align: center;
 }
@@ -212,6 +227,67 @@ h2:focus {
   }
 }
 
+/* Grade */
+
+.dias {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e5);
+}
+
+.dia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+}
+
+.dia__titulo {
+  font-size: var(--fonte-base);
+  font-weight: 600;
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--e1);
+}
+
+.grade__quadro {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--superficie);
+}
+
+.grade__quadro--carregando {
+  animation: pulsar 1.6s ease-in-out infinite;
+}
+
+/* Sem miniatura: o mesmo quadro, com um traço que o separa do que ainda está carregando. */
+.grade__quadro--vazio {
+  border: 1px dashed var(--trilho);
+}
+
+.grade__imagem {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: surgir var(--medio);
+}
+
+@keyframes pulsar {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes surgir {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Diálogos e login */
 
 .dialogo {
@@ -284,5 +360,10 @@ h2:focus {
 
   .girador {
     animation-duration: 3s;
+  }
+
+  .grade__quadro--carregando,
+  .grade__imagem {
+    animation: none;
   }
 }
