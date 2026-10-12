@@ -654,36 +654,82 @@ Pedido em 2026-10-12.
 
 Pedido em 2026-10-12: trazer para o Drive Fotos tudo o que existe até hoje.
 
-- **Antes de qualquer envio, o levantamento.** Onde as fotos estão hoje, quantas são,
-  quanto pesam e em que formatos. Sem esses números o resto do épico não fecha.
-- **O teto decide o desenho.** Um repositório de dados comporta de 1.000 a 1.600 fotos,
-  pelos 5 GB recomendados. Se o acervo passa disso, a pendência "Álbum curado ou backup da
-  câmera" precisa ser fechada primeiro: ou uma seleção das fotos, ou vários repositórios
-  de dados, que o app ainda não sabe ler (RG04).
-- **O que não entra:** vídeo e foto acima de 25 MB. Ficam listados, para ter outro destino.
-- **Dois caminhos de envio:**
-  - **Pelo app,** em levas. Serve para acervo pequeno. O ritmo é de cerca de 215 fotos por
-    hora, e a tela precisa ficar aberta.
-  - **Por um script no computador,** que grava direto num clone do `drive-fotos-dados`, no
-    mesmo formato do app: o mesmo `id`, a miniatura e o registro. Não passa pela API, então
-    não tem limite de ritmo, e sobe com `git push`.
-- **Data da foto:** a mesma ordem do Épico 8, EXIF e depois nome do arquivo. Foto que veio
-  de exportação de outro serviço pode trazer a data num arquivo à parte, que o script lê.
-  As que sobrarem sem data entram marcadas e vão para a tela "Fotos sem data".
-- **Repetidas:** o mesmo conteúdo não entra duas vezes, pela comparação do Épico 7.
+**Implementação inicial:** a página dedicada `backup.html` aceita uma pasta ou uma seleção de
+arquivos, confere nomes e hashes antes do envio, estima o espaço, deixa pausar/retomar/cancelar
+e gera um CSV com o resultado. Após recarregar, é preciso escolher a mesma pasta novamente; a
+conferência ignora as fotos já confirmadas com o mesmo nome e conteúdo. Ainda faltam o ensaio
+com cem fotos e a validação da permissão persistente da pasta nos navegadores alvo.
+
+- **Tela "Backup" no computador.** A pessoa escolhe uma pasta e o app encontra as imagens
+  dentro dela, incluindo subpastas. Antes de enviar, mostra quantas encontrou, o volume
+  total, os formatos, as repetidas e o que não pode importar.
+- **Escolha da pasta compatível com o navegador.** Usar o seletor de diretório quando
+  disponível e oferecer seleção de pasta por `<input type="file" webkitdirectory>` como
+  alternativa. Se o navegador não permitir ler pastas, explicar o limite e permitir escolher
+  várias imagens pelo seletor de arquivos.
+- **Importação enquanto a aba estiver aberta.** Depois da conferência, a pessoa inicia o
+  envio. Ele continua enquanto a aba do Drive Fotos estiver aberta, mesmo que a pessoa mude
+  para outra aba. A tela mostra progresso geral e por arquivo, estado atual, pausa, retomada
+  e cancelamento. O navegador pode reduzir a velocidade da aba em segundo plano; fechar a
+  aba ou o navegador interrompe o trabalho. Não prometer execução em background do sistema
+  operacional.
+- **Retomada.** A versão inicial avisa se uma importação da aba foi interrompida. A pessoa
+  escolhe a mesma pasta de novo; o app refaz a conferência por nome e conteúdo e ignora o que
+  já foi confirmado no repositório. A lista completa de caminhos e estados e a reutilização
+  automática da permissão da pasta ainda dependem de validação por navegador. Não guardar
+  outra cópia completa do acervo no armazenamento do navegador.
+- **Antes de enviar, fazer o levantamento.** Informar totais, tamanho e formatos, comparar
+  com o espaço conhecido do repositório e apresentar uma prévia do que será enviado,
+  ignorado ou precisa de decisão. Não começar a transferência até a pessoa confirmar.
+- **Capacidade como barreira de segurança.** Um repositório tem recomendação de até 5 GB e o
+  aviso do app começa em 4 GB. Se a previsão ultrapassar o aviso, pausar no resumo e pedir
+  que a pessoa reduza a seleção ou decida como dividir o acervo. Não começar uma migração
+  que não cabe nem escolher/criar outro repositório automaticamente; vários repositórios
+  exigem resolver antes o RG04.
+- **O que não entra:** vídeos, arquivos vazios, formatos que o app não reconhece como imagem
+  e imagens acima do limite atual de 25 MB. Listar cada item ignorado com o motivo, para não
+  parecer que foi importado.
+- **Lotes e limites da API.** Reutilizar a fila de envio do app, o limite de dez fotos por
+  commit, a pausa quando o GitHub limitar o ritmo e a retomada. Não paralelizar sem limite.
+  O backup envia três fotos por vez, com a original e a miniatura juntas, e segura o ritmo
+  em 110 escritas por minuto. Medida de 2026-10-12 na base de testes, com blobs de 20 KB:
+  128 escritas por minuto passaram por 70 s, e uma rajada de 530 por minuto foi bloqueada
+  por 1 minuto depois de 554 escritas. O teto de 500 por hora não apareceu. Falta medir o
+  ritmo sustentado e com fotos de tamanho real.
+- **Data da foto:** manter a ordem do Épico 8, EXIF e depois nome do arquivo. Para exportações
+  com arquivos auxiliares de metadados, identificar e especificar os formatos suportados
+  antes da implementação. Sem uma data válida, importar com o estado já usado pelo app para
+  que a foto apareça em "Fotos sem data".
+- **Repetidas:** verificar o nome e a identidade do conteúdo contra as fotos do repositório
+  e contra os arquivos já vistos nesta importação. Ignorar como repetida somente quando nome
+  e conteúdo coincidirem; mostrar essa contagem no resumo. Conteúdo idêntico com outro nome
+  segue a regra do Épico 7 para conteúdo repetido. Se o nome coincidir, mas o conteúdo for
+  diferente, conservar as duas fotos usando o próximo nome livre, sem sobrescrever a
+  existente.
 - **Ensaio na base de testes,** com uma amostra de cem fotos, antes da base oficial.
-- **Cópia de segurança antes e depois:** um `git clone` do repositório de dados antes de
-  começar, e as fotos de origem só saem de onde estão depois da conferência.
-- **Conferência:** o número de fotos na origem bate com o da grade mais o da lista do que
-  ficou de fora, e uma amostra é aberta para ver data, nome e orientação.
+- **Cópias de segurança:** recomendar que exista uma cópia independente da origem. Não
+  apagar nem modificar arquivos da pasta escolhida. Depois do envio, conferir a migração
+  antes de considerar o repositório a cópia válida.
+- **Conferência:** totais da origem = importadas + repetidas + ignoradas, sem itens pendentes
+  ou com erro. Abrir uma amostra para conferir nome, data e orientação.
 - **Em aberto:**
-  - De onde vêm as fotos: galeria do celular, outro serviço de fotos, HD ou vários.
-  - HEIC. O app guarda o arquivo como chega, e o Chrome não abre HEIC. Converter para JPEG
-    na migração ou guardar o original e ficar sem miniatura nele.
-  - O script fica neste repositório, que é público, ou no de dados. Ele não pode levar
-    nome de foto nem caminho do computador.
-- **Pronto quando:** todas as fotos do levantamento estão na grade, no dia certo, ou na
-  lista do que ficou de fora com o motivo, e o espaço usado está abaixo do aviso de 4 GB.
+  - Origem e tamanho reais do acervo. Fazer o levantamento antes de fechar a estratégia de
+    capacidade e o tamanho dos lotes de teste.
+  - HEIC: decidir se a importação converte para JPEG ou conserva o original sem miniatura
+    em navegadores incompatíveis. A conversão precisa preservar orientação e data.
+  - Metadados auxiliares: listar os formatos de exportação que serão lidos e como associar
+    cada arquivo de metadados à imagem correta.
+  - Persistência do acesso à pasta e retomada automática: confirmar o comportamento em cada
+    navegador alvo. A versão inicial pede para escolher a pasta novamente após uma
+    interrupção; a fila não afirma que continuará sem a página aberta.
+  - Se o acervo não couber: fechar RG04 antes de escolher entre vários repositórios e uma
+    ferramenta de importação por script. O script não é o caminho principal deste épico.
+- **Pronto quando:** uma pessoa escolhe uma pasta, confere o resumo e inicia a importação;
+  pode acompanhar, pausar, retomar ou cancelar; uma interrupção recuperável não reenvia o
+  que já foi confirmado; e o relatório final explica todos os arquivos encontrados. Na
+  base de testes, cem fotos são conferidas na grade ou listadas como ignoradas/com erro, com
+  amostra validada quanto a data, nome e orientação. A base oficial só recebe a migração
+  depois de confirmados espaço suficiente e cópia de segurança independente.
 
 ### Épico 18: Enviar as fotos do dia
 
@@ -766,7 +812,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 14 | Revisão de todos os arquivos | 1 dia | 13 |
 | 15 | Remoção dos comentários | 0,5 dia | 14 |
 | 16 | Documentação das usabilidades | 0,5 dia | 15 |
-| 17 | Migração do acervo | 2 dias, fora o tempo de envio | 13 |
+| 17 | Migração do acervo | 3 dias, fora o tempo de envio | 13 |
 | 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o

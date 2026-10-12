@@ -11,6 +11,7 @@ const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 
 const MAX_TENTATIVAS_DE_COMMIT = 4;
+const TEMPO_MAXIMO_DE_ENVIO_MS = 5 * 60 * 1000;
 
 const URL_REPO = `https://api.github.com/repos/${DONO}/${REPO}`;
 const CHAVE_TOKEN = 'drive-fotos.token';
@@ -139,6 +140,7 @@ function enviarComProgresso(caminho, corpo, aoProgredir) {
     pedido.upload.onprogress = (evento) => {
       if (evento.lengthComputable) aoProgredir(evento.loaded / evento.total);
     };
+    pedido.timeout = TEMPO_MAXIMO_DE_ENVIO_MS;
     pedido.onload = () => {
       if (pedido.status < 200 || pedido.status >= 300) {
         rejeitar(erroDaResposta(pedido.status, (nome) => pedido.getResponseHeader(nome)));
@@ -151,6 +153,7 @@ function enviarComProgresso(caminho, corpo, aoProgredir) {
       }
     };
     pedido.onerror = () => rejeitar(new ErroGitHub('rede', ERRO_DE_REDE));
+    pedido.ontimeout = () => rejeitar(new ErroGitHub('rede', 'O envio demorou mais de 5 minutos e foi interrompido. Tente enviar o arquivo novamente.'));
     pedido.send(JSON.stringify(corpo));
   });
 }
