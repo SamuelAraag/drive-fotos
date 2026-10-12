@@ -25,7 +25,10 @@ navegador.
   app. Aqui os dados ficam em outro repositório, de outra conta.
 - **Token:** fine-grained, gerado na conta separada, com acesso só ao `drive-fotos-dados`,
   Contents em "Read and write". É o token que protege as fotos: sem ele, a interface
-  pública não lê nada. A conta principal não tem acesso nenhum ao repositório de dados.
+  pública não lê nada.
+- **Acesso da conta principal:** ela tem acesso de owner ao `drive-fotos-dados`. Serve para
+  administrar e para a cópia de segurança por `git clone`. O app não usa esse acesso: ele
+  entra só com o token da conta separada.
 - **Dono e nome do repositório de dados ficam fixos no código**, como no `beba-agua`. O
   nome da conta já é público neste plano, então esconder no login não protegeria nada.
 - **Cada foto é um commit no repositório de dados**, com três arquivos:
