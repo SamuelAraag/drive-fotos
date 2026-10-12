@@ -538,27 +538,37 @@ h2:focus {
   }
 }
 
-/* A última foto enviada. Três camadas, da que fica para a que passa:
-   o contorno e o selo ficam, para achar a foto na grade a qualquer momento;
-   a entrada e o halo acontecem uma vez, para puxar o olho no instante em que ela sobe.
+/* A última foto enviada. O contorno e o selo ficam, para achar a foto na grade a qualquer
+   momento. A entrada e o halo (--pousou) acontecem uma vez, no instante em que ela chega.
    Tudo anima só transform e opacity. */
+.grade__quadro {
+  transition: opacity var(--medio);
+}
+
 .grade__quadro--destaque {
   z-index: 1;
   overflow: visible;
   outline: 3px solid var(--azul);
   outline-offset: -3px;
-  animation: destaque-entra var(--expandir);
 }
 
-@keyframes destaque-entra {
+.grade__quadro--destaque:focus-visible {
+  outline-color: var(--foco);
+}
+
+/* Um assentar curto no pouso, para a chegada não parecer um corte. */
+.grade__quadro--pousou {
+  animation: destaque-pousa var(--rapido);
+}
+
+@keyframes destaque-pousa {
   from {
-    transform: scale(0.9);
-    opacity: 0.3;
+    transform: scale(1.05);
   }
 }
 
 /* Halo: um anel do tamanho do quadro que se abre e some, duas vezes. */
-.grade__quadro--destaque::after {
+.grade__quadro--pousou::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -591,6 +601,9 @@ h2:focus {
   color: var(--fundo);
   font-size: var(--fonte-pequena);
   font-weight: 700;
+}
+
+.grade__quadro--pousou .grade__selo {
   animation: destaque-selo var(--medio) 0.15s backwards;
 }
 
@@ -599,6 +612,71 @@ h2:focus {
     transform: translateY(var(--e2));
     opacity: 0;
   }
+}
+
+/* Foco: enquanto a foto nova se apresenta, as outras recuam. */
+.dias--holofote .grade__quadro:not(.grade__quadro--destaque) {
+  opacity: 0.3;
+}
+
+/* A foto em voo, entre a zona de envio e o lugar dela na grade. O ponto de apoio fica acima
+   dela, para o balanço ser de pêndulo. */
+.voo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  overflow: hidden;
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+  background: var(--superficie);
+  transform-origin: 50% -140%;
+  pointer-events: none;
+}
+
+/* Atalho para a foto que subiu fora da tela. */
+.atalho {
+  position: fixed;
+  right: var(--e4);
+  bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  left: var(--e4);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  max-width: 408px;
+  margin: 0 auto;
+  padding: var(--e2) var(--e2) var(--e2) var(--e3);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  animation: atalho-entra var(--expandir);
+}
+
+@keyframes atalho-entra {
+  from {
+    transform: translateY(var(--e5));
+    opacity: 0;
+  }
+}
+
+.atalho__foto {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--raio);
+  background: var(--fundo);
+}
+
+.atalho__texto {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.atalho .botao {
+  flex: none;
 }
 
 .grade__quadro--carregando {
@@ -722,10 +800,15 @@ h2:focus {
     animation-duration: 3s;
   }
 
+  .grade__quadro {
+    transition: none;
+  }
+
   .grade__quadro--carregando,
-  .grade__quadro--destaque,
-  .grade__quadro--destaque::after,
-  .grade__selo,
+  .grade__quadro--pousou,
+  .grade__quadro--pousou::after,
+  .grade__quadro--pousou .grade__selo,
+  .atalho,
   .grade__imagem--nova {
     animation: none;
   }

@@ -81,8 +81,201 @@ function marcarSemMiniatura(quadro, foto) {
   quadro.append(el('span', 'so-leitor', `${descricaoDaFoto(foto)}, sem miniatura`));
 }
 
-export function mostrarDestaque() {
-  document.querySelector('.grade__quadro--destaque')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+// A foto que acabou de subir
+//
+// Três comportamentos, escolhidos pelo lugar onde a foto cai:
+// - na tela: ela sai da zona de envio e desce em pêndulo até o lugar dela;
+// - fora da tela: entra em silêncio e um atalho aparece embaixo, para ir até ela;
+// - ao pousar ou ao chegar pelo atalho: o foco, com as vizinhas esmaecidas por um instante.
+// A página nunca rola sozinha, e nada aqui é esperado pela fila de envio.
+
+const semMovimento = matchMedia('(prefers-reduced-motion: reduce)');
+const SUAVE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+const TEMPO_DO_HOLOFOTE = 900;
+
+let destaqueId = null; // a foto marcada com contorno e selo
+let distantes = []; // ids das fotos que subiram fora da tela, à espera do atalho
+let voo = null; // pêndulo em andamento: { encerrar }
+let fotosPorId = new Map();
+let baixarAtual = null;
+
+const quadroDe = (id) => $('grade').querySelector(`[data-id="${id}"]`);
+const podeAnimar = () => !semMovimento.matches && !document.hidden;
+
+function animar(no, quadros, opcoes) {
+  return no.animate(quadros, { easing: SUAVE, ...opcoes });
+}
+
+// Contorno e selo ficam; a entrada e o halo acontecem só quando a foto acaba de chegar.
+function marcarDestaque(quadro, chegando) {
+  quadro.classList.add('grade__quadro--destaque');
+  quadro.classList.toggle('grade__quadro--pousou', chegando);
+  if (!quadro.querySelector('.grade__selo')) quadro.append(el('span', 'grade__selo', 'Enviada agora'));
+}
+
+function destacar(id, { comFoco }) {
+  const antigo = destaqueId == null ? null : quadroDe(destaqueId);
+  if (antigo && destaqueId !== id) {
+    antigo.classList.remove('grade__quadro--destaque', 'grade__quadro--pousou');
+    antigo.querySelector('.grade__selo')?.remove();
+  }
+  destaqueId = id;
+  const quadro = quadroDe(id);
+  if (!quadro) return;
+  marcarDestaque(quadro, true);
+  if (!comFoco) return;
+  // Foco: as vizinhas recuam por um instante e o teclado vai para a foto.
+  quadro.tabIndex = -1;
+  quadro.focus({ preventScroll: true });
+  if (!podeAnimar()) return;
+  $('grade').classList.add('dias--holofote');
+  setTimeout(() => $('grade').classList.remove('dias--holofote'), TEMPO_DO_HOLOFOTE);
+}
+
+function estaNaTela(quadro) {
+  const caixa = quadro.getBoundingClientRect();
+  const visivel = Math.min(caixa.bottom, innerHeight) - Math.max(caixa.top, 0);
+  return visivel >= caixa.height / 2;
+}
+
+function encerrarVoo() {
+  voo?.encerrar();
+}
+
+// A foto sai da zona e desce balançando até o lugar dela. O lugar já existe na grade e as
+// vizinhas já abriram espaço; só a foto ainda não chegou.
+function pendulo(id, aoPousar) {
+  const quadro = quadroDe(id);
+  const destino = quadro.getBoundingClientRect();
+  const zona = $('zona').getBoundingClientRect();
+  // Se a zona já saiu da tela, a foto entra pelo topo, na direção de onde a zona está.
+  const origemX = zona.left + zona.width / 2 - destino.width / 2;
+  const origemY = Math.max(zona.top + zona.height / 2 - destino.height / 2, -destino.height);
+
+  const fantasma = el('div', 'voo');
+  fantasma.style.width = `${destino.width}px`;
+  fantasma.style.height = `${destino.height}px`;
+  const foto = fotosPorId.get(id);
+  if (foto?.miniatura) {
+    baixarAtual(foto.miniatura).then(
+      (url) => {
+        const imagem = el('img', 'grade__imagem');
+        imagem.alt = '';
+        imagem.src = url;
+        fantasma.append(imagem);
+      },
+      () => {},
+    );
+  }
+  document.body.append(fantasma);
+  quadro.style.visibility = 'hidden';
+
+  const distancia = Math.hypot(destino.left - origemX, destino.top - origemY);
+  const em = (fracao) =>
+    `translate(${origemX + (destino.left - origemX) * fracao}px, ${origemY + (destino.top - origemY) * fracao}px)`;
+  // O balanço perde força a cada ida e volta, até a foto chegar reta.
+  const animacao = animar(
+    fantasma,
+    [
+      { transform: `${em(0)} rotate(0deg) scale(0.5)`, opacity: 0 },
+      { transform: `${em(0.18)} rotate(-16deg) scale(0.7)`, opacity: 1, offset: 0.18 },
+      { transform: `${em(0.45)} rotate(11deg) scale(0.85)`, offset: 0.45 },
+      { transform: `${em(0.7)} rotate(-6deg) scale(0.95)`, offset: 0.7 },
+      { transform: `${em(0.88)} rotate(3deg) scale(1)`, offset: 0.88 },
+      { transform: `${em(1)} rotate(0deg) scale(1)` },
+    ],
+    { duration: Math.min(1100, Math.max(650, distancia * 1.1)), easing: 'ease-in-out' },
+  );
+
+  // Encerrar vale para o pouso normal e para o corte: outra foto chegou ou a grade foi redesenhada.
+  const esteVoo = {
+    encerrar() {
+      if (voo !== esteVoo) return;
+      voo = null;
+      animacao.cancel();
+      fantasma.remove();
+      const pouso = quadroDe(id);
+      if (pouso) pouso.style.visibility = '';
+      aoPousar();
+    },
+  };
+  voo = esteVoo;
+  animacao.finished.then(esteVoo.encerrar, () => {});
+}
+
+// Chamado pelo app quando uma foto termina de subir, logo depois de redesenhar a grade.
+export function fotoChegou(id, { ultimaDaLeva }) {
+  encerrarVoo();
+  const quadro = quadroDe(id);
+  if (!quadro) return;
+  if (!estaNaTela(quadro)) {
+    distantes.push(id);
+    renderAtalho();
+    return;
+  }
+  // Na tela, a foto recém-pousada toma o lugar de qualquer atalho pendente como a mais recente.
+  const pousar = () => destacar(id, { comFoco: ultimaDaLeva });
+  if (podeAnimar()) pendulo(id, pousar);
+  else pousar();
+}
+
+// Rola até o quadro e só devolve quando a rolagem parou.
+async function rolarAte(id) {
+  quadroDe(id)?.scrollIntoView({ block: 'center', behavior: semMovimento.matches ? 'auto' : 'smooth' });
+  let ultimo = null;
+  let parado = 0;
+  for (let voltas = 0; parado < 4 && voltas < 60; voltas++) {
+    await new Promise((resolver) => setTimeout(resolver, 40));
+    const topo = quadroDe(id)?.getBoundingClientRect().top ?? null;
+    parado = topo === ultimo ? parado + 1 : 0;
+    ultimo = topo;
+  }
+}
+
+function renderAtalho() {
+  const barra = $('atalho');
+  barra.hidden = distantes.length === 0;
+  if (distantes.length === 0) return;
+  const varias = distantes.length > 1;
+  $('atalho-texto').textContent = varias ? `${distantes.length} fotos enviadas` : 'Foto enviada';
+  $('atalho-ver').textContent = varias ? 'Ver a última' : 'Ver foto';
+  const foto = fotosPorId.get(distantes.at(-1));
+  const moldura = $('atalho-foto');
+  moldura.replaceChildren();
+  if (foto?.miniatura) {
+    baixarAtual(foto.miniatura).then(
+      (url) => {
+        const imagem = el('img', 'grade__imagem');
+        imagem.alt = '';
+        imagem.src = url;
+        moldura.replaceChildren(imagem);
+      },
+      () => {},
+    );
+  }
+}
+
+async function verPeloAtalho() {
+  const id = distantes.at(-1);
+  distantes = [];
+  renderAtalho();
+  if (id == null) return;
+  await rolarAte(id);
+  destacar(id, { comFoco: true });
+}
+
+function fecharAtalho() {
+  distantes = [];
+  renderAtalho();
+}
+
+// Ao sair: nada da sessão anterior fica marcado.
+export function esquecerEnvio() {
+  encerrarVoo();
+  destaqueId = null;
+  distantes = [];
+  renderAtalho();
+  $('grade').classList.remove('dias--holofote');
 }
 
 export function limparPrincipal() {
@@ -91,8 +284,36 @@ export function limparPrincipal() {
   $('grade').replaceChildren();
 }
 
-export function renderPrincipal(grupos, total, baixar, destaque) {
+// Guarda onde cada foto e cada título estavam, para deslizar até o lugar novo depois do
+// redesenho em vez de pular. Só o que está perto da tela: o resto ninguém vê se mexer.
+function posicoesVisiveis() {
+  const posicoes = new Map();
+  if (!podeAnimar()) return posicoes;
+  for (const no of $('grade').querySelectorAll('[data-id], [data-dia]')) {
+    const caixa = no.getBoundingClientRect();
+    if (caixa.bottom < -innerHeight || caixa.top > innerHeight * 2) continue;
+    posicoes.set(no.dataset.id ?? `dia:${no.dataset.dia}`, caixa);
+  }
+  return posicoes;
+}
+
+function deslizarDe(posicoes) {
+  for (const no of $('grade').querySelectorAll('[data-id], [data-dia]')) {
+    const de = posicoes.get(no.dataset.id ?? `dia:${no.dataset.dia}`);
+    if (!de) continue;
+    const para = no.getBoundingClientRect();
+    const dx = de.left - para.left;
+    const dy = de.top - para.top;
+    if (dx || dy) animar(no, [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 300 });
+  }
+}
+
+export function renderPrincipal(grupos, total, baixar) {
+  encerrarVoo(); // os quadros vão ser trocados: um voo em curso pousa agora
+  const posicoes = posicoesVisiveis();
   limparPrincipal();
+  baixarAtual = baixar;
+  fotosPorId = new Map(grupos.flatMap((grupo) => grupo.fotos).map((foto) => [foto.id, foto]));
   $('principal-vazia').hidden = total > 0;
   $('principal-total').hidden = total === 0;
   $('principal-total').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
@@ -110,14 +331,14 @@ export function renderPrincipal(grupos, total, baixar, destaque) {
 
   for (const grupo of grupos) {
     const secao = el('section', 'dia');
-    secao.append(el('h3', 'dia__titulo', tituloDoDia(grupo.dia)));
+    const titulo = el('h3', 'dia__titulo', tituloDoDia(grupo.dia));
+    titulo.dataset.dia = grupo.dia;
+    secao.append(titulo);
     const lista = el('ul', 'grade');
     for (const foto of grupo.fotos) {
       const quadro = el('li', 'grade__quadro');
-      if (foto.id === destaque) {
-        quadro.classList.add('grade__quadro--destaque');
-        quadro.append(el('span', 'grade__selo', 'Enviada agora'));
-      }
+      quadro.dataset.id = foto.id;
+      if (foto.id === destaqueId) marcarDestaque(quadro, false);
       if (foto.miniatura) {
         quadro.classList.add('grade__quadro--carregando');
         baixarDoQuadro.set(quadro, { foto, baixar });
@@ -130,6 +351,7 @@ export function renderPrincipal(grupos, total, baixar, destaque) {
     secao.append(lista);
     $('grade').append(secao);
   }
+  deslizarDe(posicoes);
 }
 
 // Envio
@@ -301,6 +523,8 @@ export function ligarEventos(acoes) {
     if (botao) acoes.tentarDeNovo(Number(botao.dataset.n));
   });
   $('fila-limpar').addEventListener('click', acoes.limparFila);
+  $('atalho-ver').addEventListener('click', verPeloAtalho);
+  $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
 
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.

@@ -22,7 +22,6 @@ let enviando = false;
 let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
 let trava = null; // mantém a tela do celular acordada enquanto a fila corre
 let progresso = 0; // de 0 a 1, da foto que está subindo agora
-let destaque = null; // id da última foto enviada nesta sessão, marcada na grade
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
@@ -87,7 +86,7 @@ function esquecerMiniaturas() {
 
 function render() {
   if (!fotos) return;
-  ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura, destaque);
+  ui.renderPrincipal(agruparPorDia(fotos), fotos.length, baixarMiniatura);
   ui.mostrarTela('principal');
 }
 
@@ -146,7 +145,7 @@ function sair() {
   fotos = null;
   fila = [];
   pausadaAte = null;
-  destaque = null;
+  ui.esquecerEnvio();
   renderFila();
   ui.limparPrincipal();
   esquecerMiniaturas();
@@ -235,8 +234,9 @@ async function enviarFoto(item) {
   };
   if (fotos) {
     fotos = [nova, ...fotos.filter((existente) => existente.id !== nova.id)].sort(porIdDecrescente);
-    destaque = nova.id;
     render();
+    // O efeito de chegada corre por conta própria: a fila não espera por ele.
+    ui.fotoChegou(nova.id, { ultimaDaLeva: !fila.some((outro) => outro.estado === 'aguardando') });
   }
 }
 
@@ -285,7 +285,6 @@ async function bombear() {
   renderFila();
   if (enviadas > 0) {
     ui.anunciarEnvio(enviadas === 1 ? 'Foto enviada.' : `${enviadas} fotos enviadas.`);
-    ui.mostrarDestaque();
   }
 }
 

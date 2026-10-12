@@ -159,8 +159,16 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
   ("Preparando...") e depois do último ("Concluindo..."), uma varredura de luz substitui o
   número. No arraste, um véu nasce da zona e cobre a tela, como no `cloud-files`.
 - **Fila de envio:** uma foto por vez, em sequência. Não há histórico na tela: o que subiu
-  aparece direto na grade, e a última foto enviada fica em destaque, com contorno, selo
-  "Enviada agora" e um halo que se abre duas vezes.
+  aparece direto na grade.
+- **Chegada da foto na grade:** depende de onde ela cai.
+  - Na tela: a foto sai da zona de envio e desce em pêndulo até o lugar dela, enquanto as
+    vizinhas deslizam para abrir espaço.
+  - Fora da tela (foto antiga, ou grade rolada): entra em silêncio e um atalho aparece
+    embaixo, com a miniatura e "Ver foto". Com várias, "3 fotos enviadas" e "Ver a última".
+  - Ao pousar ou ao chegar pelo atalho, a foto fica em destaque, com contorno, selo
+    "Enviada agora" e um halo. Na última foto da leva e no atalho, as vizinhas esmaecem por
+    um instante e o foco do teclado vai para ela.
+  - A página nunca rola sozinha, e a fila não espera a animação.
 - **Falhas:** só as fotos que não subiram ficam listadas, cada uma com o motivo e um
   "tentar de novo", sem refazer a seleção.
 - **Recusas na entrada:** arquivo vazio, pasta, o que não for imagem e foto acima de 25 MB
