@@ -105,7 +105,7 @@ separada se apoia nessa segunda regra.
 | --- | --- | --- |
 | RG01 | Teto de 25 MB por foto | Folga sobre os 100 MiB e sobre a memória do celular |
 | RG02 | Pastas por ano: `fotos/AAAA/`, e o mesmo para miniaturas e registros. Comporta até 3.000 fotos por ano | 3.000 entradas por pasta |
-| RG03 | Aviso em 4 GB e bloqueio de envio em 5 GB por repositório de dados | Recomendação de tamanho |
+| RG03 | Aviso a partir de 1 GB e outro em 4 GB por repositório de dados. Só avisa, não bloqueia | Recomendação de tamanho |
 | RG04 | Repositório de dados configurável, para abrir um novo quando o atual encher | Capacidade |
 | RG05 | Lote grande vai em commits de várias fotos, não um commit por foto | 500 escritas por hora |
 | RG06 | No máximo 6 downloads de miniatura ao mesmo tempo | Requisições simultâneas |
@@ -127,13 +127,8 @@ separada se apoia nessa segunda regra.
 
 ## Impacto no plano
 
-O RG02 já está no plano, com pastas por ano. Se aceitos, os demais mudam o plano em três
-pontos:
-
-- o repositório de dados deixa de ser fixo no código (RG04);
-- o repositório de dados fica numa conta separada (RG08), já no plano;
-- entra um épico zero de preparo: repositórios, commit inicial, branch, token e hospedagem
-  (RG07).
+O plano foi revisado em 2026-10-12 e já incorpora estes requisitos, menos o RG04 e o RG05,
+que dependem das decisões pendentes 1 e 4.
 
 ## Fontes
 
