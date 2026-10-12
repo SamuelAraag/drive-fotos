@@ -188,8 +188,8 @@ No molde do Google Fotos.
 
 - **Grade:** a tela inicial é a grade de miniaturas, da mais recente para a mais antiga,
   agrupada por dia, com um título por dia. Miniaturas quadradas, cortadas ao centro.
-- **Data da foto:** a data de modificação do arquivo, que o navegador entrega sem
-  biblioteca. Sem ela, vale a data do envio. Ver "Em aberto" sobre o iPhone.
+- **Data da foto:** a da captura, lida do EXIF ou, sem ele, do nome do arquivo. Sem
+  nenhuma das duas, o app pergunta. Ver o Épico 8.
 - **Abrir:** um toque ou clique abre a foto em tela cheia, no modo ambiente. A própria
   miniatura cresce do quadro da grade até o tamanho final, e a miniatura desfocada cobre o
   fundo. A original entra por cima da prévia quando termina de baixar. Fecha no "Fechar",
@@ -285,7 +285,7 @@ testar na tela.
 - `drive-fotos-dados` criado na conta separada. Feito.
 - Token fine-grained gerado na conta separada. Feito.
 - Commit inicial no `drive-fotos-dados`, com um README. Feito.
-- Publicar a interface pelo GitHub Pages.
+- Publicar a interface pelo GitHub Pages. Feito.
 - **Pronto quando:** a página abre pelo endereço público e o token lê o repositório de
   dados.
 
@@ -393,34 +393,56 @@ Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gap
   clique fora não criam nada; "Manter as duas" deixa as duas na grade com nomes diferentes;
   e numa leva com novas e repetidas, as novas sobem sem esperar a resposta.
 
-### Épico 8: Data da foto separada da data de envio (backlog)
+### Épico 8: Data da foto separada da data de envio
 
-Pedido em 2026-10-12. Ainda sem data.
+Pedido em 2026-10-12. Decisões fechadas no mesmo dia, depois da análise de gaps.
 
-- **O problema:** a data da foto hoje é a data de modificação do arquivo. Uma imagem de
-  2015 enviada hoje pode chegar com a data de hoje (arquivo baixado, copiado, vindo de um
-  app de mensagens, ou escolhido no iPhone). Aí ela cai no dia do envio, e o `id` e a pasta
-  do ano saem errados.
-- **A data da foto passa a ser a da captura.** O app lê o `DateTimeOriginal` do EXIF, com
-  um leitor pequeno escrito à mão, sem biblioteca. A ordem é: EXIF, depois a data de
-  modificação do arquivo, e só no fim a data do envio.
+- **O problema:** a data da foto era a data de modificação do arquivo. Uma imagem de 2015
+  enviada hoje chegava com a data de hoje (arquivo baixado, copiado, vindo de um app de
+  mensagens, ou escolhido no iPhone). Aí ela caía no dia do envio, e o `id` e a pasta do
+  ano saíam errados.
+- **A data da foto é a da captura.** A ordem é:
+  1. O `DateTimeOriginal` do EXIF, lido por um leitor pequeno escrito à mão, sem
+     biblioteca. Só de JPEG.
+  2. A data no nome do arquivo, no formato ano, mês e dia, como em
+     `IMG-20150312-WA0001.jpg` e `Screenshot_2015-03-12-10-15-30.png`.
+  3. Sem nenhuma das duas, o app pergunta.
+- **A pergunta:** um diálogo por leva, só com as fotos sem data. Cada uma tem um campo de
+  dia, que já vem com hoje, então abrir e confirmar envia com a data atual. As fotos que
+  têm data sobem direto, sem esperar. Fechar o diálogo não envia essas fotos.
+- **A data de modificação do arquivo não vale mais sozinha.** Aparece no diálogo como
+  atalho ("Usar a do arquivo: 12 de março de 2015"), e só quando não é de hoje.
 - **A data de envio fica só em `enviada_em`.** Ela nunca decide onde a foto mora nem em que
   dia aparece.
 - **O `id` e a pasta do ano saem da data da foto.** A imagem de 2015 enviada hoje é gravada
   em `fotos/2015/` e aparece na grade em 2015.
-- **Painel de informações:** mostra as duas datas, "Tirada em" e "Enviada em".
-- **Em aberto:**
-  - Fotos já guardadas com a data errada. Corrigir muda o `id`, então exige um commit que
-    move os três arquivos, e ler o EXIF pede baixar a original. Decidir se entra como ação
-    na foto aberta ("Corrigir data"), como passada única, ou se fica de fora.
-  - Foto sem EXIF e com data de modificação de hoje (print, imagem de mensagem). Decidir
-    se o app pergunta a data, deixa editar depois ou aceita o dia do envio.
-  - Formatos além do JPEG. HEIC e PNG também carregam a data, em outro lugar do arquivo.
-    Decidir quais entram.
-  - Fuso. O EXIF quase nunca traz o fuso. A proposta é tratar a hora como local, como o
-    `id` já faz.
+- **Registro:** ganha `origem_da_data`, com `exif`, `nome`, `informada` ou `envio`.
+- **Painel de informações:** mostra "Tirada em", com a origem quando a data não veio da
+  câmera, e "Enviada em".
+- **Detalhes:**
+  - Data antes de 1990 ou no futuro é ignorada, e vale o próximo recurso.
+  - Quando só se sabe o dia, a hora é meio-dia.
+  - A hora do EXIF é tratada como local, como o `id` já faz.
+  - Nome no formato dia, mês e ano não é reconhecido, porque se confunde com mês, dia e
+    ano.
+- **Datar depois.** Quem está com pressa confirma o diálogo sem mexer nos campos ("Enviar
+  agora, datar depois"). A foto sobe com a data do envio e fica marcada com
+  `origem_da_data: envio`.
+- **Tela "Fotos sem data", no endereço `#sem-data`.** Junta todas as fotos marcadas assim.
+  A grade mostra um aviso com a contagem e o link quando existe alguma.
+  - Um bloco por dia de envio, porque fotos enviadas juntas costumam ser da mesma ocasião.
+    O campo "Mesmo dia para todas" preenche o bloco inteiro.
+  - Cada foto tem o próprio campo de dia e um "Está certa", para a que é mesmo do dia em
+    que subiu.
+  - "Salvar datas" grava o bloco num commit só. Acertar a data muda o `id`, então os três
+    arquivos trocam de caminho, sem nenhum ser enviado de novo.
+- **Fora do épico:** corrigir a data das fotos guardadas antes dele, que não têm a origem
+  no registro. Decisão de 2026-10-12: elas são ajustadas ou reenviadas à mão.
+- **Limite:** print e imagem de mensagem sem data no nome sempre caem na pergunta.
 - **Pronto quando:** uma imagem de 2015 enviada hoje aparece em 2015 na grade, fica em
-  `fotos/2015/`, e o registro traz a `data` de 2015 e o `enviada_em` de hoje.
+  `fotos/2015/`, e o registro traz a `data` de 2015 e o `enviada_em` de hoje; uma imagem
+  sem data nenhuma abre a pergunta e sobe com hoje em um clique; e essa imagem aparece em
+  "Fotos sem data", de onde vai para o dia certo ao salvar.
 
 ### Épico 9: Botão de atualizar (backlog)
 
@@ -456,7 +478,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 5 | Renomear, baixar e apagar | 0,5 dia | 4 |
 | 6 | Cache e tamanho | 1 dia | 3 e 4 |
 | 7 | Fotos duplicadas | 1 dia | 3 e 5 |
-| 8 | Data da foto separada da data de envio (backlog) | a estimar | 3 |
+| 8 | Data da foto separada da data de envio | 1 dia | 3 |
 | 9 | Botão de atualizar (backlog) | 0,5 dia | 6 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o

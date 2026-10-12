@@ -1,11 +1,11 @@
 // Telas.
 
-import { analisar, fmtTamanho } from './foto.js';
+import { analisar, diaEmTexto, fmtTamanho } from './foto.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
 
-const TELAS = ['carregando', 'erro', 'principal'];
+const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
 
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
@@ -516,8 +516,10 @@ function proporcaoEmTexto(largura, altura) {
   return `${(largura / altura).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}:1`;
 }
 
+const ORIGEM_DA_DATA = { nome: 'pelo nome do arquivo', informada: 'informada no envio', envio: 'data do envio' };
+
 function renderFicha() {
-  const { foto, posicao, total, nome, temNome, largura, altura } = ficha;
+  const { foto, posicao, total, nome, temNome, largura, altura, origem, enviadaEm } = ficha;
   $('painel-tipo').textContent = `${(foto.ext ?? 'foto').toUpperCase()} · ${posicao} de ${total}`;
   // O nome vem do registro, que pode demorar um instante. Foto sem registro mostra o id.
   $('painel-nome').textContent = nome ?? (temNome ? foto.id : 'Carregando o nome...');
@@ -528,7 +530,10 @@ function renderFicha() {
     linhas.push(['Megapixels', `${((largura * altura) / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MP`]);
   }
   if (foto.tamanho) linhas.push(['Tamanho', fmtTamanho(foto.tamanho)]);
-  linhas.push(['Data', descricaoDaFoto(foto).replace('Foto de ', '')]);
+  // A data da foto é a do id. Quando ela não veio da câmera, o painel diz de onde veio.
+  const tirada = descricaoDaFoto(foto).replace('Foto de ', '');
+  linhas.push(['Tirada em', ORIGEM_DA_DATA[origem] ? `${tirada} (${ORIGEM_DA_DATA[origem]})` : tirada]);
+  if (enviadaEm) linhas.push(['Enviada em', enviadaEm]);
   $('painel-dados').replaceChildren(...linhas.flatMap(([termo, valor]) => [el('dt', null, termo), el('dd', null, valor)]));
 }
 
@@ -541,6 +546,12 @@ export function dadosDoRegistro(id, registro) {
     ficha.largura = registro.largura;
     ficha.altura = registro.altura;
   }
+  ficha.origem = registro?.origem_da_data ?? null;
+  const enviada = registro?.enviada_em ? new Date(registro.enviada_em) : null;
+  ficha.enviadaEm =
+    enviada && !Number.isNaN(enviada.getTime())
+      ? enviada.toLocaleString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : null;
   renderFicha();
 }
 
@@ -580,7 +591,7 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   $('visor-carregando').hidden = false;
   $('painel-analise').hidden = true;
   avisoNoVisor(null);
-  ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null };
+  ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null, origem: null, enviadaEm: null };
   renderFicha();
   ajustarFoto();
 
@@ -1076,6 +1087,235 @@ export function perguntarRepetidas(linhas, totalDaLeva) {
   });
 }
 
+// Fotos sem data: o EXIF e o nome não dizem quando foram tiradas. Cada linha é
+// { nome, url, doArquivo }, e `doArquivo` é a data de modificação, quando serve de sugestão.
+// Todo campo vem com hoje, então abrir e confirmar envia com a data atual. Devolve, na ordem das
+// linhas, o dia escolhido ("2015-03-12"), ou tudo vazio se a pessoa desistiu de enviar.
+const diaPorExtenso = (data) => data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+const camposDeData = () => [...$('sem-data-lista').querySelectorAll('input[type=date]')];
+
+// O botão principal só promete "a data de hoje" enquanto nenhum campo foi mexido.
+function renderEnvioSemData() {
+  const hoje = diaEmTexto(new Date());
+  $('sem-data-enviar').textContent = camposDeData().every((campo) => campo.value === hoje) ? 'Enviar agora, datar depois' : 'Enviar';
+}
+
+export function perguntarDatas(linhas, totalDaLeva) {
+  const dialogo = $('sem-data');
+  const quantas = linhas.length;
+  const hoje = diaEmTexto(new Date());
+  $('sem-data-titulo').textContent =
+    totalDaLeva === 1
+      ? 'Não achei a data desta foto'
+      : quantas === 1
+        ? `1 das ${totalDaLeva} fotos está sem data`
+        : quantas === totalDaLeva
+          ? `As ${quantas} fotos estão sem data`
+          : `${quantas} das ${totalDaLeva} fotos estão sem data`;
+  $('sem-data-detalhe').textContent =
+    quantas === 1
+      ? 'O arquivo e o nome não dizem quando ela foi tirada. Escolha o dia, ou envie agora e acerte depois em "Fotos sem data".'
+      : 'O arquivo e o nome não dizem quando foram tiradas. Escolha o dia de cada uma, ou envie agora e acerte depois em "Fotos sem data".';
+  $('sem-data-lista').replaceChildren(
+    ...linhas.map(({ nome, url, doArquivo }, i) => {
+      const item = el('li', 'sem-data__item');
+      const miniatura = el('img', 'dialogo__miniatura');
+      miniatura.alt = '';
+      miniatura.width = 64;
+      miniatura.height = 64;
+      if (url) miniatura.src = url;
+      const campos = el('div', 'sem-data__campos');
+      const rotulo = el('label', 'campo__rotulo', nome);
+      const campo = el('input', 'campo');
+      campo.type = 'date';
+      campo.id = `sem-data-${i}`;
+      campo.required = true;
+      campo.min = '1990-01-01';
+      campo.max = hoje;
+      campo.value = hoje;
+      campo.setAttribute('aria-describedby', 'sem-data-detalhe');
+      rotulo.htmlFor = campo.id;
+      campos.append(rotulo, campo);
+      if (doArquivo) {
+        // A data do arquivo pode ser a da foto ou só a da cópia: fica como atalho, nunca como padrão.
+        const atalho = el('button', 'botao botao--fantasma', `Usar a do arquivo: ${diaPorExtenso(doArquivo)}`);
+        atalho.type = 'button';
+        atalho.dataset.dia = diaEmTexto(doArquivo);
+        atalho.dataset.campo = campo.id;
+        campos.append(atalho);
+      }
+      item.append(miniatura, campos);
+      return item;
+    }),
+  );
+  renderEnvioSemData();
+  dialogo.returnValue = '';
+  dialogo.showModal();
+  return new Promise((resolver) => {
+    dialogo.addEventListener(
+      'close',
+      () => resolver(camposDeData().map((campo) => (dialogo.returnValue === 'enviar' ? campo.value : null))),
+      { once: true },
+    );
+  });
+}
+
+// Tela "Fotos sem data": as que subiram com a data do envio, para acertar com calma.
+//
+// Um bloco por dia de envio, porque fotos enviadas juntas costumam ser da mesma ocasião: o
+// campo do topo do bloco aplica um dia a todas. Cada foto tem o próprio campo e um "Está certa",
+// para a que é mesmo do dia em que subiu. `grupos` é [{ chave, titulo, fotos: [{ foto, nome }] }].
+export function linkDasPendentes(quantas) {
+  const link = $('principal-pendentes');
+  link.hidden = quantas === 0;
+  link.replaceChildren(
+    quantas === 1 ? '1 foto está sem data. ' : `${quantas.toLocaleString('pt-BR')} fotos estão sem data. `,
+    el('strong', null, 'Acertar as datas'),
+  );
+}
+
+const camposDasPendentes = () => [...$('pendentes').querySelectorAll('input[data-id]')];
+
+// O que a pessoa decidiu para cada foto de um bloco: um dia novo, "está certa", ou nada.
+function decisoesDoBloco(grupo) {
+  return [...grupo.querySelectorAll('.pendentes__item')].flatMap((item) => {
+    const campo = item.querySelector('input[data-id]');
+    if (item.querySelector('input[type=checkbox]').checked) return [{ id: campo.dataset.id, dia: null }];
+    return campo.value && campo.value !== campo.dataset.atual ? [{ id: campo.dataset.id, dia: campo.value }] : [];
+  });
+}
+
+// O rodapé de cada bloco diz quantas fotos vão mudar, e o "Salvar" só acende quando há alguma.
+function renderBotoesDasPendentes() {
+  for (const grupo of $('pendentes').querySelectorAll('.pendentes__grupo')) {
+    for (const item of grupo.querySelectorAll('.pendentes__item')) {
+      // Marcada como certa, a foto fica com a data que tem: o campo sai de cena.
+      item.querySelector('input[data-id]').disabled = item.querySelector('input[type=checkbox]').checked;
+    }
+    const quantas = decisoesDoBloco(grupo).length;
+    grupo.querySelector('.pendentes__resumo').textContent =
+      quantas === 0 ? 'Nenhuma alteração ainda' : quantas === 1 ? '1 foto pronta para salvar' : `${quantas} fotos prontas para salvar`;
+    grupo.querySelector('[data-acao=salvar]').disabled = pendentesOcupadas || quantas === 0;
+  }
+}
+
+let pendentesOcupadas = false;
+
+export function renderSemData(grupos, { lendo, incompleta }, baixar) {
+  baixarAtual = baixar;
+  // Um redesenho no meio da escolha (um envio que terminou, por exemplo) não apaga o que foi decidido.
+  const escolhidos = new Map(camposDasPendentes().map((campo) => [campo.dataset.id, campo.value]));
+  const certas = new Set([...$('pendentes').querySelectorAll('input[type=checkbox]:checked')].map((caixa) => caixa.dataset.de));
+  const hoje = diaEmTexto(new Date());
+  const total = grupos.reduce((soma, grupo) => soma + grupo.fotos.length, 0);
+  $('pendentes-lendo').hidden = !lendo;
+  $('pendentes-vazia').hidden = lendo || total > 0;
+  $('sem-data-explica').hidden = total === 0;
+  if (incompleta) erroNasPendentes('Não deu para ler os dados de todas as fotos, então a lista pode estar incompleta. Recarregue a página para tentar de novo.');
+  $('pendentes').replaceChildren(
+    ...grupos.map(({ chave, titulo, fotos }) => {
+      const grupo = el('form', 'pendentes__grupo');
+      grupo.dataset.grupo = chave;
+      grupo.noValidate = true;
+
+      const topo = el('header', 'pendentes__topo');
+      topo.append(el('h3', 'pendentes__titulo', titulo), el('p', 'texto-suave texto-pequeno', fotos.length === 1 ? '1 foto' : `${fotos.length} fotos`));
+      grupo.append(topo);
+
+      // Fotos enviadas juntas costumam ser da mesma ocasião: um dia só resolve o bloco.
+      if (fotos.length > 1) {
+        const ferramenta = el('div', 'pendentes__ferramenta');
+        const rotulo = el('label', 'campo__rotulo', 'Mesmo dia para todas');
+        const campo = el('input', 'campo');
+        campo.type = 'date';
+        campo.id = `pendentes-todas-${chave}`;
+        campo.min = '1990-01-01';
+        campo.max = hoje;
+        rotulo.htmlFor = campo.id;
+        const aplicar = el('button', 'botao botao--secundario', 'Aplicar a todas');
+        aplicar.type = 'button';
+        aplicar.dataset.acao = 'aplicar';
+        ferramenta.append(rotulo, campo, aplicar);
+        grupo.append(ferramenta);
+      }
+
+      const lista = el('ul', 'pendentes__lista');
+      for (const { foto, nome } of fotos) {
+        // A prévia é o que diz de quando é a foto: ocupa a largura toda do cartão.
+        const item = el('li', 'pendentes__item');
+        const miniatura = el('img', 'pendentes__imagem');
+        miniatura.alt = '';
+        if (foto.miniatura) baixar(foto.miniatura).then((url) => (miniatura.src = url), () => {});
+        const rotulo = el('label', 'pendentes__nome', nome);
+        const campo = el('input', 'campo');
+        const atual = `${foto.dia.slice(0, 4)}-${foto.dia.slice(4, 6)}-${foto.dia.slice(6, 8)}`;
+        campo.type = 'date';
+        campo.id = `pendente-${foto.id}`;
+        campo.dataset.id = foto.id;
+        campo.dataset.atual = atual;
+        campo.min = '1990-01-01';
+        campo.max = hoje;
+        campo.value = escolhidos.get(foto.id) ?? atual;
+        rotulo.htmlFor = campo.id;
+        // Para a foto que é mesmo do dia em que subiu: sai da lista sem mudar de lugar.
+        const certa = el('label', 'pendentes__certa');
+        const caixa = el('input');
+        caixa.type = 'checkbox';
+        caixa.dataset.de = foto.id;
+        caixa.checked = certas.has(foto.id);
+        certa.append(caixa, el('span', null, 'A data está certa'));
+        item.append(miniatura, rotulo, campo, certa);
+        lista.append(item);
+      }
+      grupo.append(lista);
+
+      const rodape = el('footer', 'pendentes__rodape');
+      const resumo = el('p', 'pendentes__resumo texto-suave texto-pequeno');
+      resumo.setAttribute('role', 'status');
+      const salvar = el('button', 'botao botao--primario', 'Salvar datas');
+      salvar.type = 'submit';
+      salvar.dataset.acao = 'salvar';
+      rodape.append(resumo, salvar);
+      grupo.append(rodape);
+      return grupo;
+    }),
+  );
+  renderBotoesDasPendentes();
+}
+
+export function pendentesOcupado(ocupado) {
+  pendentesOcupadas = ocupado;
+  for (const controle of $('pendentes').querySelectorAll('button, input')) controle.disabled = ocupado;
+  for (const salvar of $('pendentes').querySelectorAll('[data-acao=salvar]')) salvar.textContent = ocupado ? 'Salvando...' : 'Salvar datas';
+  if (!ocupado) renderBotoesDasPendentes();
+}
+
+export function erroNasPendentes(mensagem) {
+  $('pendentes-erro').hidden = !mensagem;
+  $('pendentes-erro').textContent = mensagem ?? '';
+}
+
+function ligarPendentes(acoes) {
+  const tela = $('pendentes');
+  tela.addEventListener('input', renderBotoesDasPendentes);
+  tela.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('button[data-acao=aplicar]');
+    if (!botao) return;
+    const grupo = botao.closest('.pendentes__grupo');
+    const dia = grupo.querySelector('.pendentes__ferramenta input').value;
+    if (!dia) return;
+    // As que foram marcadas como certas ficam como estão.
+    for (const campo of grupo.querySelectorAll('input[data-id]:not(:disabled)')) campo.value = dia;
+    renderBotoesDasPendentes();
+  });
+  tela.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const mudancas = decisoesDoBloco(evento.target);
+    if (mudancas.length > 0) acoes.datar(mudancas);
+  });
+}
+
 // Texto para o leitor de tela quando a leva termina. Na tela, quem conta é o destaque na grade.
 export function anunciarEnvio(texto) {
   $('envio-status').textContent = texto;
@@ -1177,9 +1417,20 @@ export function ligarEventos(acoes) {
   $('atalho-fechar').addEventListener('click', fecharAtalho);
   ligarArraste(acoes);
   ligarVisor(acoes);
+  ligarPendentes(acoes);
 
   $('repetidas').addEventListener('click', (evento) => {
     if (evento.target === $('repetidas')) $('repetidas').close();
+  });
+  $('sem-data').addEventListener('click', (evento) => {
+    if (evento.target === $('sem-data')) $('sem-data').close();
+  });
+  $('sem-data-lista').addEventListener('input', renderEnvioSemData);
+  $('sem-data-lista').addEventListener('click', (evento) => {
+    const atalho = evento.target.closest('button[data-dia]');
+    if (!atalho) return;
+    $(atalho.dataset.campo).value = atalho.dataset.dia;
+    renderEnvioSemData();
   });
   $('repetidas-lista').addEventListener('change', renderEscolhaDasRepetidas);
   $('repetidas-todas').addEventListener('click', () => {
