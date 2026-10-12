@@ -40,14 +40,37 @@
 
     <section class="tela" id="tela-principal" hidden>
       <h2 class="so-leitor" tabindex="-1">Suas fotos</h2>
+      <div class="envio">
+        <button type="button" class="zona" id="zona">
+          <svg class="zona__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5m0 0-4.5 4.5M12 5l4.5 4.5M5 19h14"/></svg>
+          <span class="zona__titulo" id="zona-titulo">Enviar fotos</span>
+          <span class="zona__detalhe" id="zona-detalhe">Toque para escolher ou arraste as fotos para cá</span>
+        </button>
+        <input type="file" id="zona-entrada" accept="image/*" multiple hidden>
+        <p class="campo__erro" id="zona-erro" role="alert" hidden></p>
+        <div class="fila" id="fila" hidden>
+          <div class="fila__topo">
+            <p id="fila-resumo" role="status"></p>
+            <button type="button" class="botao botao--fantasma" id="fila-limpar" hidden>Limpar</button>
+          </div>
+          <ol class="fila__lista" id="fila-lista"></ol>
+        </div>
+      </div>
       <div class="tela tela--centro" id="principal-vazia" hidden>
         <p class="tela__titulo">Nenhuma foto guardada ainda</p>
-        <p class="texto-suave">O envio de fotos ainda não está disponível nesta versão.</p>
+        <p class="texto-suave">Envie a primeira pelo botão acima.</p>
       </div>
       <p class="texto-suave texto-pequeno" id="principal-total" hidden></p>
       <div class="dias" id="grade"></div>
     </section>
   </main>
+
+  <div class="veu" id="veu" aria-hidden="true" hidden>
+    <div class="veu__quadro">
+      <svg class="veu__icone" viewBox="0 0 24 24"><path d="M12 16V5m0 0-4.5 4.5M12 5l4.5 4.5M5 19h14"/></svg>
+      <p class="tela__titulo">Solte para enviar</p>
+    </div>
+  </div>
 
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">
     <form method="dialog">

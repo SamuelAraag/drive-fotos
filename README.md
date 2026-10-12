@@ -50,10 +50,11 @@ icones/
 src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
+src/foto.js      id, miniatura e registro de cada foto
 src/ui.js        telas
 ```
 
 ## Estado
 
-Em construção. Já dá para entrar com o token e ver a grade de miniaturas, agrupada por dia.
-O envio e a foto aberta ainda não existem.
+Em construção. Já dá para entrar com o token, enviar fotos e ver a grade de miniaturas,
+agrupada por dia. A foto aberta ainda não existe.

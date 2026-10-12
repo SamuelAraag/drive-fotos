@@ -1,5 +1,6 @@
 // Telas.
 
+import { fmtTamanho } from './foto.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
@@ -55,12 +56,14 @@ function descricaoDaFoto(foto) {
 
 let observador = null; // carrega a miniatura quando o quadro chega perto da tela
 const baixarDoQuadro = new WeakMap();
+const jaMostradas = new Set(); // miniaturas que já surgiram uma vez: redesenhar a grade não anima de novo
 
 function carregarQuadro(quadro) {
   const { foto, baixar } = baixarDoQuadro.get(quadro);
   baixar(foto.miniatura).then(
     (url) => {
-      const imagem = el('img', 'grade__imagem');
+      const imagem = el('img', jaMostradas.has(foto.miniatura) ? 'grade__imagem' : 'grade__imagem grade__imagem--nova');
+      jaMostradas.add(foto.miniatura);
       imagem.alt = descricaoDaFoto(foto);
       imagem.decoding = 'async';
       imagem.src = url;
@@ -121,6 +124,121 @@ export function renderPrincipal(grupos, total, baixar) {
   }
 }
 
+// Envio
+
+export function erroNaZona(mensagem) {
+  $('zona-erro').hidden = !mensagem;
+  $('zona-erro').textContent = mensagem ?? '';
+}
+
+function resumoDaFila(itens, { enviando, pausadaAte }) {
+  const concluidos = itens.filter((item) => item.estado === 'concluido').length;
+  const comErro = itens.filter((item) => item.estado === 'erro').length;
+  if (pausadaAte) {
+    const hora = pausadaAte.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `O GitHub limitou o ritmo. O envio continua sozinho às ${hora}.`;
+  }
+  if (enviando) {
+    // Conta também as que falharam, para o número não andar para trás depois de um erro.
+    return `Enviando ${Math.min(itens.length, concluidos + comErro + 1)} de ${itens.length}`;
+  }
+  if (itens.some((item) => item.estado === 'aguardando')) return 'Envio parado. Entre de novo para continuar.';
+  if (comErro > 0) {
+    const enviadas = concluidos === 1 ? '1 enviada' : `${concluidos} enviadas`;
+    return `${enviadas}, ${comErro} com falha`;
+  }
+  return concluidos === 1 ? 'Foto enviada.' : `${concluidos} fotos enviadas.`;
+}
+
+const TITULO_DA_ZONA = $('zona-titulo').textContent;
+const DETALHE_DA_ZONA = $('zona-detalhe').textContent;
+
+const ROTULO_DO_ESTADO = { aguardando: 'Na fila', enviando: 'Enviando...', concluido: 'Enviada' };
+
+export function renderFila(itens, situacao) {
+  // A foto que está subindo ocupa a zona: o progresso fica junto da ação principal.
+  const atual = itens.find((item) => item.estado === 'enviando');
+  $('zona').classList.toggle('zona--enviando', Boolean(atual));
+  $('zona-titulo').textContent = atual ? atual.arquivo.name : TITULO_DA_ZONA;
+  $('zona-detalhe').textContent = atual ? resumoDaFila(itens, situacao) : DETALHE_DA_ZONA;
+
+  $('fila').hidden = itens.length === 0;
+  if (itens.length === 0) return;
+  $('fila-resumo').textContent = resumoDaFila(itens, situacao);
+  $('fila-limpar').hidden = !itens.some((item) => item.estado === 'concluido' || item.estado === 'erro');
+
+  const linhas = itens.map((item) => {
+    const linha = el('li', `fila__item fila__item--${item.estado}`);
+    const texto = el('div', 'fila__texto');
+    texto.append(el('span', 'fila__nome', item.arquivo.name));
+    // O estado vai em texto, porque só a cor não comunica.
+    const estado = item.estado === 'erro' ? item.mensagem : ROTULO_DO_ESTADO[item.estado];
+    texto.append(el('span', 'fila__estado', `${fmtTamanho(item.arquivo.size)} · ${estado}`));
+    linha.append(texto);
+    if (item.estado === 'erro') {
+      const botao = el('button', 'botao botao--fantasma', 'Tentar de novo');
+      botao.type = 'button';
+      botao.dataset.n = item.n;
+      linha.append(botao);
+    }
+    return linha;
+  });
+  $('fila-lista').replaceChildren(...linhas);
+}
+
+// Arrastar e soltar. Os ouvintes ficam na janela: soltar em qualquer canto da página envia.
+function ligarArraste(acoes) {
+  // dragleave dispara a cada elemento que o ponteiro cruza. O contador só desliga o véu no zero.
+  let contador = 0;
+  const veu = $('veu');
+  // Arrastar texto ou link também dispara os eventos: só arquivo interessa.
+  const ehArquivo = (evento) => evento.dataTransfer?.types?.includes('Files') ?? false;
+  const mostrar = (ativo) => {
+    if (ativo && veu.hidden) {
+      // O véu nasce do retângulo da zona e cresce até a tela, para a origem do gesto ficar visível.
+      const caixa = $('zona').getBoundingClientRect();
+      if (caixa.width > 0) {
+        veu.style.setProperty('--zona-x', `${caixa.left}px`);
+        veu.style.setProperty('--zona-y', `${caixa.top}px`);
+        veu.style.setProperty('--zona-escala-x', caixa.width / window.innerWidth);
+        veu.style.setProperty('--zona-escala-y', caixa.height / window.innerHeight);
+      }
+    }
+    veu.hidden = !ativo;
+    $('zona').classList.toggle('zona--ativa', ativo);
+  };
+
+  window.addEventListener('dragenter', (evento) => {
+    if (!ehArquivo(evento)) return;
+    evento.preventDefault();
+    contador++;
+    if (acoes.podeEnviar()) mostrar(true);
+  });
+  // Sem o preventDefault aqui o navegador abre a foto numa aba em vez de entregar o drop.
+  window.addEventListener('dragover', (evento) => {
+    if (ehArquivo(evento)) evento.preventDefault();
+  });
+  window.addEventListener('dragleave', () => {
+    contador = Math.max(0, contador - 1);
+    if (contador === 0) mostrar(false);
+  });
+  window.addEventListener('drop', (evento) => {
+    if (!ehArquivo(evento)) return;
+    evento.preventDefault();
+    contador = 0;
+    mostrar(false);
+    if (!acoes.podeEnviar()) return;
+    // Pasta chega como arquivo de tamanho zero; webkitGetAsEntry conta a verdade.
+    const temPasta = [...(evento.dataTransfer.items ?? [])].some((item) => item.webkitGetAsEntry?.()?.isDirectory);
+    acoes.arquivos([...evento.dataTransfer.files], { temPasta });
+  });
+  window.addEventListener('keydown', (evento) => {
+    if (evento.key !== 'Escape' || veu.hidden) return;
+    contador = 0;
+    mostrar(false);
+  });
+}
+
 export function abrirLogin(mensagem) {
   const dialogo = $('login');
   if ($('confirmar-sair').open) $('confirmar-sair').close('cancelar');
@@ -148,6 +266,19 @@ export function loginOcupado(ocupado) {
 }
 
 export function ligarEventos(acoes) {
+  const entrada = $('zona-entrada');
+  $('zona').addEventListener('click', () => entrada.click());
+  entrada.addEventListener('change', () => {
+    acoes.arquivos([...entrada.files]);
+    entrada.value = ''; // sem isso, escolher a mesma foto de novo não dispara o change
+  });
+  $('fila-lista').addEventListener('click', (evento) => {
+    const botao = evento.target.closest('button');
+    if (botao) acoes.tentarDeNovo(Number(botao.dataset.n));
+  });
+  $('fila-limpar').addEventListener('click', acoes.limparFila);
+  ligarArraste(acoes);
+
   // Sair apaga o token, que o GitHub não mostra de novo: confirma antes.
   const confirmarSair = $('confirmar-sair');
   $('sair').addEventListener('click', () => confirmarSair.showModal());

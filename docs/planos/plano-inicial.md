@@ -52,6 +52,7 @@ icones/
 src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
+src/foto.js      id, miniatura e registro de cada foto
 src/ui.js        telas
 ```
 
@@ -129,7 +130,9 @@ Dá para gerar com JS puro, sem biblioteca: o navegador decodifica a foto
 (`createImageBitmap`), desenha reduzida num `canvas` e exporta em JPEG (`canvas.toBlob`).
 Por isso a miniatura entra no MVP.
 
-- Lado maior de 400 px, JPEG com qualidade 0,8. Fica na casa de 30 a 60 KB por foto.
+- Lado menor de 400 px, com teto de 1.600 px no lado maior, JPEG com qualidade 0,8. O lado
+  menor manda porque a grade corta a miniatura em quadrado, e em tela de alta densidade o
+  quadro chega a quase 400 px.
 - A grade carrega só miniaturas. A original só é baixada ao abrir a foto.
 - A redução é pedida já na decodificação, para foto de muitos megapixels não estourar a
   memória do celular, e respeitando a orientação gravada na foto.
@@ -150,6 +153,9 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
   da página envia. Vêm junto os três cuidados do `cloud-files`: contador de `dragenter` e
   `dragleave` para o véu não piscar, `preventDefault` no `dragover` para o navegador não
   abrir a foto numa aba, e filtro por `types` para só reagir a arquivo.
+- **Zona durante o envio:** mostra o nome da foto que está subindo e "Enviando 2 de 5", com
+  uma varredura de luz no lugar da barra, porque não há percentual por foto. No arraste,
+  um véu nasce da zona e cobre a tela, como no `cloud-files`.
 - **Fila de envio:** uma foto por vez, em sequência. Cada item tem estado (na fila,
   enviando, enviado, erro), e a fila mostra "Enviando 2 de 5", o que falhou e um "tentar de
   novo" por item, sem refazer a seleção.
