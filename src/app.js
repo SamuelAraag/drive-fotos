@@ -10,8 +10,8 @@ const TETO_NA_MEMORIA = 150 * 1024 * 1024; // originais abertas ou prontas para 
 const MAX_DE_FUNDO = 2; // originais baixando em segundo plano ao mesmo tempo
 const ESPERA_DE_FUNDO = 600; // ms que a foto precisa ficar na tela antes de entrar na fila de fundo
 
-// fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano e id.
-const CAMINHO = /^(fotos|miniaturas)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.[0-9a-z]+$/i;
+// fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano, id e extensão.
+const CAMINHO = /^(fotos|miniaturas|registros)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.([0-9a-z]+)$/i;
 
 let fotos = null; // última leitura do repositório, da mais recente para a mais antiga
 const miniaturas = new Map(); // sha -> promessa da URL da imagem já baixada
@@ -24,6 +24,7 @@ const filaDeFundo = []; // ids das fotos visíveis cuja original ainda não est�
 let fundoAtivos = 0;
 let fundoPausadoAte = 0;
 let aberta = null; // id da foto aberta em tela cheia
+const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
 
 // Fila de envio. Cada item: { n, arquivo, id, estado, mensagem }.
 // estado: 'aguardando' | 'enviando' | 'concluido' | 'erro'
@@ -43,13 +44,15 @@ function montarFotos(arvore) {
   for (const arquivo of arvore) {
     const partes = CAMINHO.exec(arquivo.caminho);
     if (!partes) continue;
-    const [, pasta, ano, id, dia, hora] = partes;
+    const [, pasta, ano, id, dia, hora, ext] = partes;
     if (!id.startsWith(ano)) continue;
-    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, tamanho: 0 };
+    const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, registro: null, tamanho: 0, ext: null };
     if (pasta === 'fotos') {
       item.sha = arquivo.sha;
       item.tamanho = arquivo.tamanho ?? 0;
-    } else item.miniatura = arquivo.sha;
+      item.ext = ext.toLowerCase();
+    } else if (pasta === 'miniaturas') item.miniatura = arquivo.sha;
+    else item.registro = arquivo.sha;
     porId.set(id, item);
   }
   return [...porId.values()].filter((item) => item.sha).sort(porIdDecrescente);
@@ -213,19 +216,38 @@ function prepararVizinhas(indice) {
   }
 }
 
-async function mostrarAberta() {
+// O registro traz o nome da foto. Vem do GitHub na primeira vez e do aparelho nas seguintes.
+async function lerRegistro(item) {
+  if (registros.has(item.id)) return registros.get(item.id);
+  let registro = null;
+  if (item.registro) {
+    try {
+      const blob = await obterBlob(item.registro, { original: false });
+      registro = JSON.parse(await blob.text());
+    } catch {
+      return null; // falha de rede ou arquivo quebrado: o painel mostra o id, e a próxima abertura tenta de novo
+    }
+  }
+  registros.set(item.id, registro);
+  return registro;
+}
+
+async function mostrarAberta({ abrindo = false } = {}) {
   const indice = fotos.findIndex((item) => item.id === aberta);
   if (indice < 0) {
     ui.fecharVisor();
     return;
   }
   const item = fotos[indice];
-  ui.renderVisor(item, {
+  const dados = {
     posicao: indice + 1,
     total: fotos.length,
     temAnterior: indice > 0,
     temProxima: indice < fotos.length - 1,
-  });
+  };
+  if (abrindo) ui.abrirVisor(item, dados);
+  else ui.renderVisor(item, dados);
+  lerRegistro(item).then((registro) => ui.dadosDoRegistro(item.id, registro));
   try {
     const url = await baixarOriginal(item);
     if (aberta !== item.id) return;
@@ -246,10 +268,9 @@ async function mostrarAberta() {
 function abrirFoto(id) {
   if (!fotos?.some((item) => item.id === id)) return;
   aberta = id;
-  ui.abrirVisor();
   // O voltar do navegador fecha a foto, em vez de sair do app.
   history.pushState({ visor: true }, '');
-  mostrarAberta();
+  mostrarAberta({ abrindo: true });
 }
 
 // A ordem é a da grade: a próxima é a foto seguinte, mais antiga.
@@ -258,6 +279,7 @@ function passarFoto(sentido) {
   const vizinha = fotos[fotos.findIndex((item) => item.id === aberta) + sentido];
   if (!vizinha) return;
   aberta = vizinha.id;
+  ui.passouParaAFoto(vizinha.id);
   mostrarAberta();
 }
 
@@ -284,7 +306,10 @@ async function lerFotos() {
 }
 
 function mesmaLista(a, b) {
-  return a.length === b.length && a.every((item, i) => item.id === b[i].id && item.sha === b[i].sha && item.miniatura === b[i].miniatura);
+  return (
+    a.length === b.length &&
+    a.every((item, i) => item.id === b[i].id && item.sha === b[i].sha && item.miniatura === b[i].miniatura && item.registro === b[i].registro)
+  );
 }
 
 // A lista guardada no aparelho aparece na hora, e a do GitHub confere por trás.
@@ -355,6 +380,7 @@ function sair() {
   ui.fecharVisor();
   ui.limparPrincipal();
   visibilidade(null);
+  registros.clear();
   esquecerMiniaturas();
   esquecerOriginais();
   armazem.limpar();
@@ -440,8 +466,11 @@ async function enviarFoto(item) {
     hora: item.id.slice(9, 15),
     sha: shas[caminhos.blob],
     miniatura: shaDaMiniatura,
+    registro: null, // o sha do registro só aparece na próxima leitura do repositório
     tamanho: arquivo.size,
+    ext: foto.extensaoDe(arquivo),
   };
+  registros.set(nova.id, registro);
   // O que acabou de subir já está aqui: vai para o aparelho sem precisar baixar de volta.
   armazem.guardar(nova.sha, arquivo, { original: true });
   if (shaDaMiniatura) armazem.guardar(shaDaMiniatura, miniatura.blob, { original: false });
@@ -528,7 +557,7 @@ ui.ligarEventos({
   podeEnviar: () => Boolean(fotos && github.lerToken()) && !ui.visorAberto(),
   abrirFoto,
   passarFoto,
-  recarregarFoto: mostrarAberta,
+  recarregarFoto: () => mostrarAberta(),
   fotoFechada,
   visibilidade,
 });
@@ -539,7 +568,7 @@ window.addEventListener('beforeunload', (evento) => {
 });
 
 // O voltar do navegador, com a foto aberta, só fecha a foto.
-window.addEventListener('popstate', () => ui.fecharVisor());
+window.addEventListener('popstate', () => ui.fecharVisor({ efeito: true }));
 
 // O navegador solta a trava quando a aba some. Ao voltar, com a fila correndo, pede de novo.
 document.addEventListener('visibilitychange', () => {

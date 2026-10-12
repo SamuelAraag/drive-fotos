@@ -1,6 +1,6 @@
 // Telas.
 
-import { fmtTamanho } from './foto.js';
+import { analisar, fmtTamanho } from './foto.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 
 const $ = (id) => document.getElementById(id);
@@ -354,6 +354,7 @@ export function renderPrincipal(grupos, total, baixar) {
       botao.setAttribute('aria-label', descricaoDaFoto(foto));
       quadro.append(botao);
       if (foto.id === destaqueId) marcarDestaque(quadro, false);
+      if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
       if (foto.miniatura) {
         quadro.classList.add('grade__quadro--carregando');
         baixarDoQuadro.set(quadro, { foto, baixar });
@@ -372,22 +373,265 @@ export function renderPrincipal(grupos, total, baixar) {
 
 // Foto aberta
 //
-// A foto abre em tela cheia por cima da grade. A miniatura entra na hora, como prévia, e a
-// original toma o lugar dela quando termina de baixar.
+// A foto vira o ambiente: a miniatura dela, desfocada, cobre o fundo. A foto cresce do quadro
+// da grade até o lugar final e volta para ele ao fechar. A miniatura entra na hora, nítida e
+// no tamanho certo, e a original aparece por cima dela quando termina de baixar.
+// Em tela larga, um painel ao lado mostra os dados da foto, e dá para escondê-lo.
+
+const CHAVE_PAINEL = 'drive-fotos.painel';
+const telaLarga = matchMedia('(min-width: 900px)');
 
 let noVisor = null; // id da foto que o visor está mostrando
 let prontaNoVisor = null; // id da foto cuja original já está na tela
+let proporcaoNoVisor = null; // [largura, altura] da foto aberta, quando já se sabe
+let ficha = null; // o que o painel mostra: { foto, posicao, total, nome, temNome, largura, altura }
+let foraDaGrade = null; // id da foto cuja miniatura "saiu" da grade para o visor
+let camadaDoAmbiente = 0;
+let fechando = false;
+const analises = new Map(); // sha da miniatura -> { paleta, luminancia }
+
+const cromo = () => [$('visor-topo'), $('visor-anterior'), $('visor-proxima'), $('visor-painel')];
 
 export function visorAberto() {
   return $('visor').open;
 }
 
-export function abrirVisor() {
-  if (!$('visor').open) $('visor').showModal();
+// O painel abre como ficou da última vez. Só existe em tela larga.
+function painelPreferido() {
+  try {
+    return localStorage.getItem(CHAVE_PAINEL) !== '0';
+  } catch {
+    return true;
+  }
 }
 
-export function fecharVisor() {
-  if ($('visor').open) $('visor').close();
+function aplicarPainel() {
+  const aberto = telaLarga.matches && painelPreferido();
+  $('visor-painel').hidden = !aberto;
+  $('visor-info').setAttribute('aria-pressed', String(aberto));
+  ajustarFoto();
+}
+
+function alternarPainel() {
+  if (!telaLarga.matches) return;
+  try {
+    localStorage.setItem(CHAVE_PAINEL, painelPreferido() ? '0' : '1');
+  } catch {
+    return; // sem onde guardar a escolha, o painel fica como está
+  }
+  aplicarPainel();
+}
+
+// Dá à caixa da foto o maior tamanho que cabe no palco, na proporção dela.
+function ajustarFoto() {
+  const caixa = $('visor-foto');
+  if (!proporcaoNoVisor) {
+    caixa.style.width = '';
+    caixa.style.height = '';
+    return;
+  }
+  const palco = $('visor-palco');
+  const [largura, altura] = proporcaoNoVisor;
+  const escala = Math.min(palco.clientWidth / largura, palco.clientHeight / altura);
+  caixa.style.width = `${Math.round(largura * escala)}px`;
+  caixa.style.height = `${Math.round(altura * escala)}px`;
+}
+
+function trocarAmbiente(url) {
+  const camadas = $('visor-ambiente').querySelectorAll('.visor__desfoque');
+  camadas[camadaDoAmbiente].classList.remove('visor__desfoque--visivel');
+  if (!url) return; // foto sem miniatura: fica só o fundo liso
+  camadaDoAmbiente = 1 - camadaDoAmbiente;
+  camadas[camadaDoAmbiente].src = url;
+  camadas[camadaDoAmbiente].classList.add('visor__desfoque--visivel');
+}
+
+function tirarDaGrade(id) {
+  devolverParaAGrade();
+  const quadro = quadroDe(id);
+  if (quadro) quadro.style.visibility = 'hidden';
+  foraDaGrade = id;
+}
+
+function devolverParaAGrade() {
+  const quadro = foraDaGrade == null ? null : quadroDe(foraDaGrade);
+  if (quadro) quadro.style.visibility = '';
+  foraDaGrade = null;
+}
+
+// De onde a foto parte e para onde volta: o quadro dela na grade, visto pela foto aberta.
+// A miniatura é um corte quadrado ao centro, e o recorte some conforme a foto cresce.
+function medirPartida(quadro) {
+  const origem = quadro.getBoundingClientRect();
+  const destino = $('visor-foto').getBoundingClientRect();
+  const escala = origem.width / Math.min(destino.width, destino.height);
+  const sobraX = Math.max(0, (destino.width - destino.height) / 2);
+  const sobraY = Math.max(0, (destino.height - destino.width) / 2);
+  const dx = origem.left + origem.width / 2 - (destino.left + destino.width / 2);
+  const dy = origem.top + origem.height / 2 - (destino.top + destino.height / 2);
+  return {
+    quadro: { transform: `translate(${dx}px, ${dy}px) scale(${escala})`, clipPath: `inset(${sobraY}px ${sobraX}px)` },
+    inteira: { transform: 'none', clipPath: 'inset(0px 0px)' },
+  };
+}
+
+function proporcaoEmTexto(largura, altura) {
+  const mdc = (a, b) => (b ? mdc(b, a % b) : a);
+  const divisor = mdc(largura, altura);
+  const [a, b] = [largura / divisor, altura / divisor];
+  if (a <= 32 && b <= 32) return `${a}:${b}`;
+  return `${(largura / altura).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}:1`;
+}
+
+function renderFicha() {
+  const { foto, posicao, total, nome, temNome, largura, altura } = ficha;
+  $('painel-tipo').textContent = `${(foto.ext ?? 'foto').toUpperCase()} · ${posicao} de ${total}`;
+  // O nome vem do registro, que pode demorar um instante. Foto sem registro mostra o id.
+  $('painel-nome').textContent = nome ?? (temNome ? foto.id : 'Carregando o nome...');
+  const linhas = [];
+  if (largura && altura) {
+    linhas.push(['Dimensões', `${largura.toLocaleString('pt-BR')} × ${altura.toLocaleString('pt-BR')} px`]);
+    linhas.push(['Proporção', proporcaoEmTexto(largura, altura)]);
+    linhas.push(['Megapixels', `${((largura * altura) / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MP`]);
+  }
+  if (foto.tamanho) linhas.push(['Tamanho', fmtTamanho(foto.tamanho)]);
+  linhas.push(['Data', descricaoDaFoto(foto).replace('Foto de ', '')]);
+  $('painel-dados').replaceChildren(...linhas.flatMap(([termo, valor]) => [el('dt', null, termo), el('dd', null, valor)]));
+}
+
+// Chamado pelo app quando o registro da foto chega (ou quando se sabe que ela não tem).
+export function dadosDoRegistro(id, registro) {
+  if (noVisor !== id || !ficha) return;
+  ficha.temNome = true;
+  ficha.nome = registro?.nome ?? null;
+  if (registro?.largura && registro?.altura) {
+    ficha.largura = registro.largura;
+    ficha.altura = registro.altura;
+  }
+  renderFicha();
+}
+
+// Paleta e luminância saem da miniatura, no próprio navegador.
+async function mostrarAnalise(foto, url) {
+  if (!analises.has(foto.miniatura)) analises.set(foto.miniatura, await analisar(url));
+  const analise = analises.get(foto.miniatura);
+  if (noVisor !== foto.id || !analise) return;
+  const cores = analise.paleta.map(([r, g, b]) => {
+    const cor = el('li');
+    cor.style.background = `rgb(${r} ${g} ${b})`;
+    return cor;
+  });
+  $('painel-paleta').replaceChildren(...cores);
+  $('painel-luminancia').textContent = `${Math.round(analise.luminancia * 100)}%`;
+  $('painel-analise').hidden = false;
+}
+
+// Prepara o visor para uma foto. Devolve uma promessa que diz se a prévia ficou pronta.
+export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
+  noVisor = foto.id;
+  prontaNoVisor = null;
+  proporcaoNoVisor = null;
+  const previa = $('visor-previa');
+  const original = $('visor-original');
+  for (const animacao of original.getAnimations()) animacao.cancel();
+  for (const imagem of [previa, original]) {
+    imagem.hidden = true;
+    imagem.removeAttribute('src');
+  }
+  original.alt = descricaoDaFoto(foto);
+  $('visor-legenda').textContent = descricaoDaFoto(foto).replace('Foto de ', '');
+  $('visor-posicao').textContent = `${posicao} de ${total}`;
+  $('visor-anterior').disabled = !temAnterior;
+  $('visor-proxima').disabled = !temProxima;
+  $('visor-erro').hidden = true;
+  $('visor-carregando').hidden = false;
+  $('painel-analise').hidden = true;
+  ficha = { foto, posicao, total, nome: null, temNome: false, largura: null, altura: null };
+  renderFicha();
+  ajustarFoto();
+
+  if (!foto.miniatura) {
+    trocarAmbiente(null);
+    return Promise.resolve(false);
+  }
+  return baixarAtual(foto.miniatura).then(
+    async (url) => {
+      if (noVisor !== foto.id) return false;
+      previa.src = url;
+      await previa.decode().catch(() => {});
+      if (noVisor !== foto.id) return false;
+      if (!proporcaoNoVisor && previa.naturalWidth) {
+        proporcaoNoVisor = [previa.naturalWidth, previa.naturalHeight];
+        ajustarFoto();
+      }
+      previa.hidden = false;
+      trocarAmbiente(url);
+      mostrarAnalise(foto, url);
+      return true;
+    },
+    () => false,
+  );
+}
+
+// Abre o visor. Se der, a foto cresce do quadro dela na grade.
+export async function abrirVisor(foto, dados) {
+  const visor = $('visor');
+  if (!visor.open) {
+    visor.showModal();
+    aplicarPainel();
+  }
+  const previaPronta = renderVisor(foto, dados);
+  const partes = [$('visor-foto'), $('visor-ambiente'), ...cromo()];
+  if (!podeAnimar() || !foto.miniatura || !quadroDe(foto.id)) return;
+
+  // Até a prévia estar pronta nada aparece: senão o visor piscaria vazio antes do voo.
+  for (const parte of partes) parte.style.opacity = '0';
+  const pronta = await previaPronta;
+  for (const parte of partes) parte.style.opacity = '';
+  const quadro = quadroDe(foto.id);
+  if (!pronta || noVisor !== foto.id || !visor.open || !quadro) return;
+
+  const partida = medirPartida(quadro);
+  tirarDaGrade(foto.id); // a miniatura saiu da grade: é ela que está voando
+  animar($('visor-foto'), [partida.quadro, partida.inteira], { duration: 380 });
+  animar($('visor-ambiente'), [{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease' });
+  // Topo, setas e painel entram depois, para não disputar a atenção com a foto em voo.
+  for (const parte of cromo()) animar(parte, [{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 140, easing: 'ease', fill: 'backwards' });
+}
+
+// Ao passar de foto, a que estava aberta volta para a grade e a nova sai dela.
+export function passouParaAFoto(id) {
+  if (foraDaGrade != null) tirarDaGrade(id);
+  if (podeAnimar()) animar($('visor-foto'), [{ opacity: 0.3 }, { opacity: 1 }], { duration: 200, easing: 'ease' });
+}
+
+async function fecharComEfeito() {
+  const visor = $('visor');
+  if (!visor.open || fechando) return;
+  const quadro = noVisor == null ? null : quadroDe(noVisor);
+  if (!podeAnimar() || !quadro || !proporcaoNoVisor) {
+    visor.close();
+    return;
+  }
+  fechando = true;
+  quadro.scrollIntoView({ block: 'nearest' });
+  tirarDaGrade(noVisor); // o lugar fica vago para a foto pousar nele
+  const partida = medirPartida(quadro);
+  const saida = [
+    animar($('visor-foto'), [partida.inteira, partida.quadro], { duration: 280, fill: 'forwards' }),
+    animar($('visor-ambiente'), [{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease', fill: 'forwards' }),
+    ...cromo().map((parte) => animar(parte, [{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease', fill: 'forwards' })),
+  ];
+  await saida[0].finished.catch(() => {});
+  visor.close();
+  for (const animacao of saida) animacao.cancel();
+  fechando = false;
+}
+
+// `efeito` leva a foto de volta ao quadro antes de fechar. Sem ele, fecha de uma vez.
+export function fecharVisor({ efeito = false } = {}) {
+  if (efeito) fecharComEfeito();
+  else if ($('visor').open) $('visor').close();
 }
 
 // Depois de fechar, o foco volta para a foto que estava aberta, e ela fica à vista.
@@ -398,39 +642,26 @@ export function voltarParaAFoto(id) {
   botao.scrollIntoView({ block: 'nearest' });
 }
 
-export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
-  noVisor = foto.id;
-  prontaNoVisor = null;
-  const imagem = $('visor-imagem');
-  imagem.hidden = true;
-  imagem.removeAttribute('src');
-  imagem.alt = descricaoDaFoto(foto);
-  imagem.classList.add('visor__imagem--previa');
-  $('visor-legenda').textContent = descricaoDaFoto(foto).replace('Foto de ', '');
-  $('visor-posicao').textContent = `${posicao} de ${total}`;
-  $('visor-anterior').disabled = !temAnterior;
-  $('visor-proxima').disabled = !temProxima;
-  $('visor-erro').hidden = true;
-  $('visor-carregando').hidden = false;
-  if (!foto.miniatura) return;
-  baixarAtual(foto.miniatura).then(
-    (url) => {
-      // A original pode ter chegado antes, ou a pessoa pode já ter passado para outra foto.
-      if (noVisor !== foto.id || prontaNoVisor === foto.id) return;
-      imagem.src = url;
-      imagem.hidden = false;
-    },
-    () => {},
-  );
-}
-
-export function mostrarOriginal(foto, url) {
+export async function mostrarOriginal(foto, url) {
+  const original = $('visor-original');
+  original.src = url;
+  await original.decode().catch(() => {});
+  if (noVisor !== foto.id) return;
   prontaNoVisor = foto.id;
-  const imagem = $('visor-imagem');
-  imagem.classList.remove('visor__imagem--previa');
-  imagem.src = url;
-  imagem.hidden = false;
   $('visor-carregando').hidden = true;
+  if (!original.naturalWidth) return; // o navegador não soube decodificar: o aviso vem pelo evento de erro
+  if (!proporcaoNoVisor) {
+    proporcaoNoVisor = [original.naturalWidth, original.naturalHeight];
+    ajustarFoto();
+  }
+  if (ficha && !ficha.largura) {
+    ficha.largura = original.naturalWidth;
+    ficha.altura = original.naturalHeight;
+    renderFicha();
+  }
+  original.hidden = false;
+  // Com a prévia por baixo, a original entra numa transição. Sem prévia, entra direto.
+  if (podeAnimar() && !$('visor-previa').hidden) animar(original, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease' });
 }
 
 export function erroNoVisor(mensagem, { podeTentar }) {
@@ -446,20 +677,41 @@ function ligarVisor(acoes) {
     const quadro = evento.target.closest('.grade__botao')?.closest('[data-id]');
     if (quadro) acoes.abrirFoto(quadro.dataset.id);
   });
-  $('visor-fechar').addEventListener('click', () => visor.close());
+  $('visor-fechar').addEventListener('click', () => fecharComEfeito());
+  $('visor-info').addEventListener('click', alternarPainel);
   $('visor-anterior').addEventListener('click', () => acoes.passarFoto(-1));
   $('visor-proxima').addEventListener('click', () => acoes.passarFoto(1));
   $('visor-tentar').addEventListener('click', acoes.recarregarFoto);
-  visor.addEventListener('close', acoes.fotoFechada);
+  // O Esc do diálogo fecharia de uma vez: passa pela saída com efeito.
+  visor.addEventListener('cancel', (evento) => {
+    evento.preventDefault();
+    fecharComEfeito();
+  });
+  visor.addEventListener('close', () => {
+    devolverParaAGrade();
+    noVisor = null;
+    acoes.fotoFechada();
+  });
   visor.addEventListener('keydown', (evento) => {
     if (evento.key === 'ArrowLeft') acoes.passarFoto(-1);
     if (evento.key === 'ArrowRight') acoes.passarFoto(1);
+    if (evento.key === 'i' || evento.key === 'I') alternarPainel();
+  });
+  // Clicar no vazio em volta da foto fecha, como em qualquer visualizador.
+  $('visor-palco').addEventListener('click', (evento) => {
+    if (evento.target === $('visor-palco')) fecharComEfeito();
   });
   // O navegador não soube decodificar a original (HEIC fora do Safari, por exemplo).
-  $('visor-imagem').addEventListener('error', () => {
-    if (prontaNoVisor == null) return;
-    $('visor-imagem').hidden = true;
+  $('visor-original').addEventListener('error', () => {
+    if (noVisor == null || !$('visor-original').getAttribute('src')) return;
+    $('visor-original').hidden = true;
     erroNoVisor('Este navegador não consegue mostrar o formato desta foto.', { podeTentar: false });
+  });
+  addEventListener('resize', () => {
+    if (visor.open) ajustarFoto();
+  });
+  telaLarga.addEventListener('change', () => {
+    if (visor.open) aplicarPainel();
   });
 
   // Deslizar no celular passa de foto. Só conta o gesto mais horizontal que vertical.

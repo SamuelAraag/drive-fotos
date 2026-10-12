@@ -27,6 +27,7 @@
   --rapido: 0.2s ease;
   --medio: 0.3s ease;
   --expandir: 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  --lento: 0.6s ease;
 
   color-scheme: dark;
 }
@@ -734,7 +735,9 @@ h2:focus {
   }
 }
 
-/* Foto aberta */
+/* Foto aberta
+   A foto vira o ambiente: a miniatura dela, bem desfocada, cobre o fundo. A foto cresce do
+   quadro da grade até o lugar final, e no computador um painel ao lado mostra os dados. */
 
 .visor {
   width: 100vw;
@@ -743,15 +746,49 @@ h2:focus {
   max-height: none;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   border: 0;
-  background: var(--fundo);
+  background: none; /* o fundo é a camada de ambiente, que entra junto com a foto */
   color: var(--texto);
 }
 
 .visor[open] {
   display: flex;
   flex-direction: column;
-  animation: surgir var(--rapido);
+}
+
+.visor__ambiente {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--fundo);
+}
+
+/* Duas camadas, para o ambiente de uma foto se dissolver no da seguinte. Passam da borda
+   porque o desfoque deixa as beiradas transparentes. */
+.visor__desfoque {
+  position: absolute;
+  top: -15%;
+  left: -15%;
+  width: 130%;
+  max-width: none;
+  height: 130%;
+  object-fit: cover;
+  filter: blur(64px) saturate(1.6) brightness(0.7);
+  opacity: 0;
+  transition: opacity var(--lento);
+}
+
+.visor__desfoque--visivel {
+  opacity: 1;
+}
+
+/* Escurece as beiradas, para o texto do topo e do painel ler bem sobre qualquer foto. */
+.visor__vinheta {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 45% 45%, transparent 30%, color-mix(in srgb, var(--fundo) 75%, transparent) 100%);
 }
 
 .visor__topo {
@@ -772,29 +809,50 @@ h2:focus {
   font-weight: 600;
 }
 
+.visor__acoes {
+  display: flex;
+  flex: none;
+}
+
+.visor__info[aria-pressed='true'] {
+  color: var(--texto);
+}
+
+.visor__corpo {
+  display: flex;
+  flex: 1;
+  gap: var(--e5);
+  min-height: 0;
+  padding: 0 var(--e4) calc(var(--e4) + env(safe-area-inset-bottom));
+}
+
 .visor__palco {
   position: relative;
   display: flex;
   flex: 1;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   min-height: 0;
-  padding: var(--e2) var(--e2) calc(var(--e4) + env(safe-area-inset-bottom));
   touch-action: pan-y pinch-zoom;
 }
 
-.visor__imagem {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* A miniatura esticada serve de prévia: desfocada, para não parecer a foto pronta. */
-.visor__imagem--previa {
+/* O app dá à caixa o tamanho exato da foto assim que sabe a proporção. Antes disso ela ocupa
+   o palco e a imagem se ajusta dentro. */
+.visor__foto {
+  position: relative;
+  flex: none;
   width: 100%;
   height: 100%;
-  filter: blur(var(--e2));
-  opacity: 0.6;
+}
+
+/* A prévia fica embaixo e a original entra por cima, sem salto. */
+.visor__foto img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .visor__girador {
@@ -843,16 +901,116 @@ h2:focus {
 }
 
 .visor__seta--anterior {
-  left: var(--e3);
+  left: 0;
 }
 
 .visor__seta--proxima {
-  right: var(--e3);
+  right: 0;
 }
 
 /* Na primeira e na última foto a seta some, em vez de ficar apagada sem explicação. */
 .visor__seta:disabled {
   visibility: hidden;
+}
+
+/* Painel de informações. Só existe em tela larga: no celular a foto fica com a tela toda. */
+.visor__painel,
+.visor__info {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .visor__info {
+    display: block;
+  }
+
+  .visor__painel {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-self: center;
+    gap: var(--e3);
+    width: 320px;
+    max-height: 100%;
+    padding: var(--e5);
+    overflow-y: auto;
+    border: 1px solid var(--trilho);
+    border-radius: var(--raio);
+    background: color-mix(in srgb, var(--superficie) 70%, transparent);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    animation: painel-entra var(--expandir);
+  }
+}
+
+@keyframes painel-entra {
+  from {
+    transform: translateX(var(--e5));
+    opacity: 0;
+  }
+}
+
+.visor__nome {
+  font-size: var(--fonte-titulo);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.visor__dados {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--e1) var(--e4);
+  margin: 0;
+  font-size: var(--fonte-pequena);
+}
+
+.visor__dados dt {
+  color: var(--texto-suave);
+}
+
+.visor__dados dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.visor__analise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+}
+
+.visor__subtitulo,
+.visor__linha {
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+}
+
+.visor__subtitulo {
+  font-weight: 600;
+}
+
+.visor__paleta {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--e2);
+}
+
+.visor__paleta li {
+  aspect-ratio: 1;
+  border: 1px solid var(--trilho);
+  border-radius: var(--e2);
+}
+
+.visor__linha {
+  display: flex;
+  justify-content: space-between;
+}
+
+.visor__linha b {
+  color: var(--texto);
+  font-weight: 600;
 }
 
 /* Diálogos e login */
@@ -928,8 +1086,12 @@ h2:focus {
     transition: none;
   }
 
-  .visor[open] {
+  .visor__painel {
     animation: none;
+  }
+
+  .visor__desfoque {
+    transition: none;
   }
 
   .zona--varrendo::after {

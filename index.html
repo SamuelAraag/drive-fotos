@@ -82,24 +82,47 @@
   </div>
 
   <dialog class="visor" id="visor" aria-label="Foto aberta">
-    <div class="visor__topo">
-      <p class="visor__legenda"><span id="visor-legenda"></span><span class="texto-suave texto-pequeno" id="visor-posicao"></span></p>
-      <button type="button" class="botao botao--fantasma" id="visor-fechar">Fechar</button>
+    <div class="visor__ambiente" id="visor-ambiente" aria-hidden="true">
+      <img class="visor__desfoque" alt="">
+      <img class="visor__desfoque" alt="">
+      <div class="visor__vinheta"></div>
     </div>
-    <div class="visor__palco">
-      <img class="visor__imagem" id="visor-imagem" alt="" hidden>
-      <div class="girador visor__girador" id="visor-carregando" role="status" aria-label="Carregando a foto" hidden></div>
-      <div class="visor__erro" id="visor-erro" role="alert" hidden>
-        <p id="visor-erro-texto"></p>
-        <button type="button" class="botao botao--primario" id="visor-tentar">Tentar de novo</button>
+    <div class="visor__topo" id="visor-topo">
+      <p class="visor__legenda"><span id="visor-legenda"></span><span class="texto-suave texto-pequeno" id="visor-posicao"></span></p>
+      <div class="visor__acoes">
+        <button type="button" class="botao botao--fantasma visor__info" id="visor-info" aria-pressed="false" aria-controls="visor-painel">Informações</button>
+        <button type="button" class="botao botao--fantasma" id="visor-fechar">Fechar</button>
       </div>
     </div>
-    <button type="button" class="botao visor__seta visor__seta--anterior" id="visor-anterior" aria-label="Foto anterior">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
-    </button>
-    <button type="button" class="botao visor__seta visor__seta--proxima" id="visor-proxima" aria-label="Próxima foto">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
-    </button>
+    <div class="visor__corpo">
+      <div class="visor__palco" id="visor-palco">
+        <div class="visor__foto" id="visor-foto">
+          <img id="visor-previa" alt="" hidden>
+          <img id="visor-original" alt="" hidden>
+        </div>
+        <div class="girador visor__girador" id="visor-carregando" role="status" aria-label="Carregando a foto" hidden></div>
+        <div class="visor__erro" id="visor-erro" role="alert" hidden>
+          <p id="visor-erro-texto"></p>
+          <button type="button" class="botao botao--primario" id="visor-tentar">Tentar de novo</button>
+        </div>
+        <button type="button" class="botao visor__seta visor__seta--anterior" id="visor-anterior" aria-label="Foto anterior">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <button type="button" class="botao visor__seta visor__seta--proxima" id="visor-proxima" aria-label="Próxima foto">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <aside class="visor__painel" id="visor-painel" aria-label="Informações da foto" hidden>
+        <p class="texto-suave texto-pequeno" id="painel-tipo"></p>
+        <h2 class="visor__nome" id="painel-nome"></h2>
+        <dl class="visor__dados" id="painel-dados"></dl>
+        <div class="visor__analise" id="painel-analise" hidden>
+          <h3 class="visor__subtitulo">Paleta dominante</h3>
+          <ul class="visor__paleta" id="painel-paleta"></ul>
+          <p class="visor__linha"><span>Luminância média</span><b id="painel-luminancia"></b></p>
+        </div>
+      </aside>
+    </div>
   </dialog>
 
   <dialog class="dialogo" id="confirmar-sair" aria-labelledby="confirmar-sair-titulo">

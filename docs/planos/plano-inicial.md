@@ -190,10 +190,16 @@ No molde do Google Fotos.
   agrupada por dia, com um título por dia. Miniaturas quadradas, cortadas ao centro.
 - **Data da foto:** a data de modificação do arquivo, que o navegador entrega sem
   biblioteca. Sem ela, vale a data do envio. Ver "Em aberto" sobre o iPhone.
-- **Abrir:** um toque ou clique abre a foto em tela cheia. Fecha no "Fechar", no Esc ou no
-  voltar do navegador, e o foco volta para a foto na grade. A miniatura aparece desfocada
-  como prévia até a original baixar. As últimas oito originais ficam na memória, para ir
-  e voltar entre vizinhas sem baixar de novo.
+- **Abrir:** um toque ou clique abre a foto em tela cheia, no modo ambiente. A própria
+  miniatura cresce do quadro da grade até o tamanho final, e a miniatura desfocada cobre o
+  fundo. A original entra por cima da prévia quando termina de baixar. Fecha no "Fechar",
+  no Esc, clicando fora da foto ou no voltar do navegador, e a foto volta para o quadro.
+- **Painel de informações:** só em tela larga, ao lado da foto, com nome, dimensões,
+  proporção, megapixels, tamanho, data, paleta dominante e luminância média. O botão
+  "Informações" e a tecla `i` mostram e escondem, e a escolha fica guardada no aparelho. O
+  nome vem do registro da foto; a paleta e a luminância são calculadas da miniatura, no
+  navegador. No celular não há painel: a foto fica com a tela toda.
+- **Fora do modo ambiente:** inclinação 3D, histograma e faixa de miniaturas.
 - **Navegar:** com a foto aberta, deslizar no celular ou usar as setas no teclado passa
   para a anterior e a próxima.
 - **Ações na foto aberta:** renomear, baixar a original e apagar. O nome aparece aqui, lido
