@@ -9,6 +9,10 @@ const LEITURAS_SIMULTANEAS = 6;
 const ESCRITAS_POR_MINUTO = 110;
 const AVISO_DE_ESPACO = 4 * 1024 * 1024 * 1024;
 const MARCADOR = 'drive-fotos.backup-interrompido';
+// Lista do que já está guardado, só para esta tela: poupa ler um registro por foto a cada
+// conferência. Fica no repositório de dados, então vale em qualquer aparelho.
+const CAMINHO_DO_INDICE = 'indices/backup.json';
+const LOTES_POR_INDICE = 10;
 
 let arquivosOrigem = [];
 let backupPronto = null;
@@ -17,6 +21,9 @@ let enviando = false;
 let pausada = false;
 let cancelada = false;
 let leituraAtiva = false;
+let indice = {}; // caminho do registro -> { registro: sha do registro, nome, blob }
+let indiceMudou = false;
+let lotesSemIndice = 0;
 
 const chaveNome = (nome) => nome.toLocaleLowerCase('pt-BR');
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
@@ -240,11 +247,34 @@ async function lerFotosExistentes(arvore) {
   const hashes = new Set();
   const fotosPorHash = new Map(arvore.filter((item) => item.caminho.startsWith('fotos/')).map((item) => [item.sha, item]));
   const caminhosComRegistro = new Set();
-  let indice = 0;
+  const conhecer = (nome, fotoDaArvore) => {
+    const chave = chaveNome(nome);
+    if (!nomes.has(chave)) nomes.set(chave, new Set());
+    nomes.get(chave).add(fotoDaArvore.sha);
+    hashes.add(fotoDaArvore.sha);
+    caminhosComRegistro.add(fotoDaArvore.caminho);
+  };
+  // Uma entrada do índice só vale enquanto o registro dela é o mesmo: renomear ou trocar a
+  // data muda o sha do registro, e aí ele é lido de novo. Foto apagada some do índice.
+  const guardado = await lerIndice(arquivosPorCaminho.get(CAMINHO_DO_INDICE));
+  const novo = {};
+  const porLer = [];
+  for (const item of registros) {
+    const entrada = guardado[item.caminho];
+    const fotoDaArvore = entrada?.registro === item.sha ? arquivosPorCaminho.get(entrada.blob) : null;
+    if (!fotoDaArvore) {
+      porLer.push(item);
+      continue;
+    }
+    novo[item.caminho] = entrada;
+    conhecer(entrada.nome, fotoDaArvore);
+  }
+  if (porLer.length) $('backup-status').textContent = `Lendo ${plural(porLer.length, 'registro novo', 'registros novos')}...`;
+  let proximo = 0;
   let falhaLeitura = null;
   const lerRegistro = async () => {
-    while (indice < registros.length && !falhaLeitura) {
-      const item = registros[indice++];
+    while (proximo < porLer.length && !falhaLeitura) {
+      const item = porLer[proximo++];
       try {
         let texto;
         for (;;) {
@@ -260,11 +290,8 @@ async function lerFotosExistentes(arvore) {
         const fotoDaArvore = arquivosPorCaminho.get(registro.blob);
         if (!fotoDaArvore) continue;
         const nome = registro.nome || registro.blob.split('/').pop();
-        const chave = chaveNome(nome);
-        if (!nomes.has(chave)) nomes.set(chave, new Set());
-        nomes.get(chave).add(fotoDaArvore.sha);
-        hashes.add(fotoDaArvore.sha);
-        caminhosComRegistro.add(registro.blob);
+        conhecer(nome, fotoDaArvore);
+        novo[item.caminho] = { registro: item.sha, nome, blob: registro.blob };
       } catch (falha) {
         if (falha instanceof SyntaxError) {
           const [, ano, id] = /^registros\/(\d{4})\/([0-9]{8}T[0-9]{6}-[0-9a-z]+)\.json$/i.exec(item.caminho) ?? [];
@@ -294,7 +321,36 @@ async function lerFotosExistentes(arvore) {
     nomes.get(chave).add(item.sha);
     hashes.add(item.sha);
   }
+  indice = novo;
+  indiceMudou = porLer.length > 0 || Object.keys(guardado).length !== Object.keys(novo).length;
   return { nomes, hashes, fotosPorHash };
+}
+
+async function lerIndice(arquivo) {
+  if (!arquivo) return {};
+  try {
+    const dados = JSON.parse(await github.lerBlob(arquivo.sha).then((blob) => blob.text()));
+    return dados?.versao === 1 && dados.fotos ? dados.fotos : {};
+  } catch (falha) {
+    if (falha.tipo === 'token') throw falha;
+    // Índice ilegível não impede o backup: os registros são lidos um a um e ele é refeito.
+    console.warn('Drive Fotos: não foi possível ler o índice do backup.', falha);
+    return {};
+  }
+}
+
+// Grava o índice num commit próprio. Se falhar, nada se perde: a próxima conferência lê os
+// registros que faltam e tenta de novo.
+async function salvarIndice() {
+  if (!indiceMudou || !github.lerToken()) return;
+  try {
+    await aguardarRitmo(3);
+    await github.gravar([{ caminho: CAMINHO_DO_INDICE, texto: `${JSON.stringify({ versao: 1, fotos: indice })}\n` }], 'indice do backup');
+    indiceMudou = false;
+    lotesSemIndice = 0;
+  } catch (falha) {
+    console.warn('Drive Fotos: não foi possível gravar o índice do backup.', falha);
+  }
 }
 
 async function preparar(arquivos, pasta) {
@@ -322,7 +378,7 @@ async function preparar(arquivos, pasta) {
   }
   try {
     const arvore = await github.lerArvore();
-    $('backup-status').textContent = `Lendo nomes e conteúdos de ${arvore.filter((item) => item.caminho.startsWith('registros/')).length} registros...`;
+    $('backup-status').textContent = 'Conferindo o que já está guardado...';
     const existentes = await lerFotosExistentes(arvore);
     const nomesUsados = new Set(existentes.nomes.keys());
     const nomesParaGerar = new Set(nomesUsados);
@@ -458,6 +514,7 @@ async function preparar(arquivos, pasta) {
     $('backup-relatorio-resumo').hidden = arquivos.length === 0;
     definirEtapa('resumo');
     $('backup-resumo-titulo').focus();
+    salvarIndice();
   } catch (falha) {
     if (falha.tipo === 'token') {
       github.apagarToken();
@@ -516,8 +573,13 @@ async function prepararFoto(item) {
   ]);
   const entradas = [{ caminho: caminhos.blob, sha: shaOriginal }];
   if (shaMiniatura) entradas.push({ caminho: caminhos.miniatura, sha: shaMiniatura });
-  entradas.push({ caminho: caminhos.registro, texto: `${JSON.stringify(registro, null, 2)}\n` });
-  item.pronta = { id, entradas };
+  const texto = `${JSON.stringify(registro, null, 2)}\n`;
+  entradas.push({ caminho: caminhos.registro, texto });
+  item.pronta = {
+    id,
+    entradas,
+    noIndice: [caminhos.registro, { registro: await foto.shaDoGit(texto), nome: registro.nome, blob: caminhos.blob }],
+  };
   return item.pronta;
 }
 
@@ -532,8 +594,11 @@ async function gravarLote(lote) {
       for (const item of lote) {
         item.estado = 'concluido';
         item.progresso = 1;
+        indice[item.pronta.noIndice[0]] = item.pronta.noIndice[1];
       }
+      indiceMudou = true;
       renderizar();
+      if (++lotesSemIndice >= LOTES_POR_INDICE) await salvarIndice();
       return;
     } catch (falha) {
       if (falha.tipo === 'limite') {
@@ -627,6 +692,7 @@ async function bombear() {
     for (const item of lote) {
       if (item.estado === 'gravando') item.estado = 'aguardando';
     }
+    await salvarIndice();
     enviando = false;
     renderizar();
   }

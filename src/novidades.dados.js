@@ -4,6 +4,15 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.8.1',
+    quando: '2026-10-12T19:57',
+    titulo: 'O backup confere a pasta bem mais rápido',
+    mudancas: [
+      'A tela de backup guarda uma lista do que já foi enviado e confere a pasta por ela.',
+      'Só a primeira conferência lê as fotos uma a uma. Num teste com 68 fotos guardadas, ela levou 6 segundos e a seguinte, 2.',
+    ],
+  },
+  {
     versao: '1.8.0',
     quando: '2026-10-12T19:32',
     titulo: 'Traga uma pasta inteira de fotos do computador',
