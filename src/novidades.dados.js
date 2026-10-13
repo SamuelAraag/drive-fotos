@@ -7,6 +7,7 @@ export const NOVIDADES = [
       'O fundo saiu do azul-marinho para um tom de ardósia, mais claro, com mais diferença entre a página e os blocos.',
       'As fotos da grade ganharam cantos arredondados e um espaço maior entre elas.',
       'A zona de envio tem a borda e o ícone em azul.',
+      'O topo ganhou o menu "Mais", com o backup de uma pasta, as fotos sem data, as novidades e o "Sair". Antes as novidades ficavam no rodapé, depois de todas as fotos.',
     ],
   },
   {

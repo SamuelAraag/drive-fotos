@@ -1167,11 +1167,17 @@ tela mudando a cada escolha.
   mesmas classes e acompanha.
 - **Pílula de uso à esquerda e botão de ir para o início à direita,** trocados de lado no
   mesmo dia.
-- **Em aberto, ainda só em protótipo:**
-  - Menu "Mais" no topo (`prototipos/menu-mais.html`), com Backup de uma pasta, Fotos sem
-    data, Novidades com a versão ao lado e Sair. Resolve a versão inalcançável no rodapé e
-    tira o link do backup de cima da zona de envio.
-  - Se o aviso de fotos sem data sai da tela e fica só no menu.
+- **Menu "Mais" no topo.** Reúne o que é secundário: Backup de uma pasta, Fotos sem data
+  com a contagem, Novidades com a versão ao lado e Sair. No topo ficam só "Atualizar" e
+  "Mais", que tem fundo e texto em destaque. Saíram o botão "Sair" do topo, o link do
+  backup acima da zona de envio e o botão "Novidades" do rodapé, que com milhares de fotos
+  ficava inalcançável. O rodapé segue com a versão em texto.
+  - Usa o popover nativo do navegador, que já fecha com Esc e ao tocar fora e devolve o
+    foco. Onde o navegador não tem popover, o mesmo menu abre e fecha por código.
+  - Fecha ao rolar a página e ao escolher um item.
+  - "Fotos sem data" só aparece no menu quando existe alguma.
+- **Em aberto:** se o aviso de fotos sem data sai da tela e fica só no menu. Por enquanto
+  aparece nos dois lugares.
 - **Verificado na base de testes,** em tela larga: a tela principal com as cores novas, a
   zona de envio, a grade, a pílula no lugar novo, "Fotos sem data" e a tela de backup.
 - **Não verificado:** foto aberta, diálogos, página de novidades e de download com as

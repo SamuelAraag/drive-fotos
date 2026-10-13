@@ -346,12 +346,6 @@ body.modo-selecao .inicio {
   border-top: 1px solid var(--trilho);
 }
 
-.rodape__botao {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
 .novidades {
   max-width: 720px;
   margin: 0 auto;
@@ -448,6 +442,74 @@ body.modo-selecao .inicio {
   display: flex;
   flex: none;
   align-items: center;
+}
+
+.mais__abrir {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--e2);
+  font-weight: 600;
+}
+
+.mais__seta {
+  width: var(--e4);
+  height: var(--e4);
+  margin-left: var(--e1);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--rapido);
+}
+
+[aria-expanded='true'] .mais__seta {
+  transform: rotate(180deg);
+}
+
+.mais {
+  position: fixed;
+  inset: auto;
+  z-index: 4;
+  min-width: min(18rem, calc(100vw - var(--margem) * 2));
+  margin: 0;
+  padding: var(--e2);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.mais__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+}
+
+.botao.mais__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e4);
+  width: 100%;
+  color: var(--texto);
+  text-align: left;
+}
+
+.botao.mais__item:hover {
+  background: var(--trilho);
+}
+
+.mais__detalhe {
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums;
+}
+
+.mais__divisor {
+  height: 1px;
+  margin: var(--e1) 0;
+  background: var(--trilho);
 }
 
 .topo__sincronia {
@@ -883,14 +945,6 @@ html {
   border: 1px solid var(--trilho);
   border-radius: var(--raio);
   background: var(--superficie);
-}
-
-.backup__abrir {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  margin-bottom: var(--e3);
 }
 
 .backup-pagina {
@@ -2075,6 +2129,10 @@ body.modo-selecao .dia__selecao {
   }
 
   .grade__quadro {
+    transition: none;
+  }
+
+  .mais__seta {
     transition: none;
   }
 
