@@ -53,6 +53,7 @@ src/style.css
 src/app.js       estado, regras e eventos
 src/github.js    leitura e gravação via API do GitHub
 src/foto.js      id, miniatura e registro de cada foto
+src/indice.js    índice das fotos por ano
 src/armazem.js   o que fica guardado no aparelho
 src/ui.js        telas
 ```
@@ -63,7 +64,7 @@ src/ui.js        telas
 fotos/AAAA/<id>.<ext>         blob original
 miniaturas/AAAA/<id>.jpg      miniatura
 registros/AAAA/<id>.json      registro
-indices/backup.json           lista do que já está guardado, só para a tela de backup
+indices/AAAA.json             índice das fotos de cada ano: nome e origem da data
 ```
 
 - **Uma pasta por ano:** o GitHub recomenda no máximo 3.000 entradas por pasta. Com uma
@@ -682,7 +683,7 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
   já foi confirmado no repositório. A lista completa de caminhos e estados e a reutilização
   automática da permissão da pasta ainda dependem de validação por navegador. Não guardar
   outra cópia completa do acervo no armazenamento do navegador.
-- **Índice do backup.** A conferência precisa do nome de cada foto guardada, e o nome mora
+- **Índice do backup.** Trocado pelo índice por ano no Épico 20. Como nasceu: a conferência precisa do nome de cada foto guardada, e o nome mora
   no registro: sem ajuda, é uma leitura por foto a cada conferência. O arquivo
   `indices/backup.json`, no repositório de dados, guarda para cada registro o `sha` dele, o
   nome e o caminho da foto. A conferência lê a árvore e o índice, e só abre os registros
@@ -843,6 +844,70 @@ que o planejado: em vez de três níveis de leitura, um só, guiado pelo `sha` d
   corte que nem a leitura por ano resolve mostra o erro, e nunca uma grade incompleta; e,
   na etapa 2, voltar para a aba sem nada novo custa uma chamada.
 
+### Épico 20: Índice das fotos por ano
+
+Pedido em 2026-10-12, a partir da análise de gaps refeita com o acervo grande.
+
+- **O problema.** Três segundos depois de abrir, o app lia o registro de cada foto, um por
+  chamada, para saber o nome (foto repetida) e a origem da data (fotos sem data). O que foi
+  lido fica no aparelho, mas num aparelho sem nada guardado são tantas chamadas quantas
+  fotos. Com 9.600 fotos, passa das 5.000 chamadas por hora que o GitHub dá ao token, e aí
+  miniaturas e envio param junto.
+- **A saída.** O que o app precisa saber de todas as fotos de uma vez fica num índice. O
+  registro inteiro só é lido quando a foto é aberta ou regravada.
+- **Um arquivo por ano,** `indices/AAAA.json`, no repositório de dados. Um índice único
+  teria perto de 2 MB com 9.600 fotos, e regravar isso a cada envio pesaria quase tanto
+  quanto a foto. Por ano, o maior é o de 2026, com cerca de 200 KB.
+- **Cada entrada,** com o caminho do registro como chave:
+
+```json
+{
+  "registro": "64a87c01fbbc3deeea960a8695689e2cac519766",
+  "nome": "praia.jpg",
+  "blob": "fotos/2008/20080119T122423-fmio.jpg",
+  "origem": "exif",
+  "enviada": "2026-10-12T19:30:26-03:00"
+}
+```
+
+  - `registro` é o `sha` do arquivo de registro. A entrada só vale enquanto ele é o mesmo.
+  - `origem` é a origem da data: `exif`, `nome`, `informada` ou `envio`.
+  - `enviada` só existe na foto sem data, que a tela "Fotos sem data" agrupa pelo dia do
+    envio.
+  - Tamanho e `sha` da foto ficam de fora, porque já vêm na listagem. A data está no `id`.
+- **Quem grava.** Enviar, renomear, apagar e acertar a data regravam o índice do ano no
+  mesmo commit, sem chamada a mais: a foto e a entrada dela entram juntas ou não entram.
+  A tela de backup, que fecha um lote a cada poucos segundos, regrava os anos que mudaram a
+  cada dez lotes e no fim, em commit próprio.
+- **Quem lê.** O app lê os índices três segundos depois de abrir e guarda os arquivos no
+  aparelho pelo `sha`: da segunda vez, só o ano que mudou é baixado. A tela de backup lê os
+  mesmos arquivos na conferência.
+- **Foto que o índice não conhece** (índice velho, perdido ou sobrescrito por outro
+  aparelho) é lida pelo registro, como antes, com teto de 200 leituras por abertura. O teto
+  impede a rajada. O resto fica para a abertura seguinte, ou para a próxima conferência da
+  tela de backup, que regrava o ano.
+- **Antes de o índice ser lido, o app não grava nele,** para não trocar um arquivo completo
+  por um pela metade.
+- **O índice antigo,** `indices/backup.json`, sai do repositório na primeira gravação da
+  tela de backup.
+- **Verificado em 2026-10-12, na base de testes,** com 68 fotos em 7 anos:
+  - conferência do backup sem índice: 68 leituras de registro e um commit com os 7 índices;
+    a seguinte: 7 leituras, uma por índice, e nenhuma de registro;
+  - abrir o app: 7 leituras de índice, nenhuma de registro, e o aviso "24 fotos estão sem
+    data" certo;
+  - tela "Fotos sem data": nenhuma chamada para abrir, com as 24 fotos no dia do envio;
+  - enviar, renomear, apagar e acertar a data de uma foto: um commit cada, com a entrada do
+    índice certa depois de cada um.
+- **Em aberto:**
+  - Apagar várias fotos de uma vez e o teto de 200 leituras não foram testados.
+  - Dois aparelhos gravando o mesmo ano ao mesmo tempo: o último sobrescreve a entrada do
+    outro, e a foto volta a ser lida pelo registro até alguém regravar o ano.
+  - A tela "Fotos sem data" desenha todas as fotos de uma vez. Com 2.000 delas, pede
+    carregar só o que está na tela. Épico 14.
+- **Pronto quando:** abrir o app num aparelho sem nada guardado custa uma leitura por ano,
+  e não uma por foto; o aviso de fotos sem data aparece sem abrir registro; e cada gravação
+  do app deixa o índice do ano igual ao que está no repositório.
+
 ## Pendências
 
 Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
@@ -866,6 +931,8 @@ vez dele.
 - [ ] Migração de tudo o que tenho até hoje. Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+- [x] Índice das fotos por ano, para o app não ler um registro por foto ao abrir. Feito no
+  Épico 20. Falta regerar o índice da base oficial depois que a migração terminar.
 - [x] Listagem do repositório acima de 7 MB: ler por pasta, reler só o que mudou e nunca
   mostrar lista cortada. Feito no Épico 19.
 
@@ -895,6 +962,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 17 | Migração do acervo | 3 dias, fora o tempo de envio | 13 |
 | 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
 | 19 | Listagem do repositório acima de 7 MB | 0,5 dia a etapa 1, 1 dia a etapa 2 | Nada |
+| 20 | Índice das fotos por ano | 1 dia | 17 e 19 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.

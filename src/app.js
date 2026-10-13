@@ -3,6 +3,7 @@
 import * as armazem from './armazem.js';
 import * as foto from './foto.js';
 import * as github from './github.js';
+import * as indices from './indice.js';
 import * as ui from './ui.js';
 
 const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
@@ -31,6 +32,12 @@ let aberta = null; // id da foto aberta em tela cheia
 let conferindo = false;
 let conferidoEm = 0; // hora da última leitura do repositório
 const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
+// Índice das fotos (ver indice.js): caminho do registro -> entrada, com o nome e a origem da
+// data. Poupa abrir o registro de cada foto só para saber o nome dela.
+let indice = new Map();
+let anosComIndice = new Set(); // anos que têm arquivo de índice no repositório
+let indicePronto = false;
+let lendoIndice = null;
 
 // Fila de envio. Cada item: { n, arquivo, nome, sha, reuso, data, origem, id, estado, mensagem }.
 // `data` é quando a foto foi tirada e `origem` diz de onde ela veio: toda foto entra na fila
@@ -247,6 +254,77 @@ async function lerRegistro(item) {
 
 const textoDoRegistro = (registro) => `${JSON.stringify(registro, null, 2)}\n`;
 
+const caminhoDoRegistro = (item) => foto.caminhos(item.id, '').registro;
+
+// O que se sabe da foto sem abrir o registro: o registro, se já foi lido, ou o resumo do índice.
+// Devolve undefined quando nenhum dos dois existe. O painel da foto aberta lê o registro inteiro.
+function dadosDe(item) {
+  if (registros.has(item.id)) return registros.get(item.id);
+  const entrada = indice.get(caminhoDoRegistro(item));
+  if (!entrada || entrada.registro !== item.registro) return undefined;
+  return { nome: entrada.nome, origem_da_data: entrada.origem, enviada_em: entrada.enviada ?? null };
+}
+
+// Lê os índices do repositório. Os arquivos ficam guardados no aparelho pelo sha, então só o
+// ano que mudou é baixado de novo.
+function carregarIndice() {
+  if (indicePronto) return Promise.resolve();
+  lendoIndice ??= (async () => {
+    try {
+      const arvore = await github.lerArvore();
+      const lido = await indices.carregar(arvore, async (sha) => (await obterBlob(sha, { original: false })).text());
+      indice = lido.entradas;
+      anosComIndice = new Set(lido.noArquivo.keys());
+      indicePronto = true;
+      armazem.manterIndices(arvore.filter((arquivo) => arquivo.caminho.startsWith('indices/')).map((arquivo) => arquivo.sha));
+    } catch {
+      // Sem índice o app segue: os registros são lidos um a um, até o teto por abertura.
+    } finally {
+      lendoIndice = null;
+    }
+  })();
+  return lendoIndice;
+}
+
+// Os arquivos de índice que entram junto no commit de quem envia, renomeia, apaga ou acerta a
+// data. `entram` são pares [caminho do registro, entrada] e `saem`, caminhos de registro.
+// Cada ano tocado é regravado inteiro, com o que se sabe das fotos dele. Antes de o índice ser
+// lido nada é gravado, para não trocar um arquivo completo por um pela metade.
+function indiceNoCommit({ entram = [], saem = [] }) {
+  if (!indicePronto) return { arquivos: [], aplicar() {} };
+  const novas = new Map(entram);
+  const fora = new Set(saem);
+  const anos = new Set([...fora, ...novas.keys()].map(indices.anoDoRegistro));
+  const arquivos = [];
+  for (const ano of anos) {
+    const doAno = new Map();
+    for (const item of fotos ?? []) {
+      if (!item.registro || !item.id.startsWith(ano)) continue;
+      const caminho = caminhoDoRegistro(item);
+      if (fora.has(caminho) || novas.has(caminho)) continue;
+      const guardada = indice.get(caminho);
+      const registro = registros.get(item.id);
+      if (guardada?.registro === item.registro) doAno.set(caminho, guardada);
+      else if (registro) doAno.set(caminho, indices.entradaDe(registro, item.registro));
+    }
+    for (const [caminho, entrada] of novas) if (indices.anoDoRegistro(caminho) === ano) doAno.set(caminho, entrada);
+    const arquivo = indices.arquivoDoAno(ano, [...doAno], anosComIndice.has(ano));
+    if (arquivo) arquivos.push(arquivo);
+  }
+  return {
+    arquivos,
+    aplicar() {
+      for (const caminho of fora) indice.delete(caminho);
+      for (const [caminho, entrada] of novas) indice.set(caminho, entrada);
+      for (const arquivo of arquivos) {
+        const ano = arquivo.caminho.slice('indices/'.length, -'.json'.length);
+        if (arquivo.apagar) anosComIndice.delete(ano);
+        else anosComIndice.add(ano);
+      }
+    },
+  };
+}
+
 async function mostrarAberta({ abrindo = false } = {}) {
   const indice = fotos.findIndex((item) => item.id === aberta);
   if (indice < 0) {
@@ -443,8 +521,10 @@ async function salvarNome(base, extensao) {
   ui.erroNoRenomear(null);
   ui.renomearOcupado(true);
   try {
-    await github.gravar([{ caminho: caminhos.registro, texto }], `renomear: ${item.id}`);
     const sha = await foto.shaDoGit(texto);
+    const noIndice = indiceNoCommit({ entram: [[caminhos.registro, indices.entradaDe(registro, sha)]] });
+    await github.gravar([{ caminho: caminhos.registro, texto }, ...noIndice.arquivos], `renomear: ${item.id}`);
+    noIndice.aplicar();
     if (item.registro) armazem.apagar([item.registro]);
     armazem.guardar(sha, new Blob([texto], { type: 'application/json' }), { original: false });
     registros.set(item.id, registro);
@@ -466,7 +546,7 @@ function pedirApagar() {
   const item = fotoAberta();
   if (!item) return;
   ui.avisoNoVisor(null);
-  ui.abrirApagar(item, nomeDaFoto(item, registros.get(item.id)));
+  ui.abrirApagar(item, nomeDaFoto(item, dadosDe(item)));
 }
 
 async function apagarFoto() {
@@ -477,10 +557,12 @@ async function apagarFoto() {
   const arquivos = [{ caminho: caminhos.blob, apagar: true }];
   if (item.miniatura) arquivos.push({ caminho: caminhos.miniatura, apagar: true });
   if (item.registro) arquivos.push({ caminho: caminhos.registro, apagar: true });
+  const noIndice = indiceNoCommit({ saem: item.registro ? [caminhos.registro] : [] });
   ui.erroNoApagar(null);
   ui.apagarOcupado(true);
   try {
-    await github.gravar(arquivos, `apagar: ${item.id}`);
+    await github.gravar([...arquivos, ...noIndice.arquivos], `apagar: ${item.id}`);
+    noIndice.aplicar();
   } catch (erro) {
     ui.apagarOcupado(false);
     if (tokenVenceu(erro)) return;
@@ -602,8 +684,10 @@ async function apagarSelecao() {
   ui.erroApagarSelecao(null);
   apagandoSelecao = true;
   ui.apagarSelecaoOcupada(true);
+  const noIndice = indiceNoCommit({ saem: removidas.filter((item) => item.registro).map(caminhoDoRegistro) });
   try {
-    await github.gravar(arquivos, `apagar ${removidas.length} fotos`);
+    await github.gravar([...arquivos, ...noIndice.arquivos], `apagar ${removidas.length} fotos`);
+    noIndice.aplicar();
   } catch (erro) {
     apagandoSelecao = false;
     ui.apagarSelecaoOcupada(false);
@@ -636,11 +720,11 @@ let lendoPendentes = false;
 let pendentesIncompletas = false;
 
 function pendentes() {
-  return (fotos ?? []).filter((item) => registros.get(item.id)?.origem_da_data === 'envio');
+  return (fotos ?? []).filter((item) => dadosDe(item)?.origem_da_data === 'envio');
 }
 
 const diaDoEnvio = (item) => {
-  const enviada = new Date(registros.get(item.id)?.enviada_em ?? NaN);
+  const enviada = new Date(dadosDe(item)?.enviada_em ?? NaN);
   return Number.isNaN(enviada.getTime()) ? item.dia : foto.diaEmTexto(enviada).replaceAll('-', '');
 };
 
@@ -650,7 +734,7 @@ function gruposDePendentes() {
   for (const item of pendentes()) {
     const dia = diaDoEnvio(item);
     if (!porDia.has(dia)) porDia.set(dia, []);
-    porDia.get(dia).push({ foto: item, nome: nomeDaFoto(item, registros.get(item.id)) });
+    porDia.get(dia).push({ foto: item, nome: nomeDaFoto(item, dadosDe(item)) });
   }
   return [...porDia.entries()]
     .sort(([a], [b]) => (a < b ? 1 : -1))
@@ -678,14 +762,14 @@ function render() {
   ui.mostrarTela('principal');
 }
 
-// A tela depende do registro de todas as fotos: é nele que está a origem da data.
+// A tela depende da origem da data de todas as fotos, que vem do índice.
 async function abrirSemData() {
   lendoPendentes = true;
   pendentesIncompletas = false;
   ui.erroNasPendentes(null);
   render();
   ui.focarTela('sem-data');
-  const completa = await lerNomes().catch(() => false);
+  const completa = await carregarIndice().then(() => lerNomes()).catch(() => false);
   lendoPendentes = false;
   pendentesIncompletas = !completa;
   render();
@@ -705,7 +789,8 @@ async function datar(mudancas) {
   const trocas = []; // { antiga, nova, registro, texto }
   for (const { id, dia } of mudancas) {
     const antiga = fotos?.find((item) => item.id === id);
-    const registro = antiga && registros.get(antiga.id);
+    // O índice basta para listar a foto, mas regravar pede o registro inteiro.
+    const registro = antiga && (await lerRegistro(antiga));
     if (!antiga || !registro) continue;
     const data = dia ? foto.dataNoDia(dia) : null;
     if (dia && !data) {
@@ -731,22 +816,27 @@ async function datar(mudancas) {
       arquivos.push({ caminho: de.registro, apagar: true });
     }
     arquivos.push({ caminho: para.registro, texto });
-    trocas.push({ antiga, registro: novoRegistro, texto, nova: { ...antiga, id: novoId, dia: novoId.slice(0, 8), hora: novoId.slice(9, 15) } });
+    trocas.push({ antiga, registro: novoRegistro, texto, sha: await foto.shaDoGit(texto), de, para, nova: { ...antiga, id: novoId, dia: novoId.slice(0, 8), hora: novoId.slice(9, 15) } });
   }
   if (trocas.length === 0) return;
 
   ui.erroNasPendentes(null);
   ui.pendentesOcupado(true);
+  const noIndice = indiceNoCommit({
+    entram: trocas.map(({ registro, sha, para }) => [para.registro, indices.entradaDe(registro, sha)]),
+    saem: trocas.filter(({ antiga, de, para }) => antiga.registro && de.registro !== para.registro).map(({ de }) => de.registro),
+  });
   try {
-    await github.gravar(arquivos, trocas.length === 1 ? `datar: ${trocas[0].nova.id}` : `datar: ${trocas.length} fotos`);
+    await github.gravar([...arquivos, ...noIndice.arquivos], trocas.length === 1 ? `datar: ${trocas[0].nova.id}` : `datar: ${trocas.length} fotos`);
+    noIndice.aplicar();
   } catch (erro) {
     ui.pendentesOcupado(false);
     if (tokenVenceu(erro)) return;
     ui.erroNasPendentes(mensagemDe(erro, 'Não deu para salvar as datas. Tente de novo.'));
     return;
   }
-  for (const { antiga, nova, registro, texto } of trocas) {
-    nova.registro = await foto.shaDoGit(texto);
+  for (const { antiga, nova, registro, texto, sha } of trocas) {
+    nova.registro = sha;
     if (antiga.registro) armazem.apagar([antiga.registro]);
     armazem.guardar(nova.registro, new Blob([texto], { type: 'application/json' }), { original: false });
     registros.delete(antiga.id);
@@ -826,6 +916,7 @@ async function relerLista() {
   // Registro trocado em outro aparelho (um renomear): o nome que estava na memória não vale mais.
   const registroDe = new Map(antes.map((item) => [item.id, item.registro]));
   for (const item of novas) if (registroDe.get(item.id) !== item.registro) registros.delete(item.id);
+  indicePronto = false; // outro aparelho gravou: o índice dele vale mais que o que está na memória
   fotos = novas;
   armazem.guardarFotos(fotos);
   render();
@@ -927,6 +1018,10 @@ function sair() {
   ui.limparPrincipal();
   visibilidade(null);
   registros.clear();
+  indice = new Map();
+  anosComIndice = new Set();
+  indicePronto = false;
+  registrosLidosNaAbertura = 0;
   esquecerMiniaturas();
   esquecerOriginais();
   armazem.limpar();
@@ -1003,37 +1098,48 @@ function enfileirar(entradas) {
 // lidos. Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas vezes.
 
 const MAX_REGISTROS_NA_HORA = 80; // registros que o envio aceita esperar; acima disso, vale o que já foi lido
+// O índice traz quase todos os nomes. O teto impede que um aparelho sem nada guardado, diante de
+// um índice velho ou perdido, dispare milhares de leituras e estoure o limite de chamadas do GitHub.
+const MAX_REGISTROS_POR_ABERTURA = 200;
 const LEITORES_DE_REGISTRO = 2;
 let lendoNomes = null; // leitura de registros em curso, para não correr duas ao mesmo tempo
+let registrosLidosNaAbertura = 0;
 
-// Lê o registro das fotos que ainda não têm o nome conhecido. Fica guardado no aparelho, então
-// só custa chamadas na primeira vez. Devolve se terminou com todos os nomes em mãos.
+// Lê o registro das fotos que o índice não conhece. Fica guardado no aparelho, então só custa
+// chamadas na primeira vez. Devolve se terminou com todos os nomes em mãos.
 function lerNomes({ limite = Infinity } = {}) {
-  const faltam = (fotos ?? []).filter((item) => item.registro && !registros.has(item.id));
+  const faltam = (fotos ?? []).filter((item) => item.registro && dadosDe(item) === undefined);
   if (faltam.length === 0) return Promise.resolve(true);
   if (faltam.length > limite) return Promise.resolve(false);
   lendoNomes ??= (async () => {
+    const cota = faltam.slice(0, Math.max(0, MAX_REGISTROS_POR_ABERTURA - registrosLidosNaAbertura));
     let proximo = 0;
     let falhas = 0;
     const leitor = async () => {
       // Três falhas seguidas (sem rede, limite de ritmo) encerram: tenta de novo na próxima vez.
-      while (proximo < faltam.length && falhas < 3) {
-        const item = faltam[proximo++];
+      while (proximo < cota.length && falhas < 3) {
+        const item = cota[proximo++];
+        registrosLidosNaAbertura++;
         falhas = (await lerRegistro(item)) ? 0 : falhas + 1;
       }
     };
     await Promise.all(Array.from({ length: LEITORES_DE_REGISTRO }, leitor));
     lendoNomes = null;
-    return falhas < 3;
+    return falhas < 3 && cota.length === faltam.length;
   })();
   return lendoNomes;
 }
 
 // Em segundo plano, depois que a grade já pediu as miniaturas dela.
 function aquecerNomes() {
-  if (navigator.connection?.saveData) return;
-  // Com os registros lidos, dá para saber quantas fotos estão sem data.
-  setTimeout(() => lerNomes().then(() => !naTelaSemData() && fotos && ui.linkDasPendentes(pendentes().length), () => {}), 3000);
+  // Com o índice lido, dá para saber quantas fotos estão sem data.
+  const avisar = () => !naTelaSemData() && fotos && ui.linkDasPendentes(pendentes().length);
+  setTimeout(() => {
+    carregarIndice()
+      .then(avisar)
+      .then(() => !navigator.connection?.saveData && lerNomes().then(avisar))
+      .catch(() => {});
+  }, 3000);
 }
 
 const chaveDoNome = (nome) => nome.toLocaleLowerCase('pt-BR');
@@ -1042,14 +1148,16 @@ const chaveDoNome = (nome) => nome.toLocaleLowerCase('pt-BR');
 function nomesGuardados() {
   const porNome = new Map(); // chave do nome -> foto mais recente com esse nome
   for (const item of fotos ?? []) {
-    if (item.registro && !registros.has(item.id)) continue; // nome ainda não lido
-    const chave = chaveDoNome(nomeDaFoto(item, registros.get(item.id)));
+    const dados = dadosDe(item);
+    if (item.registro && dados === undefined) continue; // nome ainda não lido
+    const chave = chaveDoNome(nomeDaFoto(item, dados));
     if (!porNome.has(chave)) porNome.set(chave, item);
   }
   return porNome;
 }
 
 async function separarRepetidas(arquivos) {
+  await carregarIndice();
   await lerNomes({ limite: MAX_REGISTROS_NA_HORA });
   const porConteudo = new Map(); // sha -> { foto } já guardada, ou { arquivo } ainda na fila
   const porNome = new Map(); // chave do nome -> idem
@@ -1084,8 +1192,8 @@ async function separarRepetidas(arquivos) {
 // Todos os nomes em uso, guardados ou na fila: a cópia não pode cair em nenhum deles.
 function nomesEmUso() {
   const guardados = (fotos ?? [])
-    .filter((item) => !item.registro || registros.has(item.id))
-    .map((item) => nomeDaFoto(item, registros.get(item.id)));
+    .filter((item) => !item.registro || dadosDe(item) !== undefined)
+    .map((item) => nomeDaFoto(item, dadosDe(item)));
   return [...guardados, ...fila.map((item) => item.nome)];
 }
 
@@ -1269,11 +1377,15 @@ function registrarLote(lote) {
 async function fecharLote(lote) {
   if (lote.length === 0) return true;
   renderFila();
-  const arquivos = lote.flatMap((item) => item.pronta.arquivos);
+  const noIndice = indiceNoCommit({
+    entram: lote.map((item) => [caminhoDoRegistro(item), indices.entradaDe(item.pronta.registro, item.pronta.nova.registro)]),
+  });
+  const arquivos = [...lote.flatMap((item) => item.pronta.arquivos), ...noIndice.arquivos];
   const mensagem = lote.length === 1 ? `foto: ${lote[0].id}` : `fotos: ${lote.length}`;
   for (;;) {
     try {
       await github.gravar(arquivos, mensagem);
+      noIndice.aplicar();
       registrarLote(lote);
       for (const item of lote) item.estado = 'concluido';
       renderFila();

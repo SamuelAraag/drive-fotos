@@ -8,6 +8,9 @@ const NOME_DO_CACHE = 'drive-fotos-arquivos-v1';
 const CHAVE_ORIGINAIS = 'drive-fotos.originais'; // { sha: [tamanho, último uso] }
 // A base oficial e a de testes têm listas diferentes: cada uma guarda a sua.
 const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
+// Os índices são regravados a cada envio: o sha dos que valem agora fica anotado, para os
+// velhos saírem do aparelho.
+const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
 
 // Miniaturas ficam sempre, porque são pequenas. As originais têm teto, e as que não são
 // abertas há mais tempo saem primeiro.
@@ -130,11 +133,23 @@ export function guardarFotos(lista) {
   }
 }
 
+// Tira do aparelho os índices que deixaram de valer. `atuais` são os sha dos que valem agora.
+export function manterIndices(atuais) {
+  try {
+    const antes = JSON.parse(localStorage.getItem(CHAVE_INDICES)) ?? [];
+    localStorage.setItem(CHAVE_INDICES, JSON.stringify(atuais));
+    const velhos = antes.filter((sha) => !atuais.includes(sha));
+    if (velhos.length) apagar(velhos);
+  } catch {
+    // sem a anotação, os índices velhos ficam no aparelho até o "Sair"
+  }
+}
+
 export async function limpar() {
   cache = null;
   try {
     for (const chave of Object.keys(localStorage)) {
-      if (chave === CHAVE_ORIGINAIS || chave.startsWith('drive-fotos.fotos.')) localStorage.removeItem(chave);
+      if (chave === CHAVE_ORIGINAIS || chave.startsWith('drive-fotos.fotos.') || chave.startsWith('drive-fotos.indices.')) localStorage.removeItem(chave);
     }
     if ('caches' in window) {
       await caches.delete(NOME_DO_CACHE);

@@ -6,6 +6,16 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.10.0',
+    quando: '2026-10-12T22:23',
+    titulo: 'O app abre sem ler os dados de foto por foto',
+    mudancas: [
+      'Ao abrir, o app lia os dados de cada foto guardada, uma a uma. Agora lê uma lista por ano, e só os anos que mudaram.',
+      'O aviso de fotos sem data e a tela "Fotos sem data" saem dessa lista, sem abrir cada foto.',
+      'Enviar, renomear, apagar e acertar a data atualizam a lista junto com a foto.',
+    ],
+  },
+  {
     versao: '1.9.0',
     quando: '2026-10-12T21:32',
     titulo: 'Todas as fotos aparecem, mesmo com um acervo grande',
