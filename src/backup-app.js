@@ -29,7 +29,6 @@ let temIndiceAntigo = false;
 let lotesSemIndice = 0;
 
 const chaveNome = (nome) => nome.toLocaleLowerCase('pt-BR');
-const ehHeic = (arquivo) => /^hei[cf]$/.test(foto.extensaoDe(arquivo)) || /^image\/hei[cf]/.test(arquivo.type);
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
 const escritas = [];
@@ -408,12 +407,12 @@ async function preparar(arquivos, pasta) {
         ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'arquivo vazio' });
         continue;
       }
-      if (!foto.ehImagem(arquivo)) {
-        ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'formato não reconhecido como imagem' });
+      if (foto.ehImagemSemSuporte(arquivo)) {
+        ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'formato que o navegador não mostra' });
         continue;
       }
-      if (ehHeic(arquivo)) {
-        ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'HEIC não entra no backup' });
+      if (!foto.ehImagem(arquivo)) {
+        ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'formato não reconhecido como imagem' });
         continue;
       }
       if (arquivo.size > foto.TAMANHO_MAXIMO) {
@@ -470,7 +469,7 @@ async function preparar(arquivos, pasta) {
     }
 
     const formatos = new Map();
-    for (const { arquivo } of arquivos.filter(({ arquivo }) => foto.ehImagem(arquivo) && !ehHeic(arquivo) && arquivo.size <= foto.TAMANHO_MAXIMO && arquivo.size > 0)) {
+    for (const { arquivo } of arquivos.filter(({ arquivo }) => foto.ehImagem(arquivo) && arquivo.size <= foto.TAMANHO_MAXIMO && arquivo.size > 0)) {
       const ext = foto.extensaoDe(arquivo).toUpperCase().replace('JPEG', 'JPG');
       formatos.set(ext, (formatos.get(ext) ?? 0) + 1);
     }
