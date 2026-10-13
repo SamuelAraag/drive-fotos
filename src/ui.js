@@ -7,6 +7,8 @@ const $ = (id) => document.getElementById(id);
 const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
 const FIM_PUXAR = 64;
 const QUADROS_DO_ESQUELETO = 24;
+const TELAS_ATE_O_BOTAO_DE_INICIO = 2;
+const TELAS_COM_ROLAGEM_SUAVE = 5;
 let atualizacaoOcupada = false;
 let quantasApagarSelecao = 0;
 
@@ -126,7 +128,7 @@ export function renderErro(mensagem) {
   $('erro-mensagem').textContent = mensagem;
 }
 
-$('esqueleto-grade').append(...Array.from({ length: QUADROS_DO_ESQUELETO }, () => el('li', 'grade__quadro')));
+$('esqueleto-grade')?.append(...Array.from({ length: QUADROS_DO_ESQUELETO }, () => el('li', 'grade__quadro')));
 
 function el(tag, classe, texto) {
   const no = document.createElement(tag);
@@ -1642,7 +1644,32 @@ export function loginOcupado(ocupado) {
   $('login-entrar').textContent = ocupado ? 'Verificando...' : 'Entrar';
 }
 
+function ligarIrAoInicio() {
+  const botao = $('ir-ao-inicio');
+  if (!botao) return;
+  let conferindo = false;
+  const conferir = () => {
+    conferindo = false;
+    botao.hidden = scrollY < innerHeight * TELAS_ATE_O_BOTAO_DE_INICIO;
+  };
+  addEventListener(
+    'scroll',
+    () => {
+      if (conferindo) return;
+      conferindo = true;
+      requestAnimationFrame(conferir);
+    },
+    { passive: true },
+  );
+  botao.addEventListener('click', () => {
+    const perto = scrollY < innerHeight * TELAS_COM_ROLAGEM_SUAVE;
+    scrollTo({ top: 0, behavior: perto && !semMovimento.matches ? 'smooth' : 'auto' });
+    document.querySelector('.tela:not([hidden]) h2')?.focus({ preventScroll: true });
+  });
+}
+
 export function ligarEventos(acoes) {
+  ligarIrAoInicio();
   const entrada = $('zona-entrada');
   $('zona').addEventListener('click', () => entrada.click());
   entrada.addEventListener('change', () => {
