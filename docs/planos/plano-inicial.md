@@ -180,8 +180,8 @@ reescrita em JS puro. O mesmo caminho serve para celular e web.
   - A página nunca rola sozinha, e a fila não espera a animação.
 - **Falhas:** só as fotos que não subiram ficam listadas, cada uma com o motivo e um
   "tentar de novo", sem refazer a seleção.
-- **Recusas na entrada:** arquivo vazio, pasta, o que não for imagem e foto acima de 25 MB
-  ficam de fora, com aviso.
+- **Recusas na entrada:** arquivo vazio, pasta, o que não for imagem, imagem em formato que
+  nem todo navegador mostra (HEIC, TIFF, RAW) e foto acima de 25 MB ficam de fora, com aviso.
 - **Limite de ritmo:** quando o GitHub responde que o limite estourou, a fila pausa, mostra
   quando volta e retoma sozinha. Não vira erro de item.
 - **A fila vive na memória da página.** No celular, bloquear a tela ou trocar de app pode
@@ -752,9 +752,12 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
 - **Em aberto:**
   - Origem e tamanho reais do acervo. Fazer o levantamento antes de fechar a estratégia de
     capacidade e o tamanho dos lotes de teste.
-  - HEIC. Decidido em 2026-10-12: o backup não aceita HEIC nem HEIF. O arquivo aparece em
-    "ficam de fora", com o motivo. As 261 que tinham subido sem miniatura foram apagadas da
-    base no mesmo dia. O envio comum da tela principal continua aceitando.
+  - HEIC. Decidido em 2026-10-12: o backup não aceita HEIC nem HEIF. As 261 que tinham
+    subido sem miniatura foram apagadas da base no mesmo dia. Em 2026-10-13 a regra passou
+    a valer também no envio comum e virou uma lista do que entra: JPEG, PNG, WebP, GIF, AVIF
+    e BMP, os formatos que todo navegador mostra. HEIC, TIFF e RAW ficam de fora, com o
+    aviso "formato que o navegador não mostra". A lista está em `src/foto.js`, e o seletor
+    de arquivos da tela principal só oferece esses tipos.
   - Metadados auxiliares: listar os formatos de exportação que serão lidos e como associar
     cada arquivo de metadados à imagem correta.
   - Persistência do acesso à pasta e retomada automática: confirmar o comportamento em cada

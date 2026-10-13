@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.13.1',
+    quando: '2026-10-13T13:52',
+    titulo: 'Só sobe foto em formato que todo navegador mostra',
+    mudancas: [
+      'O envio comum e o backup aceitam JPEG, PNG, WebP, GIF, AVIF e BMP.',
+      'HEIC, TIFF e RAW ficam de fora, com um aviso dizendo o motivo. Antes o envio comum ainda deixava HEIC passar.',
+    ],
+  },
+  {
     versao: '1.13.0',
     quando: '2026-10-13T13:40',
     titulo: 'Fundo mais claro e fotos com respiro',

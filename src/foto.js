@@ -130,7 +130,10 @@ export function comFuso(data) {
 }
 
 const EXTENSAO_DO_TIPO = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif' };
-const EXTENSOES_DE_IMAGEM = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'avif', 'bmp', 'tif', 'tiff'];
+const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp'];
+const EXTENSOES_ACEITAS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp'];
+const EXTENSOES_SEM_SUPORTE = ['heic', 'heif', 'tif', 'tiff', 'dng', 'cr2', 'cr3', 'nef', 'arw', 'raw', 'psd'];
+
 
 function extensaoDoNome(nome) {
   const partes = /\.([0-9a-z]{1,5})$/i.exec(nome);
@@ -142,7 +145,13 @@ export function extensaoDe(arquivo) {
 }
 
 export function ehImagem(arquivo) {
-  return arquivo.type.startsWith('image/') || EXTENSOES_DE_IMAGEM.includes(extensaoDoNome(arquivo.name));
+  if (arquivo.type) return TIPOS_ACEITOS.includes(arquivo.type);
+  return EXTENSOES_ACEITAS.includes(extensaoDoNome(arquivo.name));
+}
+
+export function ehImagemSemSuporte(arquivo) {
+  if (ehImagem(arquivo)) return false;
+  return arquivo.type.startsWith('image/') || EXTENSOES_SEM_SUPORTE.includes(extensaoDoNome(arquivo.name));
 }
 
 export async function gerarMiniatura(arquivo) {

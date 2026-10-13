@@ -924,7 +924,8 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   if (temPasta) recusas.push('Pastas não são aceitas. Solte as fotos de dentro dela.');
 
   const vazios = arquivos.filter((arquivo) => arquivo.size === 0);
-  const naoImagens = arquivos.filter((arquivo) => arquivo.size > 0 && !foto.ehImagem(arquivo));
+  const semSuporte = arquivos.filter((arquivo) => arquivo.size > 0 && foto.ehImagemSemSuporte(arquivo));
+  const naoImagens = arquivos.filter((arquivo) => arquivo.size > 0 && !foto.ehImagem(arquivo) && !foto.ehImagemSemSuporte(arquivo));
   const grandes = arquivos.filter((arquivo) => foto.ehImagem(arquivo) && arquivo.size > foto.TAMANHO_MAXIMO);
   const aceitos = arquivos.filter(
     (arquivo) => arquivo.size > 0 && foto.ehImagem(arquivo) && arquivo.size <= foto.TAMANHO_MAXIMO,
@@ -932,6 +933,9 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
 
   const nomes = (lista) => lista.map((arquivo) => arquivo.name).join(', ');
   if (vazios.length) recusas.push(`${nomes(vazios)}: ${plural(vazios.length, 'arquivo vazio', 'arquivos vazios')}.`);
+  if (semSuporte.length) {
+    recusas.push(`${nomes(semSuporte)}: ${plural(semSuporte.length, 'formato que o navegador não mostra', 'formatos que o navegador não mostra')}. Converta para JPEG antes de enviar.`);
+  }
   if (naoImagens.length) recusas.push(`${nomes(naoImagens)}: ${plural(naoImagens.length, 'não é imagem', 'não são imagens')}.`);
   if (grandes.length) {
     recusas.push(`${nomes(grandes)}: ${plural(grandes.length, 'passa', 'passam')} de ${foto.fmtTamanho(foto.TAMANHO_MAXIMO)}.`);
