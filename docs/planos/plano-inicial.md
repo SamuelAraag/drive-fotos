@@ -1194,8 +1194,8 @@ tela mudando a cada escolha.
   zona de envio, a grade, a pílula no lugar novo, "Fotos sem data" e a tela de backup.
 - **Não verificado:** foto aberta, diálogos, página de novidades e de download com as
   cores novas, nem em celular.
-- **Pronto quando:** todas as telas foram abertas com o tema novo, no computador e no
-  celular, e o que ficou em aberto foi decidido.
+- **Fechado em 2026-10-13,** por decisão, com a publicação da versão 1.13.0. Ficaram sem
+  conferir a foto aberta, os diálogos, as páginas de novidades e de download e o celular.
 
 ## Pendências
 
@@ -1241,9 +1241,7 @@ fotos ou de o app parar de funcionar bem:
 7. [x] Rodar a análise de gaps. Feito no Épico 13.
 8. Retirado da lista em 2026-10-13: Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
-10. [ ] Reformulação do layout. Épico 28. Tema e menu "Mais" publicados na versão 1.13.0.
-    Falta conferir a foto aberta, os diálogos e o celular, e decidir se o aviso de fotos
-    sem data fica só no menu.
+10. [x] Reformulação do layout. Feito no Épico 28, publicado na versão 1.13.0.
 
 ## Linha do tempo
 
