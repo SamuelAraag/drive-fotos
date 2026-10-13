@@ -1013,7 +1013,17 @@ Pedido em 2026-10-13.
 
 ### Épico 24: Lista de fotos guardada no navegador
 
-Pedido em 2026-10-13. É o gap N3 da análise de gaps.
+Pedido em 2026-10-13 e feito no mesmo dia. É o gap N3 da análise de gaps.
+
+- **Como ficou:** em `src/armazem.js`, a lista só é gravada se tiver até 3 MB em
+  caracteres, o que dá perto de 11.800 fotos. Acima disso, ou quando o navegador recusa a
+  gravação, a cópia que estava guardada é apagada. Sem cópia, a abertura seguinte mostra o
+  esqueleto e carrega do GitHub, como na primeira vez.
+- **Verificado na base de testes:** lista pequena é gravada; lista acima do teto não é
+  gravada e a cópia antiga some; gravação recusada pelo navegador (simulada) também apaga a
+  cópia antiga.
+- **Limite conhecido:** 3 MB em caracteres passam do que o Safari aceita, que conta dois
+  bytes por caractere. Lá a gravação é recusada antes do teto, e vale o mesmo tratamento.
 
 - **O problema:** para abrir na hora, o app guarda no `localStorage` uma cópia da lista de
   fotos. O `localStorage` tem teto de cerca de 5 MB por site, dividido com os outros sites
@@ -1106,22 +1116,24 @@ dele. Primeiro o que já foi feito, depois o que falta.
 - [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
 - [x] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Feito no Épico 22.
 
-Lista revista em 2026-10-13, na ordem em que foi passada:
+Lista revista em 2026-10-13. O que falta, do mais crítico para o menos, pelo risco de perder
+fotos ou de o app parar de funcionar bem:
 
-- [ ] Criar botão de ir para o início. Épico 23.
-- [ ] Lista de fotos do `localStorage`: limite fixo e tratamento em caso de falha. Épico 24.
-- [ ] Corrigir a data por foto isolada, unitária. Épico 25.
-  - [ ] A tela deve carregar as imagens como é feito na tela de listagem principal.
-- [ ] Rodar a análise de gaps. Épico 13.
-- [ ] Revisar todos os arquivos. Épico 14.
-- [ ] Documentar as usabilidades. Épico 16.
-- [ ] Migração de tudo o que tenho até hoje. Épico 17.
-  - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
-- [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
-  - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
-- [ ] Sistema de backup. Épico 26.
-  - [ ] Sempre que eu abrir a tela ele faz um fork do repositório da base de dados para a
-    conta principal? Se isso trouxer os arquivos pode ser uma solução.
+1. [ ] Sistema de backup. Épico 26.
+   - [ ] Sempre que eu abrir a tela ele faz um fork do repositório da base de dados para a
+     conta principal? Se isso trouxer os arquivos pode ser uma solução.
+2. [x] Lista de fotos do `localStorage`: limite fixo e tratamento em caso de falha. Feito no
+   Épico 24.
+3. [ ] Migração de tudo o que tenho até hoje. Épico 17.
+   - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
+4. [ ] Corrigir a data por foto isolada, unitária. Épico 25.
+   - [ ] A tela deve carregar as imagens como é feito na tela de listagem principal.
+5. [ ] Criar botão de ir para o início. Épico 23.
+6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
+   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+7. [ ] Rodar a análise de gaps. Épico 13.
+8. [ ] Revisar todos os arquivos. Épico 14.
+9. [ ] Documentar as usabilidades. Épico 16.
 
 ## Linha do tempo
 

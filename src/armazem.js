@@ -8,6 +8,7 @@ const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
 const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
 
 const TETO_DE_ORIGINAIS = 1024 * 1024 * 1024;
+const TETO_DA_LISTA = 3 * 1024 * 1024;
 
 const endereco = (sha) => `${location.origin}/__arquivo__/${sha}`;
 
@@ -114,8 +115,21 @@ export function lerFotos() {
 
 export function guardarFotos(lista) {
   try {
-    localStorage.setItem(CHAVE_FOTOS, JSON.stringify(lista));
+    const texto = JSON.stringify(lista);
+    if (texto.length > TETO_DA_LISTA) throw new RangeError('lista de fotos acima do teto');
+    localStorage.setItem(CHAVE_FOTOS, texto);
+    return true;
   } catch {
+    esquecerFotos();
+    return false;
+  }
+}
+
+function esquecerFotos() {
+  try {
+    localStorage.removeItem(CHAVE_FOTOS);
+  } catch {
+    return;
   }
 }
 

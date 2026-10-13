@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.11.2',
+    quando: '2026-10-13T11:15',
+    titulo: 'O app não abre mais com uma lista de fotos antiga',
+    mudancas: [
+      'O app guarda a lista de fotos no navegador para abrir na hora. Quando ela não cabia, ficava guardada uma lista antiga, que aparecia a cada abertura.',
+      'Agora a lista antiga é apagada nesse caso, e o app abre pelo carregamento normal.',
+    ],
+  },
+  {
     versao: '1.11.1',
     quando: '2026-10-12T23:28',
     titulo: 'O backup deixa as fotos HEIC de fora',
