@@ -5,7 +5,7 @@ export const NOVIDADES = [
     titulo: 'Ao abrir, a tela já mostra o formato da grade',
     mudancas: [
       'Enquanto as fotos carregam, aparece o contorno da tela: a zona de envio e os quadros da grade, no lugar onde vão ficar.',
-      'Quando as fotos chegam, elas entram nesses lugares, sem a página pular. Antes aparecia só um girador no meio da tela.',
+      'Quando as fotos chegam, elas entram nesses lugares. Antes aparecia só um girador no meio da tela.',
     ],
   },
   {
