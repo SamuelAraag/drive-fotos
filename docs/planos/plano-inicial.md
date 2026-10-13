@@ -784,39 +784,74 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
   amostra validada quanto a data, nome e orientação. A base oficial só recebe a migração
   depois de confirmados espaço suficiente e cópia de segurança independente.
 
-### Épico 18: Enviar as fotos do dia
+### Épico 18: Enviar as fotos do iPhone sem escolher uma a uma
 
-Pedido em 2026-10-12: "tirei fotos hoje, e no fim do dia quero enviar todas".
+Pedido em 2026-10-12: "tirei fotos hoje, e no fim do dia quero enviar todas". Redesenhado em
+2026-10-13: é específico para o iPhone, tem dois modos (as fotos do dia, ou todas as que
+ainda não subiram), usa acesso total à galeria e vira uma rotina que sobe tudo sempre.
 
-- **O limite que manda no desenho:** um site não lê a galeria sozinho. Alguém precisa
-  escolher os arquivos. O épico encurta esse caminho o máximo que o navegador deixa.
-- **Botão "Enviar as fotos de hoje",** junto da zona de envio. Abre o seletor de fotos, que
-  no celular já começa pelas mais recentes. A pessoa marca sem conferir uma a uma, pode
-  marcar a mais.
-- **O app separa as de hoje.** Da seleção, só passam as fotos com data de hoje, pela mesma
-  leitura do Épico 8. As de outros dias ficam de fora, sem pergunta.
-- **O que já subiu não sobe de novo,** pela comparação do Épico 7, sem abrir o diálogo de
-  repetidas.
-- **Resumo antes de enviar:** "14 escolhidas: 9 de hoje para enviar, 3 de hoje já
-  guardadas, 2 de outros dias". Um botão, "Enviar 9 fotos". Com nada a enviar, o resumo
-  diz que o dia já está guardado.
-- **"Hoje" é o dia do aparelho.** Antes das 4 da manhã, o botão oferece também o dia
-  anterior, para quem envia depois da meia-noite.
-- **Foto sem data** (print, imagem de mensagem) não entra no filtro. O resumo conta quantas
-  ficaram de fora e oferece "Enviar também".
-- **Estado do dia na grade:** depois do envio, o título de hoje mostra a hora do último
-  envio do dia.
-- **Em aberto, a parte de rotina:**
-  - Lembrete no fim do dia. Notificação com o app fechado pede um servidor, que o projeto
-    não tem. A alternativa é um lembrete do próprio celular, com o link do app.
-  - Um atalho do sistema que junte as fotos de hoje e entregue ao app. A confirmar em que
-    celular isso funciona, porque depende de o sistema deixar compartilhar para um site
-    instalado. Liga com a decisão "iPhone ou Android" de `../requisitos.md`.
-  - No computador, escolher uma pasta uma vez e o app ler dela as fotos de hoje. A
-    confirmar em quais navegadores.
-- **Pronto quando:** num dia com fotos novas, um toque no botão, a seleção das recentes e
-  um toque em "Enviar" guardam todas as de hoje; repetir o mesmo caminho logo depois não
-  envia nenhuma; e uma foto de ontem escolhida junto fica de fora.
+- **Por que não dá para fazer só no site.** No iPhone, um site, mesmo instalado na tela de
+  início, só recebe as fotos que a pessoa escolhe no seletor. Ele não lê a galeria e não
+  roda fechado. Acesso total à galeria existe para app nativo e para o app Atalhos, da
+  Apple. App nativo pede conta paga de desenvolvedor e é outro projeto. O caminho é o
+  Atalhos.
+- **O desenho tem duas metades.**
+  1. **Um atalho no iPhone,** que busca as fotos na galeria, converte para JPEG e grava
+     cada uma na pasta `entrada/` do repositório de dados, pela API do GitHub. Ele não gera
+     miniatura, registro nem índice.
+  2. **O app,** que ao abrir olha a pasta `entrada/`. Para cada arquivo ele lê a data
+     (Épico 8), descarta o que já existe (Épico 7), gera a miniatura e o registro, atualiza
+     o índice do ano (Épico 20) e leva o arquivo para `fotos/AAAA/` pelo `sha`, sem enviar
+     de novo, como o acerto de data já faz. Tudo num commit por leva. No fim avisa quantas
+     fotos chegaram do iPhone.
+- **Por que dividir assim.** O formato do acervo fica só no app. O atalho é uma lista curta
+  de ações, e errar nele não corrompe nada: o pior caso é um arquivo parado em `entrada/`.
+- **Os dois modos.**
+  - **Fotos de hoje:** busca as fotos com data de hoje.
+  - **Tudo o que falta:** busca as fotos com data depois da última execução que deu certo.
+    Esse marco fica num arquivo de texto no iCloud Drive, e só avança quando a leva inteira
+    subiu. Na primeira vez ele não existe, e o atalho pergunta a partir de que data começar.
+  - Repetir não tem custo: o que já subiu é descartado pelo app na comparação do Épico 7.
+- **A rotina.** Uma automação pessoal do Atalhos, por horário ou ao ligar no carregador,
+  com "executar imediatamente", roda "Tudo o que falta" todo dia. As fotos só aparecem na
+  grade depois que o app for aberto e processar a entrada.
+- **Formato.** O iPhone grava em HEIC, que o app não aceita. O atalho converte para JPEG
+  antes de subir. Vídeo e Live Photo ficam de fora.
+- **Token.** O atalho guarda um token próprio, separado do que o app usa, só com escrita de
+  conteúdo no repositório de dados. Quem recebe o atalho compartilhado recebe o token
+  junto, então ele não é compartilhado.
+- **Limites que valem aqui.**
+  - 25 MB por foto, como no app. Acima disso o atalho pula e conta.
+  - Um commit por foto na entrada, então cada execução sobe uma leva com teto, a calibrar.
+  - A base oficial já passou dos 5 GB recomendados. A galeria inteira do iPhone pode ser
+    muito maior que isso, e é por isso que o primeiro "Tudo o que falta" pede uma data.
+- **A confirmar no aparelho,** antes de escrever o resto:
+  - Se a automação roda com o iPhone bloqueado, ou só com ele destravado.
+  - Quantas fotos uma execução aguenta antes de o Atalhos parar.
+  - Se a conversão para JPEG mantém a data dentro do arquivo. Se não mantiver, o atalho
+    põe a data no nome do arquivo, que o app já sabe ler.
+  - Se a ação de enviar aguenta uma foto de vários MB em base64.
+  - O que acontece com foto que está só no iCloud, com o armazenamento otimizado ligado.
+- **Etapas.**
+  1. Prova no aparelho: um atalho feito à mão que sobe uma foto para `entrada/`. Responde
+     os pontos acima. Se não passar, o épico volta ao plano B.
+  2. O app processa a pasta `entrada/`, e a listagem do Épico 19 ignora essa pasta na
+     grade.
+  3. Atalho "Fotos de hoje".
+  4. Atalho "Tudo o que falta", com o marco e as levas, e a automação diária.
+  5. Passo a passo de instalação em `docs/`, com cada ação do atalho escrita, já que o
+     repositório não consegue entregar o atalho pronto e assinado.
+- **Plano B,** o desenho anterior deste épico: botão "Enviar as fotos de hoje" no app, que
+  abre o seletor nas mais recentes, deixa passar só as de hoje e mostra um resumo antes de
+  enviar. Funciona em qualquer celular, mas exige escolher as fotos todo dia.
+- **Em aberto:**
+  - A que horas a rotina roda, ou se é ao ligar no carregador.
+  - A partir de que data o primeiro "Tudo o que falta" começa.
+  - Se prints e imagens salvas de conversa entram, ou só fotos da câmera.
+- **Pronto quando:** com a automação ligada, as fotos tiradas num dia estão na grade no dia
+  seguinte, ao abrir o app, sem ninguém ter escolhido nenhuma; rodar o atalho duas vezes
+  seguidas não duplica foto; e uma execução interrompida no meio não perde nem repete nada
+  na seguinte.
 
 ### Épico 19: Listagem do repositório acima de 7 MB
 
@@ -1368,7 +1403,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 15 | Remoção dos comentários | 0,5 dia | 14 |
 | 16 | Documentação das usabilidades | 0,5 dia | 15 |
 | 17 | Migração do acervo | 3 dias, fora o tempo de envio | 13 |
-| 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
+| 18 | Enviar as fotos do iPhone sem escolher uma a uma | 2 dias | 7, 8, 19 e 20 |
 | 19 | Listagem do repositório acima de 7 MB | 0,5 dia a etapa 1, 1 dia a etapa 2 | Nada |
 | 20 | Índice das fotos por ano | 1 dia | 17 e 19 |
 | 21 | Grade no celular | 0,5 dia | 17 |
