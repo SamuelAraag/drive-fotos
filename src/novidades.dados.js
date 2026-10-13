@@ -6,6 +6,15 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.10.1',
+    quando: '2026-10-12T22:39',
+    titulo: 'A grade só baixa o que você está vendo',
+    mudancas: [
+      'O app baixava a foto original de tudo o que passava pela tela. Agora a original só é baixada quando você abre a foto.',
+      'Rolando depressa, as miniaturas do que já saiu da tela deixam a fila, e as que você está vendo carregam primeiro.',
+    ],
+  },
+  {
     versao: '1.10.0',
     quando: '2026-10-12T22:23',
     titulo: 'O app abre sem ler os dados de foto por foto',
