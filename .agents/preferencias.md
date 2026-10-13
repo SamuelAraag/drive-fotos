@@ -8,7 +8,7 @@ Convenções do Drive Fotos. Valem para qualquer pessoa ou agente que mexa no c�
   de explicar o que ele faz, por que foi escolhido ou qual problema motivou.
 * Se a explicação importa, o lugar dela é a mensagem de commit, o corpo do PR ou o plano em
   `docs/planos/plano-inicial.md`.
-* Os comentários que já existem saem no Épico 15. Até lá, não acrescentar nenhum.
+* Os comentários que existiam saíram no Épico 15. O que eles diziam está no histórico do git.
 
 ## Novidades
 
