@@ -1,5 +1,15 @@
 export const NOVIDADES = [
   {
+    versao: '1.10.3',
+    quando: '2026-10-12T23:12',
+    titulo: 'A grade deixa de animar o que está fora da tela',
+    mudancas: [
+      'Cada foto ainda não carregada piscava, mesmo fora da tela. Com 4.312 fotos eram mais de 4 mil animações ao mesmo tempo. Agora só pisca a que está carregando.',
+      'A página só se desloca durante o gesto de puxar para atualizar. Antes ficava preparada para isso o tempo todo.',
+      'No celular, a rolagem não espera mais o app a cada movimento do dedo.',
+    ],
+  },
+  {
     versao: '1.10.2',
     quando: '2026-10-12T22:58',
     titulo: 'Ícone novo: um cata-vento vermelho',

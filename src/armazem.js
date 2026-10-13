@@ -18,12 +18,16 @@ function abrir() {
   return cache;
 }
 
+let indiceDasOriginais = null;
+
 function lerIndice() {
+  if (indiceDasOriginais) return indiceDasOriginais;
   try {
-    return JSON.parse(localStorage.getItem(CHAVE_ORIGINAIS)) ?? {};
+    indiceDasOriginais = JSON.parse(localStorage.getItem(CHAVE_ORIGINAIS)) ?? {};
   } catch {
-    return {};
+    indiceDasOriginais = {};
   }
+  return indiceDasOriginais;
 }
 
 function gravarIndice(indice) {
@@ -127,6 +131,7 @@ export function manterIndices(atuais) {
 
 export async function limpar() {
   cache = null;
+  indiceDasOriginais = null;
   try {
     for (const chave of Object.keys(localStorage)) {
       if (chave === CHAVE_ORIGINAIS || chave.startsWith('drive-fotos.fotos.') || chave.startsWith('drive-fotos.indices.')) localStorage.removeItem(chave);

@@ -42,13 +42,35 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
   let distancia = 0;
   let recarregando = false;
 
+  let fimDaSoltura = null;
+
   const definir = (px) => {
     distancia = px;
+    raiz.classList.toggle('puxando', px > 0);
     raiz.style.setProperty('--puxar', `${px}px`);
     const progresso = Math.min(1, px / FIM_PUXAR);
     raiz.style.setProperty('--puxar-progresso', progresso);
     $('puxar-arco').style.strokeDashoffset = 100 - progresso * 100;
     $('puxar').classList.toggle('puxar--cheio', px >= FIM_PUXAR);
+  };
+
+  const soltar = () => {
+    raiz.classList.add('puxar-soltando');
+    clearTimeout(fimDaSoltura);
+    fimDaSoltura = setTimeout(() => raiz.classList.remove('puxar-soltando'), 400);
+  };
+
+  const aoMover = (evento) => {
+    if (inicio == null) return;
+    const arrasto = evento.touches[0].clientY - inicio;
+    if (arrasto <= 0 || scrollY > 0) {
+      if (distancia) definir(0);
+      return;
+    }
+
+    if (evento.cancelable) evento.preventDefault();
+
+    definir(arrasto / 2);
   };
 
   addEventListener(
@@ -57,32 +79,19 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
       const podePuxar =
         !recarregando && evento.touches.length === 1 && scrollY <= 0 && !document.querySelector('dialog[open]') && podePuxarAgora();
       inicio = podePuxar ? evento.touches[0].clientY : null;
+      clearTimeout(fimDaSoltura);
       raiz.classList.remove('puxar-soltando');
+      removeEventListener('touchmove', aoMover);
+      if (podePuxar) addEventListener('touchmove', aoMover, { passive: false });
     },
     { passive: true },
   );
 
-  addEventListener(
-    'touchmove',
-    (evento) => {
-      if (inicio == null) return;
-      const arrasto = evento.touches[0].clientY - inicio;
-      if (arrasto <= 0 || scrollY > 0) {
-        if (distancia) definir(0);
-        return;
-      }
-
-      if (evento.cancelable) evento.preventDefault();
-
-      definir(arrasto / 2);
-    },
-    { passive: false },
-  );
-
-  addEventListener('touchend', () => {
+  const aoTerminar = () => {
+    removeEventListener('touchmove', aoMover);
     if (inicio == null) return;
     inicio = null;
-    raiz.classList.add('puxar-soltando');
+    soltar();
     if (distancia < FIM_PUXAR) {
       definir(0);
       return;
@@ -94,11 +103,15 @@ function ligarPuxar(aoSoltar, podePuxarAgora) {
     Promise.resolve(aoSoltar()).finally(() => {
       recarregando = false;
       $('puxar').classList.remove('puxar--recarregando');
+      soltar();
       definir(0);
     });
-  });
+  };
+
+  addEventListener('touchend', aoTerminar);
 
   addEventListener('touchcancel', () => {
+    removeEventListener('touchmove', aoMover);
     inicio = null;
     if (!recarregando) definir(0);
   });
@@ -150,6 +163,7 @@ function carregarQuadro(quadro) {
   const pedido = baixarDoQuadro.get(quadro);
   const { foto, baixar } = pedido;
   pedido.pedida = true;
+  quadro.classList.add('grade__quadro--carregando');
   baixar(foto.miniatura).then(
     (url) => {
       observador?.unobserve(quadro);
@@ -169,6 +183,7 @@ function carregarQuadro(quadro) {
       }
 
       pedido.pedida = false;
+      quadro.classList.remove('grade__quadro--carregando');
       if (observador && quadro.isConnected) {
         observador.unobserve(quadro);
         observador.observe(quadro);
@@ -470,7 +485,6 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
       if (foto.id === destaqueId) marcarDestaque(quadro, false);
       if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
       if (foto.miniatura) {
-        quadro.classList.add('grade__quadro--carregando');
         baixarDoQuadro.set(quadro, { foto, baixar });
         observador.observe(quadro);
       } else {

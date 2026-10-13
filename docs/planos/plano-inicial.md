@@ -919,6 +919,57 @@ Pedido em 2026-10-12, a partir da análise de gaps refeita com o acervo grande.
   e não uma por foto; o aviso de fotos sem data aparece sem abrir registro; e cada gravação
   do app deixa o índice do ano igual ao que está no repositório.
 
+### Épico 21: Grade no celular
+
+Pedido em 2026-10-12: com 4.312 fotos a tela principal travava muito no celular. Revisão
+crítica feita no mesmo dia, medindo o app publicado na versão 1.10.2.
+
+- **Animação em todo quadro sem miniatura.** Cada quadro ainda não carregado piscava, com
+  uma animação de opacidade sem fim, e quase todos estão fora da tela. Medido: 4.288
+  animações rodando ao mesmo tempo, 4.275 delas em quadros da grade. Agora só pisca o
+  quadro que pediu a miniatura e ainda espera por ela. Na base de testes: nenhuma animação
+  com a grade parada.
+- **A página inteira numa camada de transformação.** O gesto de puxar para atualizar
+  deslocava topo, página e rodapé por `transform`, e a regra valia o tempo todo, mesmo com
+  deslocamento zero. Agora a transformação só existe enquanto o dedo puxa e durante a volta.
+- **Toque que segurava a rolagem.** O ouvinte de `touchmove` do mesmo gesto era registrado
+  de forma que o navegador precisava esperar o app a cada movimento do dedo antes de rolar.
+  Agora ele só é registrado quando o toque começa com a página no topo, que é quando o
+  gesto pode acontecer.
+- **Índice das originais lido do `localStorage` a cada miniatura.** Passa a ficar na
+  memória depois da primeira leitura.
+- **O que não foi feito e pode ser o próximo passo,** se ainda travar:
+  - A grade tem todos os quadros no documento, 13.949 elementos com 4.312 fotos. Desenhar
+    só os dias perto da tela.
+  - As miniaturas já vistas ficam todas na memória. Soltar as que estão longe da tela.
+  - No modo de seleção, cada toque percorre todos os quadros.
+- **Não medido no celular.** As medições foram no computador. O efeito no aparelho só
+  aparece no uso.
+
+### Épico 22: Skeleton na tela inicial
+
+Pedido em 2026-10-12.
+
+- **Onde:** na tela inicial, quando o app abre pela primeira vez num aparelho e ainda não
+  tem a lista de fotos guardada, e sempre que a lista estiver carregando. Hoje aparece um
+  girador com "Carregando suas fotos...".
+- **O que mostrar:** o esqueleto da própria tela, no lugar do girador. A zona de envio, um
+  título de dia e uma grade de quadros neutros, com as mesmas colunas e o mesmo espaçamento
+  da grade real, para nada pular quando as fotos chegarem.
+- **Troca sem salto.** Quando a lista chega, os quadros do esqueleto dão lugar aos da grade
+  no mesmo lugar. O texto "Carregando suas fotos..." continua para o leitor de tela.
+- **Uma animação só.** A lição do Épico 21: o brilho do esqueleto é uma animação no bloco
+  inteiro, e não uma por quadro. Com movimento reduzido no sistema, fica parado.
+- **Quantos quadros:** o bastante para encher a primeira tela, e não mais.
+- **Erro e vazio continuam como estão:** a falha de carga vai para a tela de erro, e a base
+  sem fotos para "Nenhuma foto guardada ainda".
+- **Em aberto:**
+  - Se o esqueleto também entra em "Fotos sem data" e na conferência do backup.
+  - Se as miniaturas ganham o mesmo tratamento enquanto baixam, ou seguem com o quadro
+    neutro piscando.
+- **Pronto quando:** abrir o app num aparelho sem nada guardado mostra o esqueleto da grade
+  em vez do girador, e a grade real entra sem a página pular.
+
 ## Pendências
 
 Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
@@ -942,6 +993,8 @@ vez dele.
 - [x] Migração de tudo o que tenho até hoje. Feito no Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+- [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
+- [ ] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Épico 22.
 - [x] Índice das fotos por ano, para o app não ler um registro por foto ao abrir. Feito no
   Épico 20. Falta regerar o índice da base oficial depois que a migração terminar.
 - [x] Listagem do repositório acima de 7 MB: ler por pasta, reler só o que mudou e nunca
@@ -974,6 +1027,8 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
 | 19 | Listagem do repositório acima de 7 MB | 0,5 dia a etapa 1, 1 dia a etapa 2 | Nada |
 | 20 | Índice das fotos por ano | 1 dia | 17 e 19 |
+| 21 | Grade no celular | 0,5 dia | 17 |
+| 22 | Skeleton na tela inicial | 0,5 dia | 21 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
