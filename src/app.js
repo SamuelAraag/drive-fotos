@@ -687,6 +687,8 @@ function aplicarRota() {
 async function datar(mudancas) {
   const arquivos = [];
   const trocas = [];
+  ui.erroNasPendentes(null);
+  ui.pendentesOcupado(true, mudancas.map(({ id }) => id));
   for (const { id, dia } of mudancas) {
     const antiga = fotos?.find((item) => item.id === id);
 
@@ -694,6 +696,7 @@ async function datar(mudancas) {
     if (!antiga || !registro) continue;
     const data = dia ? foto.dataNoDia(dia) : null;
     if (dia && !data) {
+      ui.pendentesOcupado(false);
       ui.erroNasPendentes('Uma das datas não vale. Escolha um dia entre 1990 e hoje.');
       return;
     }
@@ -717,10 +720,11 @@ async function datar(mudancas) {
     arquivos.push({ caminho: para.registro, texto });
     trocas.push({ antiga, registro: novoRegistro, texto, sha: await foto.shaDoGit(texto), de, para, nova: { ...antiga, id: novoId, dia: novoId.slice(0, 8), hora: novoId.slice(9, 15) } });
   }
-  if (trocas.length === 0) return;
+  if (trocas.length === 0) {
+    ui.pendentesOcupado(false);
+    return;
+  }
 
-  ui.erroNasPendentes(null);
-  ui.pendentesOcupado(true);
   const noIndice = indiceNoCommit({
     entram: trocas.map(({ registro, sha, para }) => [para.registro, indices.entradaDe(registro, sha)]),
     saem: trocas.filter(({ antiga, de, para }) => antiga.registro && de.registro !== para.registro).map(({ de }) => de.registro),
@@ -746,6 +750,7 @@ async function datar(mudancas) {
     fotos = fotos.map((item) => novas.get(item.id) ?? item).sort(porIdDecrescente);
     armazem.guardarFotos(fotos);
   }
+  await ui.pendentesSalvas(trocas.map(({ antiga }) => antiga.id));
   ui.pendentesOcupado(false);
   render();
   ui.anunciarEnvio(trocas.length === 1 ? 'Data salva.' : `${trocas.length} datas salvas.`);

@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.14.0',
+    quando: '2026-10-13T13:57',
+    titulo: 'Acerte a data de uma foto sem mexer nas outras',
+    mudancas: [
+      'Em "Fotos sem data", cada foto tem o botão "Salvar esta", que grava só a data dela.',
+      'A tela carrega as miniaturas conforme você rola. Antes pedia todas de uma vez.',
+    ],
+  },
+  {
     versao: '1.13.1',
     quando: '2026-10-13T13:52',
     titulo: 'Só sobe foto em formato que todo navegador mostra',
