@@ -1209,8 +1209,8 @@ tela mudando a cada escolha.
 
 ### Épico 29: UX no celular: zoom, arrastar para fechar e proporções
 
-Pedido em 2026-10-13: implementar na foto aberta o que se espera de um app de fotos no
-celular.
+Pedido em 2026-10-13 e feito no mesmo dia, publicado na versão 1.15.0: implementar na foto
+aberta o que se espera de um app de fotos no celular.
 
 - **Como está hoje.** A foto aberta passa para a anterior e a próxima deslizando na
   horizontal. Fecha no botão, no Esc, no voltar do aparelho e tocando fora da foto. O zoom é
@@ -1249,8 +1249,10 @@ celular.
   épico não fecha com teste só no computador.
 - **Implementado em 2026-10-13,** num PR só, a pedido: etapas 1 a 4. Vale para toque e para
   tela menor que 900 px. No computador nada mudou, e o zoom com roda do mouse e duplo clique
-  ficou de fora. Testado com toques simulados numa moldura de 390 px; a etapa 5, em aparelho
-  de verdade, continua pendente e é o que falta para fechar o épico.
+  ficou de fora. Testado com toques simulados numa moldura de 390 px. A etapa 5 fechou com o
+  uso no celular de verdade, confirmado em 2026-10-13, sem ajuste nos valores de partida.
+  As ações da foto (baixar, copiar link, renomear e apagar) viraram uma pílula de ícones,
+  no celular e no computador.
 - **Decisões de 2026-10-13,** que valeram na implementação:
   - Proporções cobrem só a foto aberta. A grade foi refeita no Épico 28 e fica como está.
   - No celular, tocar no palco nunca fecha: o toque só mostra e esconde os controles. No
@@ -1342,7 +1344,8 @@ fotos ou de o app parar de funcionar bem:
 8. Retirado da lista em 2026-10-13: Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
 10. [x] Reformulação do layout. Feito no Épico 28, publicado na versão 1.13.0.
-11. [ ] UX no celular: zoom, arrastar para fechar e proporções. Épico 29.
+11. [x] UX no celular: zoom, arrastar para fechar e proporções. Feito no Épico 29, publicado
+    na versão 1.15.0.
 
 ## Linha do tempo
 
