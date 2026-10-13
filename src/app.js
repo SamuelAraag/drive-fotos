@@ -750,6 +750,7 @@ async function datar(mudancas) {
     fotos = fotos.map((item) => novas.get(item.id) ?? item).sort(porIdDecrescente);
     armazem.guardarFotos(fotos);
   }
+  await ui.pendentesSalvas(trocas.map(({ antiga }) => antiga.id));
   ui.pendentesOcupado(false);
   render();
   ui.anunciarEnvio(trocas.length === 1 ? 'Data salva.' : `${trocas.length} datas salvas.`);

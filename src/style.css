@@ -1932,11 +1932,13 @@ body.modo-selecao .dia__selecao {
   transition: opacity var(--medio);
 }
 
-.pendentes__item--salvando .pendentes__imagem {
+.pendentes__item--salvando .pendentes__imagem,
+.pendentes__item--salva .pendentes__imagem {
   opacity: 0.35;
 }
 
-.pendentes__item--salvando .pendentes__quadro::after {
+.pendentes__item--salvando .pendentes__quadro::after,
+.pendentes__item--salva .pendentes__quadro::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1947,6 +1949,41 @@ body.modo-selecao .dia__selecao {
   border-top-color: var(--azul);
   border-radius: var(--raio-pilula);
   animation: girar 1s linear infinite;
+}
+
+.pendentes__item--salva .pendentes__quadro::after {
+  border-color: var(--azul);
+  background: var(--azul);
+  animation: pendente-salva var(--expandir);
+}
+
+.pendentes__item--salva .pendentes__quadro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: var(--e2);
+  height: var(--e4);
+  margin: auto;
+  border: solid var(--fundo);
+  border-width: 0 3px 3px 0;
+  transform: translateY(-2px) rotate(45deg);
+  animation: surgir var(--medio);
+}
+
+.pendentes__item--salva {
+  transition: opacity var(--medio), transform var(--medio);
+}
+
+.pendentes__item--saindo {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+@keyframes pendente-salva {
+  from {
+    transform: scale(0.6);
+  }
 }
 
 .pendentes__nome {
@@ -2154,6 +2191,11 @@ body.modo-selecao .dia__selecao {
 
   .pendentes__imagem {
     transition: none;
+  }
+
+  .pendentes__item--salva .pendentes__quadro::after,
+  .pendentes__item--salva .pendentes__quadro::before {
+    animation: none;
   }
 
   .grade__quadro {

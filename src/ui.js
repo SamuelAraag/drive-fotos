@@ -1584,6 +1584,7 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
     }),
   );
   renderBotoesDasPendentes();
+  deslizarPendentes();
 }
 
 export function pendentesOcupado(ocupado, ids = []) {
@@ -1600,6 +1601,44 @@ export function pendentesOcupado(ocupado, ids = []) {
     salvar.textContent = ocupado && salvando.size !== 1 ? 'Salvando...' : 'Salvar datas';
   }
   if (!ocupado) renderBotoesDasPendentes();
+}
+
+const espera = (ms) => new Promise((pronto) => setTimeout(pronto, ms));
+const idDoItem = (item) => item.querySelector('input[data-id]').dataset.id;
+let posicoesDasPendentes = null;
+
+export async function pendentesSalvas(ids) {
+  const salvas = new Set(ids);
+  const itens = [...$('pendentes').querySelectorAll('.pendentes__item')];
+  const saem = itens.filter((item) => salvas.has(idDoItem(item)));
+  if (saem.length === 0) return;
+  for (const item of saem) {
+    item.classList.remove('pendentes__item--salvando');
+    item.classList.add('pendentes__item--salva');
+  }
+  await espera(semMovimento.matches ? 400 : 600);
+  if (semMovimento.matches) return;
+  for (const item of saem) item.classList.add('pendentes__item--saindo');
+  await espera(300);
+  posicoesDasPendentes = new Map(itens.filter((item) => !salvas.has(idDoItem(item))).map((item) => [idDoItem(item), item.getBoundingClientRect()]));
+  setTimeout(() => {
+    posicoesDasPendentes = null;
+  }, 0);
+}
+
+function deslizarPendentes() {
+  const antes = posicoesDasPendentes;
+  posicoesDasPendentes = null;
+  if (!antes) return;
+  for (const item of $('pendentes').querySelectorAll('.pendentes__item')) {
+    const de = antes.get(idDoItem(item));
+    if (!de) continue;
+    const para = item.getBoundingClientRect();
+    const x = de.left - para.left;
+    const y = de.top - para.top;
+    if (x === 0 && y === 0) continue;
+    item.animate([{ transform: `translate(${x}px, ${y}px)` }, { transform: 'none' }], { duration: 420, easing: SUAVE });
+  }
 }
 
 export function erroNasPendentes(mensagem) {
