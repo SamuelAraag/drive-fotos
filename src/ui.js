@@ -15,11 +15,13 @@ let quantasApagarSelecao = 0;
 $('login-repo').textContent = REPO_DADOS;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
 $('versao').textContent = VERSAO_ATUAL;
+if ($('mais-versao')) $('mais-versao').textContent = VERSAO_ATUAL;
 
 export function mostrarTela(nome) {
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;
-  $('sair').hidden = !lerToken();
   $('atualizar').hidden = !lerToken();
+  if ($('mais-abrir')) $('mais-abrir').hidden = !lerToken();
+  else $('sair').hidden = !lerToken();
 
   if (nome !== 'principal') $('uso').hidden = true;
 }
@@ -1422,6 +1424,10 @@ export function perguntarDatas(linhas, totalDaLeva) {
 export function linkDasPendentes(quantas) {
   const link = $('principal-pendentes');
   link.hidden = quantas === 0;
+  if ($('mais-sem-data')) {
+    $('mais-sem-data').hidden = quantas === 0;
+    $('mais-sem-data-quantas').textContent = quantas.toLocaleString('pt-BR');
+  }
   link.replaceChildren(
     quantas === 1 ? '1 foto está sem data. ' : `${quantas.toLocaleString('pt-BR')} fotos estão sem data. `,
     el('strong', null, 'Acertar as datas'),
@@ -1644,6 +1650,62 @@ export function loginOcupado(ocupado) {
   $('login-entrar').textContent = ocupado ? 'Verificando...' : 'Entrar';
 }
 
+function ligarMenuMais() {
+  const abrir = $('mais-abrir');
+  const menu = $('mais');
+  if (!abrir || !menu) return;
+  const nativo = typeof menu.showPopover === 'function';
+  const aberto = () => (nativo ? menu.matches(':popover-open') : !menu.hidden);
+  const fechar = () => {
+    if (!aberto()) return;
+    if (nativo) menu.hidePopover();
+    else {
+      menu.hidden = true;
+      aoMudar(false);
+    }
+  };
+  const posicionar = () => {
+    const caixa = abrir.getBoundingClientRect();
+    menu.style.top = `${caixa.bottom + 8}px`;
+    menu.style.right = `${Math.max(16, innerWidth - caixa.right)}px`;
+  };
+  const aoMudar = (abriu) => {
+    abrir.setAttribute('aria-expanded', String(abriu));
+    if (abriu) menu.querySelector('.mais__item:not([hidden])')?.focus();
+  };
+
+  if (nativo) {
+    menu.addEventListener('beforetoggle', (evento) => {
+      if (evento.newState === 'open') posicionar();
+    });
+    menu.addEventListener('toggle', (evento) => aoMudar(evento.newState === 'open'));
+  } else {
+    menu.hidden = true;
+    abrir.addEventListener('click', () => {
+      if (aberto()) {
+        fechar();
+        return;
+      }
+      posicionar();
+      menu.hidden = false;
+      aoMudar(true);
+    });
+    document.addEventListener('click', (evento) => {
+      if (!menu.contains(evento.target) && !abrir.contains(evento.target)) fechar();
+    });
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key !== 'Escape' || !aberto()) return;
+      fechar();
+      abrir.focus();
+    });
+  }
+  menu.addEventListener('click', (evento) => {
+    if (evento.target.closest('.mais__item')) fechar();
+  });
+  addEventListener('resize', () => aberto() && posicionar());
+  addEventListener('scroll', fechar, { passive: true });
+}
+
 function ligarIrAoInicio() {
   const botao = $('ir-ao-inicio');
   if (!botao) return;
@@ -1670,6 +1732,7 @@ function ligarIrAoInicio() {
 
 export function ligarEventos(acoes) {
   ligarIrAoInicio();
+  ligarMenuMais();
   const entrada = $('zona-entrada');
   $('zona').addEventListener('click', () => entrada.click());
   entrada.addEventListener('change', () => {

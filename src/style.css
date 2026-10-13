@@ -1,9 +1,9 @@
 :root {
-  --fundo: #0b1220;
-  --superficie: #151e2e;
-  --trilho: #263349;
-  --texto: #e8eef7;
-  --texto-suave: #9aa8bd;
+  --fundo: #131a24;
+  --superficie: #1f2937;
+  --trilho: #374357;
+  --texto: #eef2f8;
+  --texto-suave: #a9b4c5;
   --azul: #3b9dff;
   --erro: #ff8585;
   --atencao: #f5a524;
@@ -314,8 +314,8 @@ body.modo-selecao .inicio {
 
 .botao.inicio {
   position: fixed;
+  right: var(--margem);
   bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
-  left: var(--margem);
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -344,12 +344,6 @@ body.modo-selecao .inicio {
   margin: 0 auto;
   padding: var(--e5) var(--margem) calc(var(--e6) + var(--altura-uso) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--trilho);
-}
-
-.rodape__botao {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
 }
 
 .novidades {
@@ -407,7 +401,7 @@ body.modo-selecao .inicio {
 
 .uso {
   position: fixed;
-  right: var(--margem);
+  left: var(--margem);
   bottom: calc(var(--e4) + env(safe-area-inset-bottom));
   z-index: 1;
   display: flex;
@@ -448,6 +442,74 @@ body.modo-selecao .inicio {
   display: flex;
   flex: none;
   align-items: center;
+}
+
+.mais__abrir {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--e2);
+  font-weight: 600;
+}
+
+.mais__seta {
+  width: var(--e4);
+  height: var(--e4);
+  margin-left: var(--e1);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--rapido);
+}
+
+[aria-expanded='true'] .mais__seta {
+  transform: rotate(180deg);
+}
+
+.mais {
+  position: fixed;
+  inset: auto;
+  z-index: 4;
+  min-width: min(18rem, calc(100vw - var(--margem) * 2));
+  margin: 0;
+  padding: var(--e2);
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.mais__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+}
+
+.botao.mais__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e4);
+  width: 100%;
+  color: var(--texto);
+  text-align: left;
+}
+
+.botao.mais__item:hover {
+  background: var(--trilho);
+}
+
+.mais__detalhe {
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+  font-variant-numeric: tabular-nums;
+}
+
+.mais__divisor {
+  height: 1px;
+  margin: var(--e1) 0;
+  background: var(--trilho);
 }
 
 .topo__sincronia {
@@ -673,7 +735,7 @@ html {
   min-height: 144px;
   padding: var(--e5) var(--e4);
   overflow: hidden;
-  border: 2px dashed var(--trilho);
+  border: 2px dashed color-mix(in srgb, var(--azul) 55%, var(--trilho));
   border-radius: var(--raio);
   background: var(--superficie);
   color: var(--texto-suave);
@@ -707,6 +769,7 @@ html {
 .zona__icone {
   width: var(--e6);
   height: var(--e6);
+  color: var(--azul);
   transition: transform var(--rapido), color var(--rapido);
 }
 
@@ -884,14 +947,6 @@ html {
   background: var(--superficie);
 }
 
-.backup__abrir {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  margin-bottom: var(--e3);
-}
-
 .backup-pagina {
   max-width: 760px;
   padding-bottom: var(--e7);
@@ -1050,15 +1105,16 @@ body.modo-selecao .dia__selecao {
 .grade {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--e1);
+  gap: var(--e2);
 }
 
 .grade__quadro {
   position: relative;
 
-  width: calc((100cqw - (var(--colunas) - 1) * var(--e1)) / var(--colunas) - 0.1px);
+  width: calc((100cqw - (var(--colunas) - 1) * var(--e2)) / var(--colunas) - 0.1px);
   aspect-ratio: 1;
   overflow: hidden;
+  border-radius: var(--e2);
   background: var(--superficie);
 }
 
@@ -1104,6 +1160,7 @@ body.modo-selecao .dia__selecao {
   height: 100%;
   padding: 0;
   overflow: hidden;
+  border-radius: inherit;
   border: 0;
   background: none;
   color: inherit;
@@ -1315,6 +1372,7 @@ body.modo-selecao .dia__selecao {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: inherit;
   object-fit: cover;
 }
 
@@ -2071,6 +2129,10 @@ body.modo-selecao .dia__selecao {
   }
 
   .grade__quadro {
+    transition: none;
+  }
+
+  .mais__seta {
     transition: none;
   }
 

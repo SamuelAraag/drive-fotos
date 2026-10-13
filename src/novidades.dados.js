@@ -1,5 +1,25 @@
 export const NOVIDADES = [
   {
+    versao: '1.13.0',
+    quando: '2026-10-13T13:40',
+    titulo: 'Fundo mais claro e fotos com respiro',
+    mudancas: [
+      'O fundo saiu do azul-marinho para um tom de ardósia, mais claro, com mais diferença entre a página e os blocos.',
+      'As fotos da grade ganharam cantos arredondados e um espaço maior entre elas.',
+      'A zona de envio tem a borda e o ícone em azul.',
+      'O topo ganhou o menu "Mais", com o backup de uma pasta, as fotos sem data, as novidades e o "Sair". Antes as novidades ficavam no rodapé, depois de todas as fotos.',
+    ],
+  },
+  {
+    versao: '1.12.1',
+    quando: '2026-10-13T13:32',
+    titulo: 'O botão de voltar ao início foi para a direita',
+    mudancas: [
+      'O botão de voltar ao início agora fica no canto de baixo, à direita.',
+      'O indicador de espaço usado e de quantidade de fotos passou para a esquerda.',
+    ],
+  },
+  {
     versao: '1.12.0',
     quando: '2026-10-13T11:31',
     titulo: 'Volte ao início da grade com um toque',
