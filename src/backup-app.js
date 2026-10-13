@@ -6,11 +6,11 @@ const $ = (id) => document.getElementById(id);
 const MAXIMO_POR_COMMIT = 10;
 const ENVIOS_SIMULTANEOS = 3;
 const LEITURAS_SIMULTANEAS = 6;
-// Medida de 2026-10-12: 128 escritas por minuto passaram, e uma rajada de 530 foi bloqueada.
+
 const ESCRITAS_POR_MINUTO = 110;
 const AVISO_DE_ESPACO = 4 * 1024 * 1024 * 1024;
 const MARCADOR = 'drive-fotos.backup-interrompido';
-// O índice de antes do formato por ano. Sai do repositório na primeira gravação.
+
 const INDICE_ANTIGO = 'indices/backup.json';
 const LOTES_POR_INDICE = 10;
 
@@ -21,9 +21,8 @@ let enviando = false;
 let pausada = false;
 let cancelada = false;
 let leituraAtiva = false;
-// Índice das fotos (ver indice.js). O envio em lote regrava o ano de tempos em tempos, e não a
-// cada commit: com um lote a cada poucos segundos, o arquivo do ano pesaria mais que as fotos.
-let indice = new Map(); // caminho do registro -> entrada
+
+let indice = new Map();
 let anosComIndice = new Set();
 let anosPorGravar = new Set();
 let temIndiceAntigo = false;
@@ -32,8 +31,6 @@ let lotesSemIndice = 0;
 const chaveNome = (nome) => nome.toLocaleLowerCase('pt-BR');
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
-// Segura o ritmo das escritas abaixo do que o GitHub bloqueia. Quando ele pede pausa a um
-// envio, os outros esperam junto em vez de insistir.
 const escritas = [];
 let limiteAte = 0;
 
@@ -116,7 +113,6 @@ function definirEtapa(etapa) {
 }
 
 function atualizarBotaoIniciar() {
-  // Sem nada para enviar o botão some: o título do resumo já diz o porquê.
   $('backup-iniciar').hidden = !backupPronto || backupPronto.candidatas.length === 0;
   $('backup-iniciar').disabled = !backupPronto;
 }
@@ -258,7 +254,7 @@ async function lerFotosExistentes(arvore) {
     hashes.add(fotoDaArvore.sha);
     caminhosComRegistro.add(fotoDaArvore.caminho);
   };
-  // O índice traz o nome de quase todas. Só o registro que ele não conhece é lido um a um.
+
   const lido = await indices.carregar(arvore, async (sha) => (await github.lerBlob(sha)).text());
   const novo = new Map();
   const mudaram = new Set();
@@ -325,7 +321,7 @@ async function lerFotosExistentes(arvore) {
     nomes.get(chave).add(item.sha);
     hashes.add(item.sha);
   }
-  // Arquivo de ano com entrada que não vale mais (foto apagada, registro trocado) também é regravado.
+
   const porAno = new Map();
   for (const caminho of novo.keys()) {
     const ano = indices.anoDoRegistro(caminho);
@@ -339,8 +335,6 @@ async function lerFotosExistentes(arvore) {
   return { nomes, hashes, fotosPorHash };
 }
 
-// Grava os anos que mudaram num commit próprio. Se falhar, nada se perde: a próxima conferência
-// lê os registros que faltam e tenta de novo.
 async function salvarIndice() {
   if ((anosPorGravar.size === 0 && !temIndiceAntigo) || !github.lerToken()) return;
   const anos = [...anosPorGravar];
@@ -521,7 +515,7 @@ async function preparar(arquivos, pasta) {
       return linha;
     }));
     $('backup-limite').hidden = !acimaDoAviso;
-    // Só avisa, não bloqueia, como o aviso de espaço do app.
+
     $('backup-limite').textContent = acimaDoAviso
       ? `Com estas fotos o Drive Fotos passa de 4 GB (estimativa: ${foto.fmtTamanho(estimativa)}). O GitHub recomenda até 5 GB por repositório, e apagar fotos não libera espaço. Você pode enviar mesmo assim.`
       : '';
@@ -581,7 +575,7 @@ async function prepararFoto(item) {
   const progresso = (valor) => {
     item.progresso = valor;
   };
-  // A original e a miniatura sobem ao mesmo tempo, como no envio do app.
+
   const [shaOriginal, shaMiniatura] = await Promise.all([
     item.shaExistente ?? blobComLimite(item.arquivo, item, progresso),
     miniatura ? blobComLimite(miniatura.blob, item) : null,
@@ -685,8 +679,7 @@ async function bombear() {
       }
       const leva = backupAtivo.candidatas.filter((item) => item.estado === 'aguardando').slice(0, MAXIMO_POR_COMMIT);
       if (leva.length === 0) break;
-      // Até ENVIOS_SIMULTANEOS fotos da leva sobem juntas. Pausar ou cancelar deixa terminar as
-      // que já começaram e grava o que ficou pronto.
+
       let proxima = 0;
       let semToken = false;
       const trabalhar = async () => {
@@ -703,7 +696,6 @@ async function bombear() {
     console.error('Drive Fotos: o backup parou por um erro inesperado.', falha);
     erro(`O backup parou por um erro inesperado: ${falha.message}`);
   } finally {
-    // Quem já subiu e ficou sem commit volta para a fila: na retomada só falta gravar.
     for (const item of lote) {
       if (item.estado === 'gravando') item.estado = 'aguardando';
     }

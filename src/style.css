@@ -1,4 +1,3 @@
-/* Tokens do projeto, os mesmos do beba-agua. Toda cor, espaço e raio sai daqui. */
 :root {
   --fundo: #0b1220;
   --superficie: #151e2e;
@@ -7,7 +6,7 @@
   --texto-suave: #9aa8bd;
   --azul: #3b9dff;
   --erro: #ff8585;
-  --atencao: #f5a524; /* o --excesso do beba-agua: pede atenção, não é erro */
+  --atencao: #f5a524;
   --foco: #a9d3ff;
 
   --e1: 4px;
@@ -18,10 +17,8 @@
   --e6: 32px;
   --e7: 48px;
 
-  /* Respiro entre o conteúdo e a borda da tela. Cresce com a largura, para nada colar na borda. */
   --margem: var(--e4);
 
-  /* Altura da pílula de uso, que flutua embaixo: o atalho e o fim da página abrem espaço para ela. */
   --altura-uso: calc(var(--e2) * 2 + 1.5 * var(--fonte-pequena) + 2px);
 
   --raio: 12px;
@@ -100,8 +97,6 @@ h2:focus {
   font-size: var(--fonte-pequena);
 }
 
-/* Estrutura */
-
 .topo,
 .pagina {
   width: 100%;
@@ -147,8 +142,6 @@ h2:focus {
   height: var(--e7);
 }
 
-/* O topo nunca quebra em duas linhas. Em tela estreita quem cede é a etiqueta, que é o menos
-   importante ali: primeiro encurta, e só no limite ganha reticências. O nome e os botões ficam. */
 .topo__titulo {
   display: flex;
   align-items: center;
@@ -182,7 +175,6 @@ h2:focus {
   }
 }
 
-/* Recado que fica na tela, sem bloquear nada. O forte é para o que pede atenção, e não é erro. */
 .aviso {
   padding: var(--e3) var(--e4);
   border: 1px solid var(--trilho);
@@ -191,7 +183,6 @@ h2:focus {
   font-size: var(--fonte-pequena);
 }
 
-/* Página de download, aberta por quem recebe o link de uma foto. */
 .baixar__previa {
   display: block;
   max-width: 100%;
@@ -205,7 +196,6 @@ h2:focus {
   overflow-wrap: anywhere;
 }
 
-/* O "Baixar" é um link com o arquivo dentro, vestido de botão. */
 .baixar__botao {
   display: flex;
   align-items: center;
@@ -213,7 +203,6 @@ h2:focus {
   text-decoration: none;
 }
 
-/* Recado que leva a outro lugar: a linha inteira é o link. */
 .aviso--link {
   display: block;
   color: var(--texto);
@@ -228,7 +217,6 @@ h2:focus {
   color: var(--azul);
 }
 
-/* Cabeçalho de uma tela que não é a inicial: o caminho de volta primeiro, o título depois. */
 .tela__cabeca {
   display: flex;
   flex-direction: column;
@@ -236,7 +224,6 @@ h2:focus {
   gap: var(--e4);
 }
 
-/* Voltar é um botão de verdade, com área de toque, e não um link solto no canto. */
 .voltar {
   display: inline-flex;
   align-items: center;
@@ -256,7 +243,6 @@ h2:focus {
   stroke-linejoin: round;
 }
 
-/* Algo que a pessoa pediu não deu certo: diz o que houve e oferece a saída ao lado. */
 .aviso--erro {
   display: flex;
   flex-wrap: wrap;
@@ -325,8 +311,6 @@ body.modo-selecao .uso {
   display: none;
 }
 
-/* Rodapé do site: a versão do app e o caminho para as novidades. Fica no fim da página, com
-   folga embaixo para a pílula de uso, que flutua por cima, não encobrir nada. */
 .rodape {
   display: flex;
   flex-wrap: wrap;
@@ -346,7 +330,6 @@ body.modo-selecao .uso {
   text-decoration: none;
 }
 
-/* Página de novidades: uma versão por bloco, da mais nova para a mais antiga. */
 .novidades {
   max-width: 720px;
   margin: 0 auto;
@@ -400,13 +383,11 @@ body.modo-selecao .uso {
   list-style: disc;
 }
 
-/* Espaço ocupado e total de fotos: uma pílula flutuante no canto de baixo, sempre à vista.
-   Sem barra e sem percentual, porque aqui não há limite, só o total. */
 .uso {
   position: fixed;
   right: var(--margem);
   bottom: calc(var(--e4) + env(safe-area-inset-bottom));
-  z-index: 1; /* abaixo do véu de arraste, que vem depois na página */
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--e2);
@@ -447,7 +428,6 @@ body.modo-selecao .uso {
   align-items: center;
 }
 
-/* "Atualizado às 14:02", ao lado do botão. Em tela estreita não cabe: fica só para o leitor de tela. */
 .topo__sincronia {
   position: absolute;
   width: 1px;
@@ -467,7 +447,6 @@ body.modo-selecao .uso {
   }
 }
 
-/* Dois botões no topo: no celular eles encolhem a folga lateral para caber ao lado do nome. */
 @media (max-width: 479px) {
   .topo__acoes .botao {
     padding-right: var(--e3);
@@ -502,8 +481,6 @@ body.modo-selecao .uso {
   gap: var(--e2);
   width: 100%;
 }
-
-/* Botões */
 
 .botao {
   min-height: 44px;
@@ -550,7 +527,6 @@ body.modo-selecao .uso {
   color: var(--texto);
 }
 
-/* Ação secundária com corpo: o cancelar dos diálogos, que precisa parecer botão ao lado da ação. */
 .botao--secundario {
   background: var(--trilho);
   color: var(--texto);
@@ -559,8 +535,6 @@ body.modo-selecao .uso {
 .botao--secundario:hover {
   background: color-mix(in srgb, var(--trilho) 85%, var(--texto));
 }
-
-/* Puxar para atualizar, como no beba-agua e nos apps do iPhone. */
 
 html {
   overscroll-behavior-y: contain;
@@ -572,7 +546,6 @@ html {
   transform: translateY(var(--puxar, 0px));
 }
 
-/* O anel fica no meio do vão aberto pelo arraste e aparece conforme ele enche. */
 .puxar {
   position: fixed;
   top: env(safe-area-inset-top);
@@ -604,12 +577,10 @@ html {
   stroke-linecap: round;
 }
 
-/* Anel cheio: soltar agora atualiza. */
 .puxar--cheio .puxar__arco {
   stroke: var(--foco);
 }
 
-/* Anel cheio girando não se percebe: enquanto atualiza, gira um arco de três quartos. */
 .puxar--recarregando .puxar__anel {
   animation: girar 1s linear infinite;
 }
@@ -623,8 +594,6 @@ html {
 .puxar-soltando .puxar {
   transition: transform var(--medio), opacity var(--medio);
 }
-
-/* Carregando */
 
 .girador {
   width: var(--e6);
@@ -641,16 +610,12 @@ html {
   }
 }
 
-/* Envio */
-
 .envio {
   display: flex;
   flex-direction: column;
   gap: var(--e3);
 }
 
-/* Mesma linguagem da zona de envio do cloud-files: caixa tracejada que acende no hover e no
-   arraste, e um véu que nasce dela. */
 .zona {
   position: relative;
   display: flex;
@@ -716,7 +681,7 @@ html {
 
 .zona__detalhe {
   font-size: var(--fonte-pequena);
-  font-variant-numeric: tabular-nums; /* o percentual muda sem empurrar o texto */
+  font-variant-numeric: tabular-nums;
 }
 
 .zona__barra {
@@ -730,7 +695,6 @@ html {
   background: var(--trilho);
 }
 
-/* A barra cresce por transform, que não mexe no layout a cada avanço. */
 .zona__barra-cheia {
   display: block;
   height: 100%;
@@ -741,7 +705,6 @@ html {
   transition: transform var(--rapido);
 }
 
-/* Sem número para mostrar (preparando ou concluindo), a varredura de luz diz que está andando. */
 .zona--varrendo::after {
   content: '';
   position: absolute;
@@ -765,8 +728,6 @@ html {
   }
 }
 
-/* O véu cobre a página inteira porque o alvo do arraste é a página inteira. Não recebe o
-   ponteiro: é só o aviso de que pode soltar. */
 .veu {
   position: fixed;
   inset: 0;
@@ -985,16 +946,12 @@ html {
   accent-color: var(--azul);
 }
 
-/* Grade */
-
 .selecao-topo {
   display: flex;
   justify-content: flex-end;
   margin-bottom: var(--e3);
 }
 
-/* O número de colunas vem da largura da tela, e o quadro ocupa a fatia exata dele.
-   Assim a miniatura cresce com a tela e a linha cheia fecha rente à borda. */
 .dias {
   --colunas: 3;
   container-type: inline-size;
@@ -1052,7 +1009,7 @@ body.modo-selecao .dia__selecao {
 
 .grade__quadro {
   position: relative;
-  /* O 0.1px absorve o arredondamento, que senão derruba o último quadro da linha. */
+
   width: calc((100cqw - (var(--colunas) - 1) * var(--e1)) / var(--colunas) - 0.1px);
   aspect-ratio: 1;
   overflow: hidden;
@@ -1071,7 +1028,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* Em tela larga, dia com poucas fotos divide a linha com o dia seguinte. */
 @media (min-width: 900px) {
   .dias {
     --colunas: 6;
@@ -1095,7 +1051,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* O quadro inteiro é o botão que abre a foto. */
 .grade__botao {
   position: relative;
   display: block;
@@ -1160,7 +1115,6 @@ body.modo-selecao .dia__selecao {
   transform: none;
 }
 
-/* O quadro corta o que passa dele, então o contorno de foco vai para dentro. */
 .grade__botao:focus-visible {
   outline-offset: -2px;
 }
@@ -1173,9 +1127,6 @@ body.modo-selecao .dia__selecao {
   transform: scale(1.04);
 }
 
-/* A última foto enviada. O contorno e o selo ficam, para achar a foto na grade a qualquer
-   momento. A entrada e o halo (--pousou) acontecem uma vez, no instante em que ela chega.
-   Tudo anima só transform e opacity. */
 .grade__quadro {
   transition: opacity var(--medio);
 }
@@ -1187,7 +1138,6 @@ body.modo-selecao .dia__selecao {
   outline-offset: -3px;
 }
 
-/* Um assentar curto no pouso, para a chegada não parecer um corte. */
 .grade__quadro--pousou {
   animation: destaque-pousa var(--rapido);
 }
@@ -1198,7 +1148,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* Halo: um anel do tamanho do quadro que se abre e some, duas vezes. */
 .grade__quadro--pousou::after {
   content: '';
   position: absolute;
@@ -1232,7 +1181,7 @@ body.modo-selecao .dia__selecao {
   color: var(--fundo);
   font-size: var(--fonte-pequena);
   font-weight: 700;
-  pointer-events: none; /* o toque passa para o botão da foto */
+  pointer-events: none;
 }
 
 .grade__quadro--pousou .grade__selo {
@@ -1246,13 +1195,10 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* Foco: enquanto a foto nova se apresenta, as outras recuam. */
 .dias--holofote .grade__quadro:not(.grade__quadro--destaque) {
   opacity: 0.3;
 }
 
-/* A foto em voo, entre a zona de envio e o lugar dela na grade. O ponto de apoio fica acima
-   dela, para o balanço ser de pêndulo. */
 .voo {
   position: fixed;
   top: 0;
@@ -1266,11 +1212,10 @@ body.modo-selecao .dia__selecao {
   pointer-events: none;
 }
 
-/* Atalho para a foto que subiu fora da tela. */
 .atalho {
   position: fixed;
   right: var(--margem);
-  /* Fica acima da pílula de uso, que mora no mesmo canto. */
+
   bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
   left: var(--margem);
   z-index: 3;
@@ -1316,7 +1261,6 @@ body.modo-selecao .dia__selecao {
   animation: pulsar 1.6s ease-in-out infinite;
 }
 
-/* Sem miniatura: o mesmo quadro, com um traço que o separa do que ainda está carregando. */
 .grade__quadro--vazio {
   border: 1px dashed var(--trilho);
 }
@@ -1344,10 +1288,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* Foto aberta
-   A foto vira o ambiente: a miniatura dela, bem desfocada, cobre o fundo. A foto cresce do
-   quadro da grade até o lugar final, e no computador um painel ao lado mostra os dados. */
-
 .visor {
   width: 100vw;
   max-width: none;
@@ -1357,7 +1297,7 @@ body.modo-selecao .dia__selecao {
   padding: 0;
   overflow: hidden;
   border: 0;
-  background: none; /* o fundo é a camada de ambiente, que entra junto com a foto */
+  background: none;
   color: var(--texto);
 }
 
@@ -1374,8 +1314,6 @@ body.modo-selecao .dia__selecao {
   background: var(--fundo);
 }
 
-/* Duas camadas, para o ambiente de uma foto se dissolver no da seguinte. Passam da borda
-   porque o desfoque deixa as beiradas transparentes. */
 .visor__desfoque {
   position: absolute;
   top: -15%;
@@ -1393,7 +1331,6 @@ body.modo-selecao .dia__selecao {
   opacity: 1;
 }
 
-/* Escurece as beiradas, para o texto do topo e do painel ler bem sobre qualquer foto. */
 .visor__vinheta {
   position: absolute;
   inset: 0;
@@ -1410,8 +1347,6 @@ body.modo-selecao .dia__selecao {
   padding: calc(var(--e2) + env(safe-area-inset-top)) calc(var(--margem) - var(--e2)) 0 var(--margem);
 }
 
-/* No celular a barra de status do iPhone fica por cima da página: a foto aberta ocupa a tela
-   toda, então o topo dela ganha a mesma folga que a página tem, para nada ficar encoberto. */
 @media (max-width: 899px) {
   .visor__topo {
     padding-top: calc(var(--e5) + env(safe-area-inset-top));
@@ -1454,8 +1389,6 @@ body.modo-selecao .dia__selecao {
   touch-action: pan-y pinch-zoom;
 }
 
-/* O app dá à caixa o tamanho exato da foto assim que sabe a proporção. Antes disso ela ocupa
-   o palco e a imagem se ajusta dentro. */
 .visor__foto {
   position: relative;
   flex: none;
@@ -1463,7 +1396,6 @@ body.modo-selecao .dia__selecao {
   height: 100%;
 }
 
-/* A prévia fica embaixo e a original entra por cima, sem salto. */
 .visor__foto img {
   position: absolute;
   inset: 0;
@@ -1525,13 +1457,10 @@ body.modo-selecao .dia__selecao {
   right: 0;
 }
 
-/* Na primeira e na última foto a seta some, em vez de ficar apagada sem explicação. */
 .visor__seta:disabled {
   visibility: hidden;
 }
 
-/* Confirmação de uma ação na foto aberta: aparece no meio da tela, por cima da foto, e some
-   sozinha. É a resposta de quem tocou num botão lá embaixo e está olhando para a foto. */
 .visor__confirmacao {
   position: absolute;
   top: 50%;
@@ -1575,7 +1504,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* Ações da foto aberta: valem no celular e no computador, por isso ficam fora do painel. */
 .visor__rodape {
   display: flex;
   flex: none;
@@ -1596,7 +1524,6 @@ body.modo-selecao .dia__selecao {
   color: var(--texto);
 }
 
-/* Painel de informações. Só existe em tela larga: no celular a foto fica com a tela toda. */
 .visor__painel,
 .visor__info {
   display: none;
@@ -1696,8 +1623,6 @@ body.modo-selecao .dia__selecao {
   font-weight: 600;
 }
 
-/* Diálogos e login */
-
 .dialogo {
   width: min(100% - var(--e6), 408px);
   max-height: calc(100dvh - var(--e6));
@@ -1712,7 +1637,6 @@ body.modo-selecao .dia__selecao {
   background: color-mix(in srgb, var(--fundo) 80%, transparent);
 }
 
-/* Sem token não há nada para mostrar atrás do login. */
 .login::backdrop {
   background: var(--fundo);
 }
@@ -1723,8 +1647,6 @@ body.modo-selecao .dia__selecao {
   gap: var(--e3);
 }
 
-/* Ações de um diálogo curto: a ação primeiro, cancelar depois, do tamanho do texto.
-   No celular os dois dividem a largura, para o toque. */
 .dialogo__acoes {
   display: flex;
   gap: var(--e2);
@@ -1745,7 +1667,6 @@ body.modo-selecao .dia__selecao {
   }
 }
 
-/* O que o diálogo vai afetar: a miniatura da foto, com o nome ao lado. */
 .dialogo__alvo {
   display: flex;
   align-items: center;
@@ -1769,14 +1690,12 @@ body.modo-selecao .dia__selecao {
   overflow-wrap: anywhere;
 }
 
-/* Fotos repetidas: cada linha põe lado a lado a foto que está sendo enviada e a que já está
-   guardada, com o tamanho do arquivo no canto de cada uma, para comparar de relance. */
 .repetidas {
   display: flex;
   flex-direction: column;
   gap: var(--e4);
   max-height: 50dvh;
-  /* Folga por dentro, compensada por fora, para o contorno de foco não ser cortado. */
+
   margin: calc(var(--e2) * -1);
   padding: var(--e2);
   overflow-y: auto;
@@ -1811,8 +1730,6 @@ body.modo-selecao .dia__selecao {
   background: var(--trilho);
 }
 
-/* A nova é a que está em jogo: ganha o contorno do destaque da grade e o rótulo em azul. A que
-   já existe fica um pouco apagada, sem deixar de dar para comparar. */
 .repetidas__foto--nova .repetidas__quadro {
   outline: 3px solid var(--azul);
   outline-offset: -3px;
@@ -1834,9 +1751,6 @@ body.modo-selecao .dia__selecao {
   object-fit: cover;
 }
 
-/* Fotos sem data: uma linha por foto, com a miniatura e o campo do dia ao lado.
-   A lista rola e corta o que passa da borda, então ganha uma folga por dentro (compensada
-   por fora) para o contorno de foco dos campos aparecer inteiro. */
 .sem-data {
   display: flex;
   flex-direction: column;
@@ -1848,9 +1762,6 @@ body.modo-selecao .dia__selecao {
   list-style: none;
 }
 
-/* A tela de fotos sem data: um bloco por dia de envio, com as fotos dele.
-   De cima para baixo: de quando é o envio, o atalho para datar todas de uma vez, as fotos e,
-   no rodapé, o que vai ser salvo. */
 .pendentes {
   display: flex;
   flex-direction: column;
@@ -1872,7 +1783,6 @@ body.modo-selecao .dia__selecao {
   font-weight: 600;
 }
 
-/* O atalho do bloco fica numa faixa própria, alinhado à esquerda, junto das fotos que afeta. */
 .pendentes__ferramenta {
   display: flex;
   flex-wrap: wrap;
@@ -1903,7 +1813,6 @@ body.modo-selecao .dia__selecao {
   min-width: 0;
 }
 
-/* A prévia grande é o que ajuda a lembrar de quando é a foto. */
 .pendentes__imagem {
   display: block;
   width: 100%;
@@ -1943,7 +1852,6 @@ body.modo-selecao .dia__selecao {
   opacity: 0.45;
 }
 
-/* O rodapé do bloco: à esquerda o que vai mudar, à direita a ação. */
 .pendentes__rodape {
   display: flex;
   flex-wrap: wrap;
@@ -1978,20 +1886,16 @@ body.modo-selecao .dia__selecao {
   text-align: left;
 }
 
-/* O navegador desenha o calendário do campo de data conforme o tema: aqui o tema é escuro. */
 .sem-data .campo {
   color-scheme: dark;
 }
 
-/* Por que o par está na lista: conteúdo idêntico ou só o nome igual. */
 .repetidas__motivo {
   grid-column: 1 / -1;
   margin: 0;
   font-size: var(--fonte-pequena);
 }
 
-/* Com várias repetidas, cada par vira um bloco fechado, e a escolha dele fica numa faixa
-   própria embaixo, separada das fotos por uma linha. */
 .repetidas--varias .repetidas__item {
   padding: var(--e3);
   border: 1px solid var(--trilho);
@@ -2058,7 +1962,6 @@ body.modo-selecao .dia__selecao {
   font: inherit;
 }
 
-/* Campo com um trecho fixo ao lado, como a extensão do arquivo, que não se edita. */
 .campo-com-sufixo {
   display: flex;
   align-items: center;

@@ -1,12 +1,8 @@
-// Leitura e gravação do repositório de dados pela API do GitHub.
-
 const DONO = 'samuelsantosbackupfiles';
 const REPO = 'drive-fotos-dados';
 const BRANCH_OFICIAL = 'main';
 const BRANCH_DE_TESTES = 'testes';
 
-// Rodando na própria máquina, o app usa a base de testes. A oficial só é lida e gravada
-// pelo app publicado.
 const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 
@@ -20,14 +16,13 @@ export const REPO_DADOS = `${DONO}/${REPO}`;
 export const BRANCH_DADOS = BRANCH;
 export const BASE_DE_TESTES = LOCAL;
 
-// tipo: 'token' | 'permissao' | 'ausente' | 'vazio' | 'conflito' | 'limite' | 'rede' | 'servidor' | 'cortada'
 export class ErroGitHub extends Error {
   constructor(tipo, mensagem, { status = null, esperaMs = null } = {}) {
     super(mensagem);
     this.name = 'ErroGitHub';
     this.tipo = tipo;
     this.status = status;
-    this.esperaMs = esperaMs; // só no tipo 'limite': quanto esperar antes de tentar de novo
+    this.esperaMs = esperaMs;
   }
 }
 
@@ -49,9 +44,6 @@ export function apagarToken() {
   listagem = null;
 }
 
-// O GitHub usa 403 e 429 tanto para falta de permissão quanto para limite de ritmo.
-// O limite pede espera, não um token novo, e só os cabeçalhos dizem qual dos dois é.
-// `cabecalho` lê um cabeçalho da resposta pelo nome, venha ela do fetch ou do XMLHttpRequest.
 function esperaDoLimite(status, cabecalho) {
   const esperar = Number(cabecalho('retry-after'));
   if (esperar > 0) return esperar * 1000;
@@ -89,7 +81,7 @@ function erroDaResposta(status, cabecalho) {
         `Não achei a branch ${BRANCH} de ${REPO_DADOS}. Confira se o repositório existe e se o token tem acesso a ele.`,
       );
     case 409:
-      // A API de Git Data responde 409 enquanto o repositório não tem nenhum commit.
+
       return new ErroGitHub(
         'vazio',
         `O repositório ${REPO_DADOS} ainda está vazio. Crie um commit inicial nele, por exemplo um README, e tente de novo.`,
@@ -111,13 +103,12 @@ function cabecalhos(extras) {
   };
 }
 
-// Devolve a resposta já conferida. Quem chama decide se lê como JSON ou como arquivo.
 async function requisitar(caminho, opcoes = {}) {
   let resposta;
   try {
     resposta = await fetch(`${URL_REPO}${caminho}`, {
       ...opcoes,
-      // Sem isso o navegador pode devolver uma leitura velha do repositório.
+
       cache: 'no-store',
       headers: cabecalhos(opcoes.headers),
     });
@@ -129,8 +120,6 @@ async function requisitar(caminho, opcoes = {}) {
   throw erroDaResposta(resposta.status, (nome) => resposta.headers.get(nome));
 }
 
-// POST com acompanhamento do envio. O fetch não informa quanto do corpo já subiu, e o
-// XMLHttpRequest informa. Só os blobs passam por aqui, porque são o grosso de cada foto.
 function enviarComProgresso(caminho, corpo, aoProgredir) {
   return new Promise((resolver, rejeitar) => {
     const pedido = new XMLHttpRequest();
@@ -159,23 +148,14 @@ function enviarComProgresso(caminho, corpo, aoProgredir) {
   });
 }
 
-// Listagem do repositório
-//
-// O GitHub corta a lista acima de 100.000 entradas ou 7 MB e avisa com `truncated`. Lista
-// cortada nunca é devolvida: o app mostraria só parte das fotos, sem dizer que faltam.
-// A listagem fica guardada por pasta, cada uma com o sha dela. Como o sha de uma pasta muda
-// quando qualquer coisa dentro dela muda, a releitura abre só as pastas que mudaram.
-
 const PASTAS_AO_MESMO_TEMPO = 6;
 export const NOME_DO_CACHE_DA_LISTAGEM = 'drive-fotos-listagem-v1';
 const ENDERECO_DA_LISTAGEM = `${location.origin}/__listagem__/${BRANCH}`;
-// Só para teste na própria máquina: pula a leitura de uma chamada só e vai pasta por pasta.
+
 const SEMPRE_POR_PASTA = LOCAL && new URLSearchParams(location.search).has('listagem-por-pasta');
 
-// { raiz: sha da árvore da raiz, pastas: { caminho: { sha, arquivos, subpastas } } }
-// `arquivos` são os que ficam direto na pasta, cada um como { caminho, sha, tamanho }.
 let listagem = null;
-let listagemLida = false; // a guardada no aparelho já foi procurada nesta página
+let listagemLida = false;
 
 async function lerListagemGuardada() {
   try {
@@ -183,7 +163,7 @@ async function lerListagemGuardada() {
     const guardada = resposta ? await resposta.json() : null;
     return guardada?.raiz && guardada.pastas ? guardada : null;
   } catch {
-    return null; // sem Cache, ou guardada ilegível: lê do GitHub como da primeira vez
+    return null;
   }
 }
 
@@ -191,15 +171,12 @@ async function guardarListagem() {
   try {
     await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).put(ENDERECO_DA_LISTAGEM, new Response(JSON.stringify(listagem)));
   } catch {
-    // sem espaço ou sem Cache: a próxima abertura lê do GitHub
   }
 }
 
 const juntar = (pasta, nome) => (pasta ? `${pasta}/${nome}` : nome);
 const pastaDe = (caminho) => caminho.slice(0, Math.max(0, caminho.lastIndexOf('/')));
 
-// A resposta de uma chamada só traz também as pastas, cada uma com o sha: dá para montar a
-// mesma estrutura da leitura pasta por pasta.
 function pastasDaListaInteira(raiz, entradas) {
   const pastas = { '': { sha: raiz, arquivos: [], subpastas: [] } };
   for (const entrada of entradas) {
@@ -233,8 +210,6 @@ function copiarPasta(caminho, antigas, novas) {
   for (const sub of antigas[caminho].subpastas) copiarPasta(sub, antigas, novas);
 }
 
-// Lê uma pasta e as de dentro dela. A que tem o mesmo sha de antes vem da listagem guardada,
-// com tudo o que tem dentro, sem chamada nenhuma.
 async function lerPasta(caminho, sha, antigas, novas) {
   if (antigas?.[caminho]?.sha === sha) {
     copiarPasta(caminho, antigas, novas);
@@ -262,8 +237,6 @@ async function lerPasta(caminho, sha, antigas, novas) {
   await Promise.all(subpastas);
 }
 
-// Lista o repositório inteiro. Cada item é { caminho, sha, tamanho }.
-// Sem nada novo no repositório, custa só a leitura da ponta da branch.
 export async function lerArvore() {
   const ponta = await lerPonta();
   if (!listagem && !listagemLida) {
@@ -286,7 +259,6 @@ export async function lerArvore() {
   return Object.values(listagem.pastas).flatMap((pasta) => pasta.arquivos);
 }
 
-// Arquivo de repositório privado não abre por URL direta: vem pela API, com o token.
 export async function lerBlob(sha) {
   const resposta = await requisitar(`/git/blobs/${sha}`, {
     headers: { Accept: 'application/vnd.github.raw+json' },
@@ -294,9 +266,6 @@ export async function lerBlob(sha) {
   return resposta.blob();
 }
 
-// Endereço temporário de um arquivo do repositório, que abre sem login: o GitHub põe nele uma
-// chave de vida curta. Serve para mandar a foto a quem não tem acesso ao repositório.
-// O formato "object" é o que devolve o endereço também para arquivo de mais de 1 MB.
 export async function linkTemporario(caminho) {
   const partes = caminho.split('/').map(encodeURIComponent).join('/');
   const resposta = await requisitar(`/contents/${partes}?ref=${encodeURIComponent(BRANCH)}`, {
@@ -320,31 +289,23 @@ async function lerPonta() {
   return { commit: json.commit.sha, arvore: json.commit.commit.tree.sha };
 }
 
-// Envia um arquivo em base64 e devolve o sha dele. O arquivo fica no GitHub, mas só passa a
-// existir no repositório quando um commit aponta para ele (ver `gravar`).
 export async function enviarBlob(base64, aoProgredir = () => {}) {
   const blob = await enviarComProgresso('/git/blobs', { content: base64, encoding: 'base64' }, aoProgredir);
   return blob.sha;
 }
 
-// A ponta da branch, como este aparelho a deixou no último commit que fez. Poupa uma leitura a
-// cada gravação. Se outro aparelho gravou no meio tempo, o GitHub recusa o avanço, e aí a
-// ponta é lida de novo.
 let pontaConhecida = null;
 
 export function esquecerPonta() {
   pontaConhecida = null;
 }
 
-// Grava vários arquivos num commit só, pela API de Git Data: ou entram todos, ou nenhum.
-// Cada arquivo é { caminho, sha }, que aponta para um arquivo que o GitHub já tem (enviado por
-// `enviarBlob` ou já guardado no repositório), { caminho, texto } ou { caminho, apagar: true }.
 export async function gravar(arquivos, mensagem) {
   const entradas = arquivos.map((arquivo) => {
     const entrada = { path: arquivo.caminho, mode: '100644', type: 'blob' };
-    if (arquivo.apagar) entrada.sha = null; // sha nulo tira o arquivo da árvore
+    if (arquivo.apagar) entrada.sha = null;
     else if (arquivo.sha) entrada.sha = arquivo.sha;
-    else entrada.content = arquivo.texto; // o GitHub cria o blob junto com a árvore
+    else entrada.content = arquivo.texto;
     return entrada;
   });
 
@@ -357,8 +318,6 @@ export async function gravar(arquivos, mensagem) {
       pontaConhecida = { commit: commit.sha, arvore: arvore.sha };
       return;
     } catch (erro) {
-      // 422 (ou 409) aqui quer dizer que a branch andou e o commit não é mais a continuação dela:
-      // refaz a árvore e o commit sobre a ponta nova, lida agora.
       pontaConhecida = null;
       if (erro.status !== 422 && erro.status !== 409) throw erro;
       if (tentativa >= MAX_TENTATIVAS_DE_COMMIT) {

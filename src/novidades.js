@@ -1,5 +1,3 @@
-// Página de novidades: mostra o que entrou em cada versão. Aberta a qualquer pessoa, sem token.
-
 import { NOVIDADES, VERSAO_ATUAL } from './novidades.dados.js';
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +9,6 @@ function el(tag, classe, texto) {
   return no;
 }
 
-// "12 de outubro de 2026, 16:30"
 function quandoEmTexto(quando) {
   return new Date(quando).toLocaleString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

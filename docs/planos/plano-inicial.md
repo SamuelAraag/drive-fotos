@@ -622,8 +622,17 @@ maiores são `src/ui.js` e `src/app.js`.
 
 ### Épico 15: Remoção dos comentários
 
-Pedido em 2026-10-12. Em 2026-10-12 a base principal tem 356 linhas de comentário nos
-arquivos de `src/*.js`, 72 comentários em `src/style.css` e 1 em `index.html`.
+Pedido em 2026-10-12 e feito no mesmo dia, antes do Épico 14, a pedido. Saíram 577
+comentários: 502 nos arquivos de `src/*.js`, 74 em `src/style.css` e 1 em `index.html`. A
+regra passou a valer para o código novo e está em `.agents/preferencias.md`.
+
+- **Como foi feito:** um script separa texto, modelo de texto e expressão regular de
+  comentário, tira só o comentário e confere que o resto do arquivo ficou igual, caractere a
+  caractere fora os espaços. Depois, as quatro páginas foram abertas na base de testes:
+  grade, foto aberta, "Fotos sem data" e conferência do backup, sem erro.
+- **O porquê de cada decisão** ficou neste plano e no histórico do git: o commit da remoção
+  mostra todos os comentários que saíram. O Épico 16 tira dali o que ainda importa a quem
+  usa.
 
 - **Sai tudo:** `//` e `/* */` no JS, `/* */` no CSS e `<!-- -->` no HTML.
 - **O porquê não se perde.** Alguns comentários guardam uma razão que o código não mostra,
@@ -928,7 +937,7 @@ vez dele.
   200 fotos na base de testes ainda pendente.
 - [ ] Rodar a análise de gaps. Épico 13.
 - [ ] Revisar todos os arquivos. Épico 14.
-- [ ] Remover todos os comentários. Épico 15.
+- [x] Remover todos os comentários. Feito no Épico 15.
 - [ ] Documentar as usabilidades. Épico 16.
 - [x] Migração de tudo o que tenho até hoje. Feito no Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
