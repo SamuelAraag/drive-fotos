@@ -804,8 +804,12 @@ async function carregar() {
       ui.abrirLogin(erro.message);
       return;
     }
-    // Com a lista guardada na tela, falha de rede não tira o que já está aparecendo.
-    if (guardadas) return;
+    // Com a lista guardada na tela, falha de rede não tira o que já está aparecendo. Lista
+    // cortada pelo GitHub não passa em silêncio: a que está na tela pode estar velha.
+    if (guardadas) {
+      if (erro.tipo === 'cortada') ui.erroAoAtualizar(erro.message);
+      return;
+    }
     ui.renderErro(erro.message);
     ui.mostrarTela('erro');
     ui.focarTela('erro');
@@ -840,11 +844,13 @@ async function conferir() {
   try {
     await relerLista();
   } catch (erro) {
-    // Em segundo plano só o token vencido vira aviso.
+    // Em segundo plano só o token vencido e a lista cortada pelo GitHub viram aviso.
     if (erro.tipo === 'token') {
       ui.fecharVisor();
       github.apagarToken();
       ui.abrirLogin(erro.message);
+    } else if (erro.tipo === 'cortada') {
+      ui.erroAoAtualizar(erro.message);
     }
   } finally {
     conferindo = false;

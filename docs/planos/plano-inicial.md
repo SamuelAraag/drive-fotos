@@ -532,6 +532,9 @@ Pedido em 2026-10-12 e feito no mesmo dia, no molde do changelog do `pr-manager`
   sobe o último número.
 - **Rotina:** todo PR de funcionalidade acrescenta a entrada dele no topo de
   `src/novidades.dados.js`. O texto é para quem usa o app, sem jargão de código.
+- **Texto revisado antes do commit.** Decisão de 2026-10-12: toda entrada nova passa pelo
+  humanizer. Cada frase diz um fato a quem usa o app; não entra travessão, adjetivo de
+  venda, trio forçado nem frase que só repete o título. Número só quando foi medido.
 - **O changelog é público.** O site abre para qualquer pessoa, então as entradas descrevem
   só o app, nunca as fotos nem o repositório de dados.
 
@@ -776,6 +779,70 @@ Pedido em 2026-10-12: "tirei fotos hoje, e no fim do dia quero enviar todas".
   um toque em "Enviar" guardam todas as de hoje; repetir o mesmo caminho logo depois não
   envia nenhuma; e uma foto de ontem escolhida junto fica de fora.
 
+### Épico 19: Listagem do repositório acima de 7 MB
+
+Pedido em 2026-10-12, no meio da migração do acervo. É o gap G19 da análise de gaps, que
+tinha sido aceito porque o bloqueio de 4 GB chegaria antes. O bloqueio saiu na versão 1.8.2.
+
+- **O problema.** O app lista o repositório inteiro numa chamada só (`lerArvore`, em
+  `src/github.js`). O GitHub corta essa lista acima de 100.000 entradas ou 7 MB e avisa com
+  `truncated: true`. O app não olha esse aviso: mostraria só as fotos que vieram, sem dizer
+  que faltam, e o backup deixaria de reconhecer parte do que já subiu.
+- **Medida de 2026-10-12, na base oficial:** 1.786 fotos, 5.405 entradas e 1,78 MB de
+  resposta, ou cerca de 330 bytes por entrada. Por essa conta, 7 MB são perto de 22.000
+  entradas, ou 7.400 fotos. A migração leva a base a cerca de 9.600 fotos. A primeira parte
+  da pasta para perto de 6.300 e cabe. A segunda cruza o limite.
+- **Quem lê a listagem:** a grade e a conferência de repetidas (`src/app.js`), e a
+  conferência e a conta de espaço do backup (`src/backup-app.js`). Gravar não depende
+  dela: o commit é feito sobre a ponta da branch.
+
+Feito em 2026-10-12, as duas etapas juntas, em `src/github.js`. O desenho saiu mais simples
+que o planejado: em vez de três níveis de leitura, um só, guiado pelo `sha` de cada pasta.
+
+- **A listagem fica guardada por pasta.** Cada pasta tem o `sha` dela e os arquivos que
+  ficam direto dentro. O `sha` de uma pasta muda quando qualquer coisa dentro dela muda.
+- **Primeiro a ponta.** `lerArvore` lê a ponta da branch, uma chamada pequena. Se a árvore
+  da raiz é a mesma da última leitura, devolve a listagem guardada e não lê mais nada.
+- **Primeira leitura do aparelho:** uma chamada só, como antes. A resposta traz também as
+  pastas com o `sha` de cada uma, e a listagem por pasta é montada dela.
+- **Releitura, ou primeira leitura cortada:** o app lê a raiz e desce pasta por pasta, com
+  no máximo seis chamadas ao mesmo tempo. A pasta com o mesmo `sha` de antes vem da
+  listagem guardada, com tudo o que tem dentro, sem chamada. Enviar fotos de um ano relê a
+  raiz, as pastas `fotos/`, `miniaturas/` e `registros/` e as três pastas daquele ano.
+- **Pasta cortada: erro visível.** Lida sozinha, sem as subpastas, uma pasta só é cortada
+  com mais de 100.000 entradas ou 7 MB, muito acima das 3.000 fotos por ano. Se acontecer,
+  a leitura falha com o erro `cortada` e mensagem própria. Na abertura sem lista guardada
+  vai para a tela de erro; com lista na tela, e na conferência silenciosa, aparece no aviso
+  do "Atualizar". A grade nunca é montada com lista incompleta.
+- **Onde fica guardado:** no Cache do navegador, uma listagem por branch, e sai no "Sair".
+  A tela de backup usa a mesma.
+- **O resultado tem o mesmo formato de antes,** `{ caminho, sha, tamanho }` por arquivo.
+  Grade, repetidas e backup não mudaram.
+- **Para testar sem 7.000 fotos:** em `localhost`, abrir a página com `?listagem-por-pasta`
+  pula a leitura de uma chamada só.
+- **Verificado em 2026-10-12, na base de testes,** com 206 arquivos em 26 pastas:
+  - primeira leitura: 2 chamadas;
+  - nada mudou: 1 chamada, na mesma página e em outra página com a listagem guardada;
+  - uma pasta de ano mudou: 4 chamadas, e a lista saiu igual à de uma chamada só;
+  - leitura de uma chamada só cortada (simulado): 28 chamadas, lista igual;
+  - tudo cortado (simulado): erro `cortada`, sem lista.
+
+- **Fora do épico:**
+  - Vários repositórios de dados (RG04). É a saída para o espaço, e reduz este problema,
+    mas muda leitura, grade e envio.
+  - O peso da grade com 9.600 fotos no celular. Fica para o Épico 14.
+- **Em aberto:**
+  - Se os 7 MB valem para o tamanho da resposta, como medido aqui, ou para outra conta do
+    GitHub. A etapa 1 funciona nos dois casos, porque decide pelo `truncated`.
+  - Se a listagem de uma pasta só, sem recursão, tem o mesmo teto. Não deu para confirmar
+    com a base de testes, que é pequena. O corte real só foi simulado.
+  - Repositório sem nenhum commit: a leitura da ponta responde "branch não encontrada" em
+    vez de "repositório vazio". O RG07 já pede o commit inicial.
+- **Pronto quando:** com o corte forçado em `localhost`, a grade mostra as mesmas fotos e o
+  mesmo espaço usado da leitura comum; o backup reconhece como repetidas as mesmas fotos; um
+  corte que nem a leitura por ano resolve mostra o erro, e nunca uma grade incompleta; e,
+  na etapa 2, voltar para a aba sem nada novo custa uma chamada.
+
 ## Pendências
 
 Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
@@ -799,6 +866,8 @@ vez dele.
 - [ ] Migração de tudo o que tenho até hoje. Épico 17.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+- [x] Listagem do repositório acima de 7 MB: ler por pasta, reler só o que mudou e nunca
+  mostrar lista cortada. Feito no Épico 19.
 
 ## Linha do tempo
 
@@ -825,6 +894,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 16 | Documentação das usabilidades | 0,5 dia | 15 |
 | 17 | Migração do acervo | 3 dias, fora o tempo de envio | 13 |
 | 18 | Enviar as fotos do dia | 1 dia | 7 e 8 |
+| 19 | Listagem do repositório acima de 7 MB | 0,5 dia a etapa 1, 1 dia a etapa 2 | Nada |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
