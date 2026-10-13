@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.12.0',
+    quando: '2026-10-13T11:31',
+    titulo: 'Volte ao início da grade com um toque',
+    mudancas: [
+      'Depois de rolar duas telas, aparece um botão com uma seta no canto de baixo, à esquerda. Um toque leva de volta ao topo.',
+      'Ele vale também na tela "Fotos sem data" e some enquanto você seleciona fotos.',
+    ],
+  },
+  {
     versao: '1.11.3',
     quando: '2026-10-13T11:25',
     titulo: 'A grade guarda só as miniaturas por onde você passou há pouco',

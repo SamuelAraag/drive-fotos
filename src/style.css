@@ -307,8 +307,30 @@ body.modo-selecao .pagina {
   gap: var(--e2);
 }
 
-body.modo-selecao .uso {
+body.modo-selecao .uso,
+body.modo-selecao .inicio {
   display: none;
+}
+
+.botao.inicio {
+  position: fixed;
+  bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
+  left: var(--margem);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--trilho);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie);
+}
+
+@media (min-width: 360px) {
+  .botao.inicio {
+    bottom: calc(var(--e4) + env(safe-area-inset-bottom));
+  }
 }
 
 .rodape {

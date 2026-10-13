@@ -994,7 +994,26 @@ Pedido em 2026-10-12 e feito no mesmo dia.
 
 ### Épico 23: Botão de ir para o início
 
-Pedido em 2026-10-13.
+Pedido em 2026-10-13 e feito no mesmo dia.
+
+- **Como ficou:** um botão redondo, com uma seta para cima, fixo no canto inferior
+  esquerdo. A pílula de uso fica no canto direito e o atalho da foto enviada, uma linha
+  acima. Aparece depois de duas telas de rolagem e some no modo de seleção.
+- **Vale para a grade e para "Fotos sem data",** porque acompanha a rolagem da página.
+- **Ao tocar,** a página volta ao topo e o foco vai para o título da tela. A menos de cinco
+  telas do topo a rolagem é suave; mais longe, ou com movimento reduzido no sistema, é um
+  salto direto, para não passar por milhares de quadros. A conferência da rolagem roda no
+  máximo uma vez por quadro de animação.
+- **Tela estreita:** abaixo de 360 px de largura o botão sobe uma linha, porque ao lado da
+  pílula de uso não cabe.
+- **Tolerante a página antiga.** Se o navegador ainda tiver um `index.html` de antes, sem o
+  botão, o app segue funcionando sem ele. Sem essa proteção, o arquivo novo com a página
+  antiga derrubava a tela inteira, e o mesmo cuidado entrou no esqueleto do Épico 22.
+- **Verificado na base de testes,** em tela larga: aparece depois de duas telas, tem 44 por
+  44 px, some no modo de seleção, e o toque leva o foco ao título "Suas fotos".
+- **Não verificado:** a rolagem suave, porque a aba de teste estava em segundo plano e o
+  navegador segura animações ali; o salto direto funcionou. Também não foi aberto em
+  celular nem em 320 px de largura.
 
 - **O problema:** com milhares de fotos a grade tem mais de cem telas de altura, e voltar ao
   topo, onde ficam a zona de envio e o "Atualizar", é rolar tudo de volta.
@@ -1149,7 +1168,7 @@ fotos ou de o app parar de funcionar bem:
    - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
 4. [ ] Corrigir a data por foto isolada, unitária. Épico 25.
    - [ ] A tela deve carregar as imagens como é feito na tela de listagem principal.
-5. [ ] Criar botão de ir para o início. Épico 23.
+5. [x] Criar botão de ir para o início. Feito no Épico 23.
 6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
    - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
 7. [ ] Rodar a análise de gaps. Épico 13.
