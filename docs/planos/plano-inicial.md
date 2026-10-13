@@ -532,6 +532,9 @@ Pedido em 2026-10-12 e feito no mesmo dia, no molde do changelog do `pr-manager`
   sobe o último número.
 - **Rotina:** todo PR de funcionalidade acrescenta a entrada dele no topo de
   `src/novidades.dados.js`. O texto é para quem usa o app, sem jargão de código.
+- **Texto revisado antes do commit.** Decisão de 2026-10-12: toda entrada nova passa pelo
+  humanizer. Cada frase diz um fato a quem usa o app; não entra travessão, adjetivo de
+  venda, trio forçado nem frase que só repete o título. Número só quando foi medido.
 - **O changelog é público.** O site abre para qualquer pessoa, então as entradas descrevem
   só o app, nunca as fotos nem o repositório de dados.
 
