@@ -8,6 +8,7 @@ export const NOVIDADES = [
       'Pinça e duplo toque ampliam a foto, e o botão "Ampliar" faz o mesmo. Ampliada, dá para arrastar e ver o resto.',
       'Arrastar a foto para baixo fecha e volta para a grade.',
       'Ao passar para a foto ao lado, ela acompanha o dedo.',
+      'Baixar, copiar link, renomear e apagar viraram quatro ícones numa barra no pé da foto. Apagar fica separado, em vermelho.',
     ],
   },
   {

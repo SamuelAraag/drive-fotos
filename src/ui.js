@@ -962,9 +962,14 @@ export function avisoNoVisor(mensagem) {
   $('visor-aviso').textContent = mensagem ?? '';
 }
 
+function rotularAcao(botao, texto, ocupado = false) {
+  (botao.querySelector('.visor__rotulo') ?? botao).textContent = texto;
+  botao.setAttribute('aria-busy', String(ocupado));
+}
+
 export function baixarOcupado(ocupado) {
   $('visor-baixar').disabled = ocupado;
-  $('visor-baixar').textContent = ocupado ? 'Baixando...' : 'Baixar';
+  rotularAcao($('visor-baixar'), ocupado ? 'Baixando...' : 'Baixar', ocupado);
 }
 
 export function baixarArquivo(arquivo) {
@@ -1104,7 +1109,7 @@ export function estadoDoLink(estado) {
   clearTimeout(voltaDoLink);
   const botao = $('visor-link');
   botao.disabled = estado === 'copiando';
-  botao.textContent = estado === 'copiando' ? 'Copiando...' : estado === 'copiado' ? 'Link copiado' : 'Copiar link';
+  rotularAcao(botao, estado === 'copiando' ? 'Copiando...' : estado === 'copiado' ? 'Link copiado' : 'Copiar link', estado === 'copiando');
 
   if (estado === 'copiado') {
     confirmarNoVisor('Link copiado');
