@@ -1,9 +1,3 @@
-// O que entrou em cada versão do Drive Fotos, da mais nova para a mais antiga.
-// Toda entrega acrescenta a entrada dela no topo desta lista. A versão do app é a da primeira.
-// `quando` é a data e a hora local em que a versão foi para a base principal.
-// Toda entrada nova passa pelo humanizer antes do commit: cada frase diz um fato a quem usa
-// o app, sem travessão, sem adjetivo de venda e sem repetir o título.
-
 export const NOVIDADES = [
   {
     versao: '1.10.2',

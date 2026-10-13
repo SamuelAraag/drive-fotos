@@ -1,57 +1,44 @@
-// Estado, regras e eventos.
-
 import * as armazem from './armazem.js';
 import * as foto from './foto.js';
 import * as github from './github.js';
 import * as indices from './indice.js';
 import * as ui from './ui.js';
 
-const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
-const TETO_NA_MEMORIA = 150 * 1024 * 1024; // originais abertas ou prontas para abrir, em bytes
-const INTERVALO_DE_CONFERENCIA = 30000; // ms entre duas releituras do repositório ao voltar para a tela
+const MAX_DOWNLOADS = 6;
+const TETO_NA_MEMORIA = 150 * 1024 * 1024;
+const INTERVALO_DE_CONFERENCIA = 30000;
 
-// fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano, id e extensão.
 const CAMINHO = /^(fotos|miniaturas|registros)\/(\d{4})\/((\d{8})T(\d{6})-[0-9a-z]+)\.([0-9a-z]+)$/i;
 
-let fotos = null; // última leitura do repositório, da mais recente para a mais antiga
+let fotos = null;
 let modoSelecao = false;
 let apagandoSelecao = false;
 const fotosSelecionadas = new Set();
-const miniaturas = new Map(); // sha -> promessa da URL da imagem já baixada
-const espera = []; // downloads aguardando vaga
+const miniaturas = new Map();
+const espera = [];
 let baixando = 0;
-const buscando = new Map(); // sha -> promessa do Blob em download agora, para não baixar duas vezes
-const originais = new Map(); // sha -> { promessa da URL, tamanho }; a menos usada sai primeiro
-let aberta = null; // id da foto aberta em tela cheia
+const buscando = new Map();
+const originais = new Map();
+let aberta = null;
 let conferindo = false;
-let conferidoEm = 0; // hora da última leitura do repositório
-const registros = new Map(); // id -> registro já lido (nome, dimensões), ou null se a foto não tem
-// Índice das fotos (ver indice.js): caminho do registro -> entrada, com o nome e a origem da
-// data. Poupa abrir o registro de cada foto só para saber o nome dela.
+let conferidoEm = 0;
+const registros = new Map();
+
 let indice = new Map();
-let anosComIndice = new Set(); // anos que têm arquivo de índice no repositório
+let anosComIndice = new Set();
 let indicePronto = false;
 let lendoIndice = null;
 
-// Fila de envio. Cada item: { n, arquivo, nome, sha, reuso, data, origem, id, estado, mensagem }.
-// `data` é quando a foto foi tirada e `origem` diz de onde ela veio: toda foto entra na fila
-// já com as duas.
-// `sha` é o do conteúdo, para reconhecer foto repetida. `reuso` vem preenchido na cópia de uma
-// foto já guardada: o arquivo não sobe de novo, a cópia aponta para o que o repositório já tem.
-// estado: 'aguardando' | 'enviando' | 'gravando' | 'concluido' | 'erro'
-// 'gravando' é a foto cujos arquivos já subiram e que espera o commit do lote.
 let fila = [];
 let proximoItem = 1;
 let enviando = false;
-let pausadaAte = null; // quando o GitHub limita o ritmo: hora em que a fila retoma
-let trava = null; // mantém a tela do celular acordada enquanto a fila corre
-let progresso = 0; // de 0 a 1, da foto que está subindo agora
-let conferindoLevas = 0; // levas sendo conferidas agora (repetidas e datas), antes de entrar na fila
+let pausadaAte = null;
+let trava = null;
+let progresso = 0;
+let conferindoLevas = 0;
 
 const porIdDecrescente = (a, b) => (a.id < b.id ? 1 : -1);
 
-// Monta a lista só com os caminhos da árvore: o id traz a data, e o ano do id é a pasta.
-// Arquivo fora do padrão, posto à mão, fica de fora.
 function montarFotos(arvore) {
   const porId = new Map();
   for (const arquivo of arvore) {
@@ -60,7 +47,7 @@ function montarFotos(arvore) {
     const [, pasta, ano, id, dia, hora, ext] = partes;
     if (!id.startsWith(ano)) continue;
     const item = porId.get(id) ?? { id, dia, hora, sha: null, miniatura: null, registro: null, tamanho: 0, peso: 0, ext: null };
-    item.peso += arquivo.tamanho ?? 0; // os três arquivos da foto, para a conta do espaço usado
+    item.peso += arquivo.tamanho ?? 0;
     if (pasta === 'fotos') {
       item.sha = arquivo.sha;
       item.tamanho = arquivo.tamanho ?? 0;
@@ -82,15 +69,13 @@ function agruparPorDia(lista) {
   return grupos;
 }
 
-// Todo arquivo passa por aqui: primeiro o que já está guardado no aparelho, depois o GitHub.
-// O que vem do GitHub fica guardado para a próxima vez.
 function obterBlob(sha, { original }) {
   if (!buscando.has(sha)) {
     const promessa = (async () => {
       const guardado = await armazem.ler(sha);
       if (guardado) return guardado;
       const blob = await github.lerBlob(sha);
-      armazem.guardar(sha, blob, { original }); // não espera: guardar não pode atrasar a tela
+      armazem.guardar(sha, blob, { original });
       return blob;
     })();
     promessa.then(
@@ -114,8 +99,6 @@ function proximoDownload() {
     });
 }
 
-// A miniatura que ainda espera a vez e saiu de perto da tela deixa a fila: rolando depressa por
-// milhares de fotos, só baixa o que a pessoa está vendo. Volta para a fila se reaparecer.
 function cancelarMiniatura(sha) {
   const posicao = espera.findIndex((pedido) => pedido.sha === sha);
   if (posicao < 0) return;
@@ -123,7 +106,6 @@ function cancelarMiniatura(sha) {
   pedido.rejeitar(new DOMException('A miniatura saiu da tela antes de baixar.', 'AbortError'));
 }
 
-// Cada miniatura é lida uma vez por sessão. A que falha sai do mapa para poder tentar de novo.
 function baixarMiniatura(sha) {
   if (!miniaturas.has(sha)) {
     const promessa = new Promise((resolver, rejeitar) => {
@@ -144,12 +126,9 @@ function esquecerMiniaturas() {
   miniaturas.clear();
 }
 
-// Originais prontas na memória: a aberta, as vizinhas e as vistas há pouco. O teto é em bytes,
-// porque uma foto pode ter 300 KB ou 25 MB. A foto aberta nunca sai.
 function baixarOriginal(item) {
   const guardada = originais.get(item.sha);
   if (guardada) {
-    // Volta para o fim da fila: foi a usada mais recentemente.
     originais.delete(item.sha);
     originais.set(item.sha, guardada);
     return guardada.promessa;
@@ -175,14 +154,12 @@ function esquecerOriginais() {
   originais.clear();
 }
 
-// Deixa as vizinhas prontas na memória, para a seta passar de foto sem espera.
 function prepararVizinhas(indice) {
   for (const vizinha of [fotos[indice + 1], fotos[indice - 1]]) {
     if (vizinha) baixarOriginal(vizinha).catch(() => {});
   }
 }
 
-// O registro traz o nome da foto. Vem do GitHub na primeira vez e do aparelho nas seguintes.
 async function lerRegistro(item) {
   if (registros.has(item.id)) return registros.get(item.id);
   let registro = null;
@@ -191,7 +168,7 @@ async function lerRegistro(item) {
       const blob = await obterBlob(item.registro, { original: false });
       registro = JSON.parse(await blob.text());
     } catch {
-      return null; // falha de rede ou arquivo quebrado: o painel mostra o id, e a próxima abertura tenta de novo
+      return null;
     }
   }
   registros.set(item.id, registro);
@@ -202,8 +179,6 @@ const textoDoRegistro = (registro) => `${JSON.stringify(registro, null, 2)}\n`;
 
 const caminhoDoRegistro = (item) => foto.caminhos(item.id, '').registro;
 
-// O que se sabe da foto sem abrir o registro: o registro, se já foi lido, ou o resumo do índice.
-// Devolve undefined quando nenhum dos dois existe. O painel da foto aberta lê o registro inteiro.
 function dadosDe(item) {
   if (registros.has(item.id)) return registros.get(item.id);
   const entrada = indice.get(caminhoDoRegistro(item));
@@ -211,8 +186,6 @@ function dadosDe(item) {
   return { nome: entrada.nome, origem_da_data: entrada.origem, enviada_em: entrada.enviada ?? null };
 }
 
-// Lê os índices do repositório. Os arquivos ficam guardados no aparelho pelo sha, então só o
-// ano que mudou é baixado de novo.
 function carregarIndice() {
   if (indicePronto) return Promise.resolve();
   lendoIndice ??= (async () => {
@@ -224,7 +197,6 @@ function carregarIndice() {
       indicePronto = true;
       armazem.manterIndices(arvore.filter((arquivo) => arquivo.caminho.startsWith('indices/')).map((arquivo) => arquivo.sha));
     } catch {
-      // Sem índice o app segue: os registros são lidos um a um, até o teto por abertura.
     } finally {
       lendoIndice = null;
     }
@@ -232,10 +204,6 @@ function carregarIndice() {
   return lendoIndice;
 }
 
-// Os arquivos de índice que entram junto no commit de quem envia, renomeia, apaga ou acerta a
-// data. `entram` são pares [caminho do registro, entrada] e `saem`, caminhos de registro.
-// Cada ano tocado é regravado inteiro, com o que se sabe das fotos dele. Antes de o índice ser
-// lido nada é gravado, para não trocar um arquivo completo por um pela metade.
 function indiceNoCommit({ entram = [], saem = [] }) {
   if (!indicePronto) return { arquivos: [], aplicar() {} };
   const novas = new Map(entram);
@@ -307,12 +275,11 @@ async function mostrarAberta({ abrindo = false } = {}) {
 function abrirFoto(id) {
   if (!fotos?.some((item) => item.id === id)) return;
   aberta = id;
-  // O voltar do navegador fecha a foto, em vez de sair do app.
+
   history.pushState({ visor: true }, '');
   mostrarAberta({ abrindo: true });
 }
 
-// A ordem é a da grade: a próxima é a foto seguinte, mais antiga.
 function passarFoto(sentido) {
   if (aberta == null) return;
   const vizinha = fotos[fotos.findIndex((item) => item.id === aberta) + sentido];
@@ -322,7 +289,6 @@ function passarFoto(sentido) {
   mostrarAberta();
 }
 
-// Chamado quando o visor fecha, seja pelo botão, pelo Esc ou pelo voltar do navegador.
 function fotoFechada() {
   const id = aberta;
   aberta = null;
@@ -332,14 +298,10 @@ function fotoFechada() {
   if (id != null) ui.voltarParaAFoto(id);
 }
 
-// Ações da foto aberta: baixar, renomear e apagar.
-
 const fotoAberta = () => fotos?.find((item) => item.id === aberta) ?? null;
 
-// Foto sem registro, posta à mão no repositório, atende pelo id.
 const nomeDaFoto = (item, registro) => registro?.nome ?? `${item.id}.${item.ext}`;
 
-// Token vencido no meio de uma ação: fecha tudo e pede o login de novo.
 function tokenVenceu(erro) {
   if (erro.tipo !== 'token') return false;
   ui.fecharVisor();
@@ -358,14 +320,13 @@ async function baixarFoto() {
   try {
     const [blob, registro] = await Promise.all([obterBlob(item.sha, { original: true }), lerRegistro(item)]);
     const arquivo = new File([blob], nomeDaFoto(item, registro), { type: registro?.tipo || foto.tipoDaExtensao(item.ext) });
-    // No celular, o compartilhar do sistema deixa salvar direto na galeria.
+
     if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [arquivo] })) {
       try {
         await navigator.share({ files: [arquivo] });
         return;
       } catch (erro) {
-        if (erro.name === 'AbortError') return; // a pessoa fechou o compartilhar
-        // O navegador recusou (a espera pelo download gastou o toque): cai no download comum.
+        if (erro.name === 'AbortError') return;
       }
     }
     ui.baixarArquivo(arquivo);
@@ -377,9 +338,6 @@ async function baixarFoto() {
   }
 }
 
-// Link para mandar a foto a outra pessoa, copiado direto para a área de transferência. O GitHub
-// dá um endereço temporário do arquivo, que abre sem login, e o link aponta para a página de
-// download do app, que baixa com o nome certo.
 async function copiarLink() {
   const item = fotoAberta();
   if (!item) return;
@@ -392,7 +350,7 @@ async function copiarLink() {
     pagina.hash = new URLSearchParams({ u: endereco, n: nomeDaFoto(item, registro) }).toString();
     return pagina.href;
   })();
-  // A cópia começa já, no toque, com o link ainda por chegar.
+
   const copiou = ui.copiarTexto(link);
   try {
     await link;
@@ -416,7 +374,7 @@ async function pedirRenomear() {
   ui.avisoNoVisor(null);
   const registro = await lerRegistro(item);
   if (aberta !== item.id) return;
-  // Sem o registro em mãos, salvar o nome apagaria os outros dados dele.
+
   if (item.registro && !registro) {
     ui.avisoNoVisor('Não deu para ler os dados da foto. Tente de novo.');
     return;
@@ -446,7 +404,7 @@ async function salvarNome(base, extensao) {
     return;
   }
   const caminhos = foto.caminhos(item.id, item.ext);
-  // Foto posta à mão no repositório ganha o registro dela agora.
+
   const registro = {
     ...(atual ?? {
       versao: 1,
@@ -499,7 +457,7 @@ async function apagarFoto() {
   const item = fotoAberta();
   if (!item) return;
   const caminhos = foto.caminhos(item.id, item.ext);
-  // Só entra no commit o que a foto tem: tirar da árvore um arquivo que não existe é recusado.
+
   const arquivos = [{ caminho: caminhos.blob, apagar: true }];
   if (item.miniatura) arquivos.push({ caminho: caminhos.miniatura, apagar: true });
   if (item.registro) arquivos.push({ caminho: caminhos.registro, apagar: true });
@@ -521,10 +479,10 @@ async function apagarFoto() {
   if (!removerFotosDaLista([item])) return;
   ui.fecharApagar();
   if (aberta !== item.id) {
-    render(); // o visor fechou enquanto o commit corria
+    render();
     return;
   }
-  // A vizinha assume o lugar: a seguinte, ou a anterior quando a apagada era a última.
+
   const vizinha = fotos[indice] ?? fotos[indice - 1];
   if (!vizinha) {
     render();
@@ -542,11 +500,11 @@ function removerFotosDaLista(removidas) {
     registros.delete(item.id);
     fotosSelecionadas.delete(item.id);
   }
-  if (!fotos) return false; // saiu da conta enquanto o commit corria
+  if (!fotos) return false;
   const idsRemovidos = new Set(removidas.map((item) => item.id));
   fotos = fotos.filter((item) => !idsRemovidos.has(item.id));
   armazem.guardarFotos(fotos);
-  // Duas cópias dividem os blobs e o registro: só apaga do aparelho o que não é mais usado.
+
   const emUso = new Set(fotos.flatMap((item) => [item.sha, item.miniatura, item.registro]));
   const shasRemovidos = new Set(removidas.flatMap((item) => [item.sha, item.miniatura, item.registro]));
   armazem.apagar([...shasRemovidos].filter((sha) => sha && !emUso.has(sha)));
@@ -653,13 +611,6 @@ async function apagarSelecao() {
   if (history.state?.selecaoFotos) history.back();
 }
 
-// Fotos sem data
-//
-// A foto que subiu sem data conhecida fica com a do envio e com `origem_da_data: 'envio'` no
-// registro. A tela "Fotos sem data" (endereço #sem-data) junta todas, para acertar depois.
-// Acertar muda o `id`, que traz a data: os três arquivos trocam de caminho num commit só, e
-// nenhum é enviado de novo.
-
 const naTelaSemData = () => location.hash === '#sem-data';
 let lendoPendentes = false;
 let pendentesIncompletas = false;
@@ -673,7 +624,6 @@ const diaDoEnvio = (item) => {
   return Number.isNaN(enviada.getTime()) ? item.dia : foto.diaEmTexto(enviada).replaceAll('-', '');
 };
 
-// Um bloco por dia de envio, do mais recente para o mais antigo.
 function gruposDePendentes() {
   const porDia = new Map();
   for (const item of pendentes()) {
@@ -697,7 +647,7 @@ function render() {
     ui.mostrarTela('sem-data');
     return;
   }
-  // Lista guardada por uma versão antiga do app não tem o peso: vale o tamanho da original.
+
   const espaco = fotos.reduce((soma, item) => soma + (item.peso ?? item.tamanho), 0);
   ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura, {
     ativa: modoSelecao,
@@ -707,7 +657,6 @@ function render() {
   ui.mostrarTela('principal');
 }
 
-// A tela depende da origem da data de todas as fotos, que vem do índice.
 async function abrirSemData() {
   lendoPendentes = true;
   pendentesIncompletas = false;
@@ -727,14 +676,12 @@ function aplicarRota() {
   else render();
 }
 
-// mudancas: [{ id, dia }]. Com `dia`, a foto passa para esse dia. Sem ele, a data que ela tem
-// está certa: só o registro muda, para a foto sair da lista. Tudo num commit.
 async function datar(mudancas) {
   const arquivos = [];
-  const trocas = []; // { antiga, nova, registro, texto }
+  const trocas = [];
   for (const { id, dia } of mudancas) {
     const antiga = fotos?.find((item) => item.id === id);
-    // O índice basta para listar a foto, mas regravar pede o registro inteiro.
+
     const registro = antiga && (await lerRegistro(antiga));
     if (!antiga || !registro) continue;
     const data = dia ? foto.dataNoDia(dia) : null;
@@ -755,7 +702,6 @@ async function datar(mudancas) {
     };
     const texto = textoDoRegistro(novoRegistro);
     if (data) {
-      // Os arquivos já estão no repositório: os caminhos novos apontam para eles, e os antigos saem.
       arquivos.push({ caminho: para.blob, sha: antiga.sha }, { caminho: de.blob, apagar: true });
       if (antiga.miniatura) arquivos.push({ caminho: para.miniatura, sha: antiga.miniatura }, { caminho: de.miniatura, apagar: true });
       arquivos.push({ caminho: de.registro, apagar: true });
@@ -814,7 +760,6 @@ function mesmaLista(a, b) {
   );
 }
 
-// A lista guardada no aparelho aparece na hora, e a do GitHub confere por trás.
 async function carregar() {
   const guardadas = armazem.lerFotos();
   if (guardadas) {
@@ -825,7 +770,7 @@ async function carregar() {
   }
   try {
     const novas = await lerFotos();
-    // Se a lista mudou enquanto a leitura corria (um envio, por exemplo), a que está na tela vale.
+
     if (guardadas && fotos !== guardadas) return;
     armazem.guardarFotos(novas);
     aquecerNomes();
@@ -838,8 +783,7 @@ async function carregar() {
       ui.abrirLogin(erro.message);
       return;
     }
-    // Com a lista guardada na tela, falha de rede não tira o que já está aparecendo. Lista
-    // cortada pelo GitHub não passa em silêncio: a que está na tela pode estar velha.
+
     if (guardadas) {
       if (erro.tipo === 'cortada') ui.erroAoAtualizar(erro.message);
       return;
@@ -850,28 +794,24 @@ async function carregar() {
   }
 }
 
-// Relê o repositório e troca a lista se algo mudou em outro aparelho. Só redesenha nesse caso.
-// Devolve se mudou. Quem chama trata o erro.
 async function relerLista() {
   const antes = fotos;
   const novas = await lerFotos();
-  // A lista mudou enquanto a leitura corria (envio, renomear, apagar): a que está na tela vale.
+
   if (!antes || fotos !== antes || mesmaLista(novas, antes)) return false;
-  // Registro trocado em outro aparelho (um renomear): o nome que estava na memória não vale mais.
+
   const registroDe = new Map(antes.map((item) => [item.id, item.registro]));
   for (const item of novas) if (registroDe.get(item.id) !== item.registro) registros.delete(item.id);
-  indicePronto = false; // outro aparelho gravou: o índice dele vale mais que o que está na memória
+  indicePronto = false;
   fotos = novas;
   armazem.guardarFotos(fotos);
   render();
   aquecerNomes();
-  // A foto aberta foi apagada em outro aparelho: o visor fecha.
+
   if (aberta != null && !fotos.some((item) => item.id === aberta)) ui.fecharVisor();
   return true;
 }
 
-// Ao voltar para a tela, confere sozinho, em silêncio e com intervalo, e nunca no meio de um
-// envio, que já mexe na lista.
 async function conferir() {
   if (!fotos || !github.lerToken() || enviando || conferindo || modoSelecao) return;
   if (Date.now() - conferidoEm < INTERVALO_DE_CONFERENCIA) return;
@@ -879,7 +819,6 @@ async function conferir() {
   try {
     await relerLista();
   } catch (erro) {
-    // Em segundo plano só o token vencido e a lista cortada pelo GitHub viram aviso.
     if (erro.tipo === 'token') {
       ui.fecharVisor();
       github.apagarToken();
@@ -892,8 +831,6 @@ async function conferir() {
   }
 }
 
-// Releitura pedida pela pessoa, no botão "Atualizar". Diferente da silenciosa, não tem
-// intervalo, espera o envio em curso terminar e avisa na tela se não der certo.
 let atualizandoAgora = false;
 
 async function atualizarAgora() {
@@ -906,7 +843,6 @@ async function atualizarAgora() {
   ui.atualizarOcupado(true);
   ui.erroAoAtualizar(null);
   try {
-    // Fila pausada pelo limite do GitHub pode demorar: aí a leitura não espera por ela.
     while ((enviando && !pausadaAte) || conferindo) await dormir(300);
     await relerLista();
     const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -925,8 +861,7 @@ async function entrar(token) {
     ui.erroNoLogin('Cole o token para entrar.');
     return;
   }
-  // Com um token antigo guardado (login aberto por "Trocar token"), a tentativa que
-  // falha não pode apagar o antigo.
+
   const anterior = github.lerToken();
   github.salvarToken(token);
   ui.loginOcupado(true);
@@ -938,7 +873,7 @@ async function entrar(token) {
     render();
     ui.focarTela('principal');
     aquecerNomes();
-    bombear(); // o login pode ter sido aberto no meio de uma fila, por token vencido
+    bombear();
   } catch (erro) {
     if (anterior) github.salvarToken(anterior);
     else github.apagarToken();
@@ -972,13 +907,10 @@ function sair() {
   ui.abrirLogin();
 }
 
-// Envio
-
 function plural(n, um, varios) {
   return n === 1 ? um : varios;
 }
 
-// Separa o que entra na fila do que fica de fora, com o motivo de cada recusa.
 async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   const recusas = [];
   if (temPasta) recusas.push('Pastas não são aceitas. Solte as fotos de dentro dela.');
@@ -999,9 +931,7 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   ui.erroNaZona(recusas.length ? `Ficou de fora. ${recusas.join(' ')}` : null);
 
   if (aceitos.length === 0) return;
-  // Cada foto precisa de duas respostas antes de subir: se já existe e quando foi tirada.
-  // As que não deixam dúvida sobem direto. As outras esperam um diálogo, sem segurar a fila.
-  // Até lá, a zona diz que está conferindo, e uma leva nova espera a vez.
+
   conferindoLevas++;
   renderFila();
   try {
@@ -1032,24 +962,13 @@ function enfileirar(entradas) {
   bombear();
 }
 
-// Fotos repetidas
-//
-// Dois jeitos de uma foto já existir. Pelo conteúdo: o sha que o git dá ao arquivo, calculado
-// aqui, bate com o de uma foto da lista, e aí as duas são idênticas, byte a byte. Pelo nome: o
-// nome é o de uma foto guardada, mas o conteúdo é outro. O conteúdo não custa nenhuma chamada
-// ao GitHub. O nome mora no registro de cada foto, então depende de os registros terem sido
-// lidos. Conta também a foto que ainda está na fila e o mesmo arquivo escolhido duas vezes.
+const MAX_REGISTROS_NA_HORA = 80;
 
-const MAX_REGISTROS_NA_HORA = 80; // registros que o envio aceita esperar; acima disso, vale o que já foi lido
-// O índice traz quase todos os nomes. O teto impede que um aparelho sem nada guardado, diante de
-// um índice velho ou perdido, dispare milhares de leituras e estoure o limite de chamadas do GitHub.
 const MAX_REGISTROS_POR_ABERTURA = 200;
 const LEITORES_DE_REGISTRO = 2;
-let lendoNomes = null; // leitura de registros em curso, para não correr duas ao mesmo tempo
+let lendoNomes = null;
 let registrosLidosNaAbertura = 0;
 
-// Lê o registro das fotos que o índice não conhece. Fica guardado no aparelho, então só custa
-// chamadas na primeira vez. Devolve se terminou com todos os nomes em mãos.
 function lerNomes({ limite = Infinity } = {}) {
   const faltam = (fotos ?? []).filter((item) => item.registro && dadosDe(item) === undefined);
   if (faltam.length === 0) return Promise.resolve(true);
@@ -1059,7 +978,6 @@ function lerNomes({ limite = Infinity } = {}) {
     let proximo = 0;
     let falhas = 0;
     const leitor = async () => {
-      // Três falhas seguidas (sem rede, limite de ritmo) encerram: tenta de novo na próxima vez.
       while (proximo < cota.length && falhas < 3) {
         const item = cota[proximo++];
         registrosLidosNaAbertura++;
@@ -1073,9 +991,7 @@ function lerNomes({ limite = Infinity } = {}) {
   return lendoNomes;
 }
 
-// Em segundo plano, depois que a grade já pediu as miniaturas dela.
 function aquecerNomes() {
-  // Com o índice lido, dá para saber quantas fotos estão sem data.
   const avisar = () => !naTelaSemData() && fotos && ui.linkDasPendentes(pendentes().length);
   setTimeout(() => {
     carregarIndice()
@@ -1087,12 +1003,11 @@ function aquecerNomes() {
 
 const chaveDoNome = (nome) => nome.toLocaleLowerCase('pt-BR');
 
-// Os nomes que já se conhece, das fotos guardadas. Foto sem registro atende pelo id.
 function nomesGuardados() {
-  const porNome = new Map(); // chave do nome -> foto mais recente com esse nome
+  const porNome = new Map();
   for (const item of fotos ?? []) {
     const dados = dadosDe(item);
-    if (item.registro && dados === undefined) continue; // nome ainda não lido
+    if (item.registro && dados === undefined) continue;
     const chave = chaveDoNome(nomeDaFoto(item, dados));
     if (!porNome.has(chave)) porNome.set(chave, item);
   }
@@ -1102,8 +1017,8 @@ function nomesGuardados() {
 async function separarRepetidas(arquivos) {
   await carregarIndice();
   await lerNomes({ limite: MAX_REGISTROS_NA_HORA });
-  const porConteudo = new Map(); // sha -> { foto } já guardada, ou { arquivo } ainda na fila
-  const porNome = new Map(); // chave do nome -> idem
+  const porConteudo = new Map();
+  const porNome = new Map();
   for (const item of fotos ?? []) if (!porConteudo.has(item.sha)) porConteudo.set(item.sha, { foto: item });
   for (const [chave, item] of nomesGuardados()) porNome.set(chave, { foto: item });
   for (const item of fila) {
@@ -1114,7 +1029,6 @@ async function separarRepetidas(arquivos) {
   const novas = [];
   const repetidas = [];
   for (const arquivo of arquivos) {
-    // Fora de https e de localhost o navegador não faz a conta: sobra a comparação pelo nome.
     const sha = await foto.shaDoGit(arquivo).catch(() => null);
     const chave = chaveDoNome(arquivo.name);
     const igual = sha ? porConteudo.get(sha) : null;
@@ -1132,7 +1046,6 @@ async function separarRepetidas(arquivos) {
   return { novas, repetidas };
 }
 
-// Todos os nomes em uso, guardados ou na fila: a cópia não pode cair em nenhum deles.
 function nomesEmUso() {
   const guardados = (fotos ?? [])
     .filter((item) => !item.registro || dadosDe(item) !== undefined)
@@ -1140,12 +1053,9 @@ function nomesEmUso() {
   return [...guardados, ...fila.map((item) => item.nome)];
 }
 
-// Devolve as fotos que seguem para o envio: as que deixaram de ser repetidas e as cópias pedidas.
 async function resolverRepetidas(repetidas, totalDaLeva) {
   const seguem = [];
-  // "Não enviar" só é seguro se a foto guardada ainda existe: confere no GitHub antes de
-  // perguntar. A que foi apagada em outro aparelho deixa de ser repetida e sobe como nova.
-  // Sem rede, vale a lista que está na tela.
+
   if (repetidas.some(({ par }) => par.foto)) {
     const noGitHub = await github.lerArvore().then(
       (arvore) => new Set(arvore.map((arquivo) => arquivo.sha)),
@@ -1159,12 +1069,10 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
     if (repetidas.length === 0) return seguem;
   }
 
-  // A foto que está sendo enviada aparece ao lado da que já existe. A prévia é uma miniatura
-  // feita aqui, para o diálogo não abrir vários arquivos grandes de uma vez.
   const previas = [];
   const previaDe = async (arquivo) => {
     const miniatura = await foto.gerarMiniatura(arquivo);
-    if (!miniatura) return null; // o navegador não decodifica: fica o quadro neutro
+    if (!miniatura) return null;
     const url = URL.createObjectURL(miniatura.blob);
     previas.push(url);
     return url;
@@ -1188,15 +1096,12 @@ async function resolverRepetidas(repetidas, totalDaLeva) {
   }
   for (const { arquivo, sha, par, tipo } of repetidas.filter((_, i) => manter[i])) {
     const nome = foto.nomeRepetido(arquivo.name, [...nomesEmUso(), ...seguem.map((outra) => outra.nome ?? outra.arquivo.name)]);
-    // Idêntica a uma foto guardada, a cópia aponta para o arquivo dela, sem enviar de novo.
-    // Só com o nome igual, ou com a original ainda na fila, sobe normal.
+
     seguem.push({ arquivo, sha, nome, reuso: tipo === 'conteudo' && par.foto ? sha : null });
   }
   return seguem;
 }
 
-// Fotos sem data: nem o EXIF nem o nome dizem quando foram tiradas. A pessoa escolhe o dia de
-// cada uma, e o campo já vem com hoje. Devolve as que seguem para o envio, já com a data.
 async function perguntarDatas(entradas, totalDaLeva) {
   const previas = [];
   const linhas = [];
@@ -1220,12 +1125,11 @@ async function perguntarDatas(entradas, totalDaLeva) {
   return seguem;
 }
 
-
 async function manterTelaAcordada() {
   try {
     trava ??= (await navigator.wakeLock?.request('screen')) ?? null;
   } catch {
-    trava = null; // sem suporte ou negado: a fila corre do mesmo jeito
+    trava = null;
   }
 }
 
@@ -1236,27 +1140,19 @@ function soltarTela() {
 
 const dormir = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
-// O envio de uma foto tem duas metades. Primeiro os arquivos dela sobem para o GitHub, a
-// original e a miniatura ao mesmo tempo. Depois um commit os põe no repositório. O commit é
-// por lote: várias fotos entram num só, porque árvore, commit e avanço da branch custam o
-// mesmo para uma foto ou para dez.
+const TAMANHO_DO_LOTE = 10;
 
-const TAMANHO_DO_LOTE = 10; // fotos por commit; uma leva maior aparece na grade de dez em dez
-
-// Sobe os arquivos da foto e deixa em `item.pronta` o que o commit e a grade vão precisar.
-// "Tentar de novo" depois de uma falha no commit não sobe nada outra vez.
 async function subirFoto(item) {
   if (item.pronta) return;
   const { arquivo, data, origem } = item;
-  // O id nasce uma vez por item: "tentar de novo" regrava os mesmos caminhos, sem duplicar a foto.
+
   item.id ??= foto.gerarId(data);
   const caminhos = foto.caminhos(item.id, foto.extensaoDe(arquivo));
   const miniatura = await foto.gerarMiniatura(arquivo);
   const registro = foto.montarRegistro({ id: item.id, arquivo, nome: item.nome, data, origem, miniatura, blob: caminhos.blob });
 
-  // A cópia de uma foto já guardada não envia o arquivo de novo: o git guarda um conteúdo só.
   const [original, reduzida] = await Promise.all([item.reuso ? null : foto.paraBase64(arquivo), miniatura ? foto.paraBase64(miniatura.blob) : null]);
-  // O progresso é o das duas subidas somadas, cada uma pesando o que tem de tamanho.
+
   const total = (original?.length ?? 0) + (reduzida?.length ?? 0);
   const subido = [0, 0];
   const andar = (qual, tamanho) => (fracao) => {
@@ -1283,7 +1179,7 @@ async function subirFoto(item) {
       hora: item.id.slice(9, 15),
       sha: shaDaOriginal,
       miniatura: shaDaMiniatura,
-      // O GitHub não devolve o sha do registro, que vai embutido na árvore: sai da conta feita aqui.
+
       registro: await foto.shaDoGit(texto),
       tamanho: arquivo.size,
       peso: arquivo.size + (miniatura?.blob.size ?? 0) + new Blob([texto]).size,
@@ -1292,16 +1188,15 @@ async function subirFoto(item) {
   };
 }
 
-// Com o commit feito, as fotos do lote passam a existir: entram na lista, no aparelho e na grade.
 function registrarLote(lote) {
   for (const { arquivo, pronta } of lote) {
     const { nova, registro, miniatura } = pronta;
-    // A miniatura recém-gerada já serve para a grade, sem baixar de volta.
+
     if (nova.miniatura && !miniaturas.has(nova.miniatura)) {
       miniaturas.set(nova.miniatura, Promise.resolve(URL.createObjectURL(miniatura.blob)));
     }
     registros.set(nova.id, registro);
-    // O que acabou de subir já está aqui: vai para o aparelho sem precisar baixar de volta.
+
     armazem.guardar(nova.sha, arquivo, { original: true });
     if (nova.miniatura) armazem.guardar(nova.miniatura, miniatura.blob, { original: false });
   }
@@ -1311,12 +1206,11 @@ function registrarLote(lote) {
   fotos = [...novas, ...fotos.filter((existente) => !ids.has(existente.id))].sort(porIdDecrescente);
   armazem.guardarFotos(fotos);
   render();
-  // O efeito de chegada corre por conta própria: a fila não espera por ele.
+
   const acabou = !fila.some((outro) => outro.estado === 'aguardando');
   novas.forEach((nova, i) => ui.fotoChegou(nova.id, { ultimaDaLeva: acabou && i === novas.length - 1 }));
 }
 
-// Fecha o lote com um commit. Devolve false quando o token venceu e a fila precisa parar.
 async function fecharLote(lote) {
   if (lote.length === 0) return true;
   renderFila();
@@ -1335,7 +1229,6 @@ async function fecharLote(lote) {
       return true;
     } catch (erro) {
       if (erro.tipo === 'limite') {
-        // Não é falha das fotos: espera o GitHub liberar e tenta o commit de novo.
         pausadaAte = new Date(Date.now() + erro.esperaMs);
         renderFila();
         await dormir(erro.esperaMs);
@@ -1343,7 +1236,6 @@ async function fecharLote(lote) {
         continue;
       }
       if (erro.tipo === 'token') {
-        // Os arquivos já subiram: depois do novo login só falta o commit.
         for (const item of lote) item.estado = 'aguardando';
         github.apagarToken();
         ui.abrirLogin(erro.message);
@@ -1359,7 +1251,6 @@ async function fecharLote(lote) {
   }
 }
 
-// Fila única: uma foto sobe por vez, e o commit sai a cada lote. Falha em uma não para as outras.
 async function bombear() {
   if (enviando || !github.lerToken()) return;
   enviando = true;
@@ -1368,12 +1259,12 @@ async function bombear() {
   let lote = [];
   for (;;) {
     const item = fila.find((candidato) => candidato.estado === 'aguardando');
-    // Sem mais fotos esperando, ou com o lote cheio, é hora do commit.
+
     if (!item || lote.length >= TAMANHO_DO_LOTE) {
       const segue = await fecharLote(lote);
       lote = [];
       if (!segue) break;
-      // Enquanto o commit corria, pode ter chegado foto nova na fila.
+
       if (!fila.some((candidato) => candidato.estado === 'aguardando')) break;
       continue;
     }
@@ -1387,7 +1278,6 @@ async function bombear() {
       lote.push(item);
     } catch (erro) {
       if (erro.tipo === 'limite') {
-        // Não é falha da foto: espera o GitHub liberar e retoma sozinha.
         item.estado = 'aguardando';
         pausadaAte = new Date(Date.now() + erro.esperaMs);
         renderFila();
@@ -1396,7 +1286,6 @@ async function bombear() {
         continue;
       }
       if (erro.tipo === 'token') {
-        // As que faltam ficam na fila e sobem depois do novo login.
         item.estado = 'aguardando';
         for (const pronto of lote) pronto.estado = 'aguardando';
         github.apagarToken();
@@ -1410,13 +1299,13 @@ async function bombear() {
   }
   enviando = false;
   soltarTela();
-  // A leva acabou: o que subiu sai da fila, e só as falhas ficam na tela.
+
   const enviadas = fila.filter((item) => item.estado === 'concluido').length;
   fila = fila.filter((item) => item.estado !== 'concluido');
   renderFila();
   if (enviadas > 0) {
     ui.anunciarEnvio(enviadas === 1 ? 'Foto enviada.' : `${enviadas} fotos enviadas.`);
-    // Medida da leva, para comparar o envio antes e depois de uma mudança.
+
     const segundos = (performance.now() - inicio) / 1000;
     console.info(`Drive Fotos: ${enviadas} foto(s) em ${segundos.toFixed(1)} s, ${(segundos / enviadas).toFixed(1)} s por foto.`);
   }
@@ -1466,12 +1355,10 @@ ui.ligarEventos({
   estaEmSelecao: () => modoSelecao,
 });
 
-// A fila vive só nesta página: sair no meio perde o que ainda não subiu.
 window.addEventListener('beforeunload', (evento) => {
   if (apagandoSelecao || fila.some((item) => ['aguardando', 'enviando', 'gravando'].includes(item.estado))) evento.preventDefault();
 });
 
-// O voltar do navegador fecha primeiro o modo de seleção; depois, se houver, o visor.
 window.addEventListener('popstate', () => {
   if (modoSelecao) {
     if (apagandoSelecao) {
@@ -1484,10 +1371,8 @@ window.addEventListener('popstate', () => {
   if (ui.visorAberto()) ui.fecharVisor({ efeito: true });
 });
 
-// A tela de fotos sem data tem endereço próprio: #sem-data.
 window.addEventListener('hashchange', aplicarRota);
 
-// O navegador solta a trava quando a aba some. Ao voltar, com a fila correndo, pede de novo.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   if (enviando) {

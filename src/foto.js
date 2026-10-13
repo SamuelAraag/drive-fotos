@@ -1,23 +1,14 @@
-// Preparo de uma foto para o envio: id, miniatura, registro e conversão para base64.
-
 const LADO_MENOR_MINIATURA = 400;
-const LADO_MAIOR_MINIATURA = 1600; // teto para panorama não virar uma miniatura enorme
+const LADO_MAIOR_MINIATURA = 1600;
 const QUALIDADE_MINIATURA = 0.8;
 
 export const TAMANHO_MAXIMO = 25 * 1024 * 1024;
 
 const pad = (n, casas = 2) => String(n).padStart(casas, '0');
 
-// Data da foto
-//
-// A data da foto é a da captura, nunca a do envio. Vem do EXIF e, sem ele, do nome do arquivo.
-// Sem nenhum dos dois, quem decide é a pessoa: a data de modificação do arquivo não serve de
-// palpite silencioso, porque em arquivo baixado ou reenviado ela costuma ser a de hoje.
+const ANO_MINIMO = 1990;
+const TRECHO_DO_EXIF = 256 * 1024;
 
-const ANO_MINIMO = 1990; // antes disso é relógio de câmera zerado ou número que não é data
-const TRECHO_DO_EXIF = 256 * 1024; // o EXIF fica no começo do arquivo
-
-// Devolve a data só se ela existe no calendário e cabe entre ANO_MINIMO e amanhã.
 function dataValida(ano, mes, dia, hora = 12, minuto = 0, segundo = 0) {
   const data = new Date(ano, mes - 1, dia, hora, minuto, segundo);
   if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 || data.getDate() !== dia) return null;
@@ -25,8 +16,6 @@ function dataValida(ano, mes, dia, hora = 12, minuto = 0, segundo = 0) {
   return data;
 }
 
-// Bloco TIFF do EXIF: a data da captura mora no sub-bloco apontado pela etiqueta 0x8769.
-// Na falta dela, vale a da digitalização e, por último, a de alteração da imagem.
 function dataDoTiff(bytes, base) {
   const ordem = bytes.getUint16(base);
   if (ordem !== 0x4949 && ordem !== 0x4d4d) return null;
@@ -42,7 +31,7 @@ function dataDoTiff(bytes, base) {
     }
     return etiquetas;
   };
-  // "2015:03:12 10:15:30": texto de 19 caracteres, guardado fora da entrada.
+
   const texto = (etiqueta) => {
     if (!etiqueta || etiqueta.tipo !== 2 || etiqueta.quantos < 19) return null;
     const inicio = u32(etiqueta.valor);
@@ -60,7 +49,6 @@ function dataDoTiff(bytes, base) {
   return null;
 }
 
-// Só JPEG. O EXIF vem num segmento APP1, antes da imagem em si.
 async function dataDoExif(arquivo) {
   try {
     const bytes = new DataView(await arquivo.slice(0, TRECHO_DO_EXIF).arrayBuffer());
@@ -69,9 +57,9 @@ async function dataDoExif(arquivo) {
     while (posicao + 4 <= bytes.byteLength) {
       if (bytes.getUint8(posicao) !== 0xff) return null;
       const marcador = bytes.getUint8(posicao + 1);
-      if (marcador === 0xda || marcador === 0xd9) return null; // começou a imagem: não há mais metadado
+      if (marcador === 0xda || marcador === 0xd9) return null;
       const tamanho = bytes.getUint16(posicao + 2);
-      // "Exif" seguido de dois zeros. Outro APP1 (XMP, por exemplo) não interessa.
+
       if (marcador === 0xe1 && bytes.getUint32(posicao + 4) === 0x45786966 && bytes.getUint16(posicao + 8) === 0) {
         return dataDoTiff(bytes, posicao + 10);
       }
@@ -79,24 +67,20 @@ async function dataDoExif(arquivo) {
     }
     return null;
   } catch {
-    return null; // arquivo cortado ou EXIF quebrado: é como não ter
+    return null;
   }
 }
 
-// "IMG-20150312-WA0001.jpg", "Screenshot_2015-03-12-10-15-30.png", "PXL_20150312_101530.jpg".
-// Ano, mês e dia juntos ou separados por traço, ponto ou sublinhado. A hora é opcional.
 const DATA_NO_NOME = /(?:^|\D)((?:19|20)\d\d)[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?:[-_. T]?([01]\d|2[0-3])[-_.:h]?([0-5]\d)[-_.:m]?([0-5]\d))?(?!\d)/;
 
 export function dataDoNome(nome) {
   const partes = DATA_NO_NOME.exec(nome);
   if (!partes) return null;
   const [ano, mes, dia] = partes.slice(1, 4).map(Number);
-  // Sem hora no nome, vale o meio-dia: a foto cai no dia certo em qualquer fuso.
+
   return partes[4] ? dataValida(ano, mes, dia, ...partes.slice(4, 7).map(Number)) : dataValida(ano, mes, dia);
 }
 
-// Devolve { data, origem } ou null quando o arquivo não diz quando a foto foi tirada.
-// origem: 'exif' | 'nome'. Quem pergunta à pessoa grava 'informada' ou 'envio'.
 export async function dataDaFoto(arquivo) {
   const doExif = await dataDoExif(arquivo);
   if (doExif) return { data: doExif, origem: 'exif' };
@@ -104,7 +88,6 @@ export async function dataDaFoto(arquivo) {
   return doNome ? { data: doNome, origem: 'nome' } : null;
 }
 
-// A data de modificação do arquivo, só como sugestão para a pessoa, e só se não for de hoje.
 export function sugestaoDeData(arquivo) {
   if (!arquivo.lastModified) return null;
   const data = new Date(arquivo.lastModified);
@@ -112,26 +95,21 @@ export function sugestaoDeData(arquivo) {
   return valida && valida.toDateString() !== new Date().toDateString() ? valida : null;
 }
 
-// "2015-03-12", o formato do campo de data, no horário local.
 export function diaEmTexto(data) {
   return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}`;
 }
 
-// O meio-dia de um dia escrito como "2015-03-12", ou null se o dia não vale.
 export function dataNoDia(dia) {
   const [ano, mes, numero] = dia.split('-').map(Number);
   return dataValida(ano, mes, numero);
 }
 
-// A data escolhida pela pessoa no envio. Hoje vale a hora de agora, e a foto fica marcada
-// como sem data, para ser acertada depois. Outro dia vale o meio-dia dele.
 export function dataInformada(dia) {
   if (dia === diaEmTexto(new Date())) return { data: new Date(), origem: 'envio' };
   const data = dataNoDia(dia);
   return data ? { data, origem: 'informada' } : null;
 }
 
-// 20261012T153045-a1b2: data no horário local e um sufixo para duas fotos do mesmo segundo.
 export function gerarId(data) {
   const dia = `${data.getFullYear()}${pad(data.getMonth() + 1)}${pad(data.getDate())}`;
   const hora = `${pad(data.getHours())}${pad(data.getMinutes())}${pad(data.getSeconds())}`;
@@ -141,7 +119,6 @@ export function gerarId(data) {
   return `${dia}T${hora}-${sufixo}`;
 }
 
-// 2026-10-12T15:30:45-03:00
 export function comFuso(data) {
   const minutos = -data.getTimezoneOffset();
   const sinal = minutos < 0 ? '-' : '+';
@@ -164,13 +141,10 @@ export function extensaoDe(arquivo) {
   return extensaoDoNome(arquivo.name) ?? EXTENSAO_DO_TIPO[arquivo.type] ?? 'jpg';
 }
 
-// Alguns navegadores entregam HEIC sem tipo, então a extensão também vale.
 export function ehImagem(arquivo) {
   return arquivo.type.startsWith('image/') || EXTENSOES_DE_IMAGEM.includes(extensaoDoNome(arquivo.name));
 }
 
-// Devolve { blob, largura, altura } ou null quando o navegador não sabe decodificar a foto
-// (HEIC fora do Safari, por exemplo). Largura e altura são as da original.
 export async function gerarMiniatura(arquivo) {
   const url = URL.createObjectURL(arquivo);
   try {
@@ -181,16 +155,15 @@ export async function gerarMiniatura(arquivo) {
     const altura = imagem.naturalHeight;
     if (!largura || !altura) return null;
 
-    // O lado menor manda, porque a grade corta a miniatura em quadrado.
     const escala = Math.min(1, LADO_MENOR_MINIATURA / Math.min(largura, altura), LADO_MAIOR_MINIATURA / Math.max(largura, altura));
     const tela = document.createElement('canvas');
     tela.width = Math.max(1, Math.round(largura * escala));
     tela.height = Math.max(1, Math.round(altura * escala));
     const contexto = tela.getContext('2d');
-    // JPEG não tem transparência: PNG transparente ganha o fundo dos quadros da grade.
+
     contexto.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--superficie');
     contexto.fillRect(0, 0, tela.width, tela.height);
-    // O <img> já entrega a foto na orientação gravada nela.
+
     contexto.drawImage(imagem, 0, 0, tela.width, tela.height);
     const blob = await new Promise((resolver) => tela.toBlob(resolver, 'image/jpeg', QUALIDADE_MINIATURA));
     return blob ? { blob, largura, altura } : null;
@@ -216,15 +189,11 @@ export function tipoDaExtensao(extensao) {
   return TIPO_DA_EXTENSAO[extensao] ?? (extensao === 'jpeg' ? 'image/jpeg' : 'application/octet-stream');
 }
 
-// "praia.de.itapua.jpg" -> ["praia.de.itapua", ".jpg"]. Sem extensão, o segundo vem vazio.
 export function separarNome(nome) {
   const partes = /^(.*?)(\.[0-9a-z]{1,5})?$/i.exec(nome);
   return partes[1] ? [partes[1], partes[2] ?? ''] : [nome, ''];
 }
 
-// O sha que o git dá a um arquivo, calculado aqui: o mesmo que aparece na árvore do repositório.
-// Serve para saber o sha de um registro sem perguntar ao GitHub e para reconhecer uma foto que
-// já está guardada. Aceita texto ou arquivo.
 export async function shaDoGit(origem) {
   const conteudo = typeof origem === 'string' ? new TextEncoder().encode(origem) : new Uint8Array(await origem.arrayBuffer());
   const cabecalho = new TextEncoder().encode(`blob ${conteudo.length}\0`);
@@ -235,8 +204,6 @@ export async function shaDoGit(origem) {
   return [...new Uint8Array(resumo)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Nome para a cópia de uma foto que já existe: "praia.jpg" vira "praia (2).jpg", ou o próximo
-// número livre entre os nomes que as outras cópias já usam.
 export function nomeRepetido(nome, usados) {
   const [inteira, extensao] = separarNome(nome);
   const base = inteira.replace(/ \(\d+\)$/, '');
@@ -265,7 +232,7 @@ export function montarRegistro({ id, arquivo, nome, data, origem, miniatura, blo
     largura: miniatura?.largura ?? null,
     altura: miniatura?.altura ?? null,
     data: comFuso(data),
-    origem_da_data: origem, // 'exif' | 'nome' | 'informada' | 'envio'
+    origem_da_data: origem,
     enviada_em: comFuso(new Date()),
     blob,
     miniatura: miniatura ? caminhos(id, '').miniatura : null,
@@ -279,8 +246,6 @@ export const fmtTamanho = (bytes) =>
     ? `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('pt-BR')} KB`;
 
-// Paleta dominante e luminância média de uma imagem, lidas de uma cópia reduzida.
-// Devolve { paleta: [[r, g, b], ...], luminancia: 0 a 1 } ou null se a imagem não abrir.
 export async function analisar(url) {
   const imagem = new Image();
   imagem.src = url;
@@ -297,7 +262,6 @@ export async function analisar(url) {
   contexto.drawImage(imagem, 0, 0, tela.width, tela.height);
   const pontos = contexto.getImageData(0, 0, tela.width, tela.height).data;
 
-  // Agrupa as cores em 4.096 faixas e soma a luminância percebida de cada ponto.
   const faixas = new Map();
   let luminancia = 0;
   for (let i = 0; i < pontos.length; i += 4) {
@@ -314,7 +278,7 @@ export async function analisar(url) {
       faixas.set(chave, [1, r, g, b]);
     }
   }
-  // Das faixas mais cheias para as mais vazias, fica com seis cores bem diferentes entre si.
+
   const cores = [...faixas.values()]
     .sort((a, b) => b[0] - a[0])
     .map(([n, r, g, b]) => [Math.round(r / n), Math.round(g / n), Math.round(b / n)]);
