@@ -540,9 +540,12 @@ html {
   overscroll-behavior-y: contain;
 }
 
-.topo,
-.pagina,
-.rodape {
+.puxando .topo,
+.puxando .pagina,
+.puxando .rodape,
+.puxar-soltando .topo,
+.puxar-soltando .pagina,
+.puxar-soltando .rodape {
   transform: translateY(var(--puxar, 0px));
 }
 
