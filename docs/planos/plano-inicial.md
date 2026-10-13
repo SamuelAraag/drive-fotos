@@ -1131,6 +1131,54 @@ a partir disso já pode ir limpando as imagens para trás. Se eu voltar, ele rec
 - **Não verificado:** com os tetos reais, de 1.000 e 2.000, que pedem uma base grande.
 - **Em aberto:** a tela "Fotos sem data" não passa por este teto. Fica para o Épico 25.
 
+### Épico 28: Reformulação do layout
+
+Pedido em 2026-10-13: "o site está muito opaco com esse tema escuro". As decisões foram
+tomadas num assistente de protótipo (`prototipos/tema.html`, fora do git), com a prévia da
+tela mudando a cada escolha.
+
+- **Decisões de 2026-10-13:**
+
+| Etapa | Escolha |
+| --- | --- |
+| Cor de destaque | Azul, a mesma de antes (`#3b9dff`) |
+| Fundo | Ardósia: mais claro que o azul-marinho, com mais diferença entre as camadas |
+| Quanto a cor aparece | Média: também na borda e no ícone da zona de envio |
+| Grade de fotos | Soltas: vão de 8 px e cantos arredondados |
+
+- **Tokens que mudaram em `src/style.css`:**
+
+| Token | Antes | Agora |
+| --- | --- | --- |
+| `--fundo` | `#0b1220` | `#131a24` |
+| `--superficie` | `#151e2e` | `#1f2937` |
+| `--trilho` | `#263349` | `#374357` |
+| `--texto` | `#e8eef7` | `#eef2f8` |
+| `--texto-suave` | `#9aa8bd` | `#a9b4c5` |
+
+  `--azul`, `--erro` e `--atencao` ficaram como estavam. A cor do tema nas quatro páginas e
+  no `manifest.webmanifest` acompanha o fundo novo.
+- **Contraste medido com as cores novas:** texto sobre o fundo 15,6 : 1; texto secundário
+  sobre a superfície 7,0 : 1; azul sobre o fundo 6,2 : 1 e sobre a superfície 5,2 : 1; texto
+  do botão principal 6,2 : 1. Todos acima dos 4,5 : 1 pedidos para texto.
+- **Zona de envio:** a borda tracejada mistura o azul com o trilho, e o ícone fica azul
+  mesmo sem o cursor em cima.
+- **Grade:** vão de 8 px entre as fotos e cantos de 8 px. O esqueleto do Épico 22 usa as
+  mesmas classes e acompanha.
+- **Pílula de uso à esquerda e botão de ir para o início à direita,** trocados de lado no
+  mesmo dia.
+- **Em aberto, ainda só em protótipo:**
+  - Menu "Mais" no topo (`prototipos/menu-mais.html`), com Backup de uma pasta, Fotos sem
+    data, Novidades com a versão ao lado e Sair. Resolve a versão inalcançável no rodapé e
+    tira o link do backup de cima da zona de envio.
+  - Se o aviso de fotos sem data sai da tela e fica só no menu.
+- **Verificado na base de testes,** em tela larga: a tela principal com as cores novas, a
+  zona de envio, a grade e a pílula no lugar novo.
+- **Não verificado:** foto aberta, diálogos, "Fotos sem data", tela de backup, página de
+  novidades e de download com as cores novas, nem em celular.
+- **Pronto quando:** todas as telas foram abertas com o tema novo, no computador e no
+  celular, e o que ficou em aberto foi decidido.
+
 ## Pendências
 
 Lista anotada em 2026-10-12 e revista em 2026-10-13. Cada item vira épico quando for a vez
@@ -1175,6 +1223,8 @@ fotos ou de o app parar de funcionar bem:
 7. [ ] Rodar a análise de gaps. Épico 13.
 8. [ ] Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
+10. [ ] Reformulação do layout. Épico 28. Tema aplicado; falta decidir o menu "Mais" e
+    conferir todas as telas.
 
 ## Linha do tempo
 
@@ -1210,6 +1260,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 25 | Corrigir a data de uma foto só | 1 dia | 8 e 20 |
 | 26 | Sistema de backup | 1 dia, fora a decisão | Nada |
 | 27 | Teto para as miniaturas | 0,5 dia | 21 |
+| 28 | Reformulação do layout | 1 dia, fora as decisões | 22 e 23 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
