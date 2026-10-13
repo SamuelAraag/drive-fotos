@@ -1565,7 +1565,9 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
         salvarUma.type = 'button';
         salvarUma.dataset.acao = 'salvar-uma';
         salvarUma.setAttribute('aria-label', `Salvar a data de ${nome}`);
-        item.append(miniatura, rotulo, campo, certa, salvarUma);
+        const quadro = el('span', 'pendentes__quadro');
+        quadro.append(miniatura);
+        item.append(quadro, rotulo, campo, certa, salvarUma);
         lista.append(item);
       }
       grupo.append(lista);
@@ -1584,10 +1586,19 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
   renderBotoesDasPendentes();
 }
 
-export function pendentesOcupado(ocupado) {
+export function pendentesOcupado(ocupado, ids = []) {
   pendentesOcupadas = ocupado;
+  const salvando = new Set(ids);
   for (const controle of $('pendentes').querySelectorAll('button, input')) controle.disabled = ocupado;
-  for (const salvar of $('pendentes').querySelectorAll('[data-acao=salvar]')) salvar.textContent = ocupado ? 'Salvando...' : 'Salvar datas';
+  for (const item of $('pendentes').querySelectorAll('.pendentes__item')) {
+    const neste = ocupado && salvando.has(item.querySelector('input[data-id]').dataset.id);
+    item.classList.toggle('pendentes__item--salvando', neste);
+    item.setAttribute('aria-busy', String(neste));
+    item.querySelector('[data-acao=salvar-uma]').textContent = neste ? 'Salvando...' : 'Salvar esta';
+  }
+  for (const salvar of $('pendentes').querySelectorAll('[data-acao=salvar]')) {
+    salvar.textContent = ocupado && salvando.size !== 1 ? 'Salvando...' : 'Salvar datas';
+  }
   if (!ocupado) renderBotoesDasPendentes();
 }
 

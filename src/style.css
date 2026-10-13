@@ -1917,6 +1917,11 @@ body.modo-selecao .dia__selecao {
   min-width: 0;
 }
 
+.pendentes__quadro {
+  position: relative;
+  display: block;
+}
+
 .pendentes__imagem {
   display: block;
   width: 100%;
@@ -1924,6 +1929,24 @@ body.modo-selecao .dia__selecao {
   border-radius: var(--e2);
   background: var(--trilho);
   object-fit: cover;
+  transition: opacity var(--medio);
+}
+
+.pendentes__item--salvando .pendentes__imagem {
+  opacity: 0.35;
+}
+
+.pendentes__item--salvando .pendentes__quadro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--e6);
+  height: var(--e6);
+  margin: auto;
+  border: 3px solid var(--trilho);
+  border-top-color: var(--azul);
+  border-radius: var(--raio-pilula);
+  animation: girar 1s linear infinite;
 }
 
 .pendentes__nome {
@@ -2124,8 +2147,13 @@ body.modo-selecao .dia__selecao {
     animation: none;
   }
 
-  .girador {
+  .girador,
+  .pendentes__item--salvando .pendentes__quadro::after {
     animation-duration: 3s;
+  }
+
+  .pendentes__imagem {
+    transition: none;
   }
 
   .grade__quadro {
