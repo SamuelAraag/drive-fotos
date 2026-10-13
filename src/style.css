@@ -314,8 +314,8 @@ body.modo-selecao .inicio {
 
 .botao.inicio {
   position: fixed;
+  right: var(--margem);
   bottom: calc(var(--e4) + var(--altura-uso) + var(--e2) + env(safe-area-inset-bottom));
-  left: var(--margem);
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -407,7 +407,7 @@ body.modo-selecao .inicio {
 
 .uso {
   position: fixed;
-  right: var(--margem);
+  left: var(--margem);
   bottom: calc(var(--e4) + env(safe-area-inset-bottom));
   z-index: 1;
   display: flex;

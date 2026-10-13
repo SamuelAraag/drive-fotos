@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.12.1',
+    quando: '2026-10-13T13:32',
+    titulo: 'O botão de voltar ao início foi para a direita',
+    mudancas: [
+      'O botão de voltar ao início agora fica no canto de baixo, à direita.',
+      'O indicador de espaço usado e de quantidade de fotos passou para a esquerda.',
+    ],
+  },
+  {
     versao: '1.12.0',
     quando: '2026-10-13T11:31',
     titulo: 'Volte ao início da grade com um toque',

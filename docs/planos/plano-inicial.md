@@ -997,8 +997,10 @@ Pedido em 2026-10-12 e feito no mesmo dia.
 Pedido em 2026-10-13 e feito no mesmo dia.
 
 - **Como ficou:** um botão redondo, com uma seta para cima, fixo no canto inferior
-  esquerdo. A pílula de uso fica no canto direito e o atalho da foto enviada, uma linha
-  acima. Aparece depois de duas telas de rolagem e some no modo de seleção.
+  direito. A pílula de uso fica no canto esquerdo e o atalho da foto enviada, uma linha
+  acima. Aparece depois de duas telas de rolagem e some no modo de seleção. Em
+  2026-10-13 os dois trocaram de lado, a pedido: o botão, que é a ação, fica onde o
+  polegar alcança, e a pílula, que só informa, vai para o outro canto.
 - **Vale para a grade e para "Fotos sem data",** porque acompanha a rolagem da página.
 - **Ao tocar,** a página volta ao topo e o foco vai para o título da tela. A menos de cinco
   telas do topo a rolagem é suave; mais longe, ou com movimento reduzido no sistema, é um
