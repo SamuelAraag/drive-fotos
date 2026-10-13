@@ -1173,9 +1173,9 @@ tela mudando a cada escolha.
     tira o link do backup de cima da zona de envio.
   - Se o aviso de fotos sem data sai da tela e fica só no menu.
 - **Verificado na base de testes,** em tela larga: a tela principal com as cores novas, a
-  zona de envio, a grade e a pílula no lugar novo.
-- **Não verificado:** foto aberta, diálogos, "Fotos sem data", tela de backup, página de
-  novidades e de download com as cores novas, nem em celular.
+  zona de envio, a grade, a pílula no lugar novo, "Fotos sem data" e a tela de backup.
+- **Não verificado:** foto aberta, diálogos, página de novidades e de download com as
+  cores novas, nem em celular.
 - **Pronto quando:** todas as telas foram abertas com o tema novo, no computador e no
   celular, e o que ficou em aberto foi decidido.
 
