@@ -1,6 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Drive Fotos">
-  <!-- Cores iguais aos tokens azul e texto de style.css. -->
-  <rect fill="#3b9dff" x="7" y="11" width="50" height="42" rx="9"/>
-  <circle fill="#e8eef7" cx="22" cy="25" r="5"/>
-  <path fill="#e8eef7" d="M13 47l12-13 8 8 9-11 9 12v2a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Drive Fotos">
+  <path d="M50 50 L50.00 10.00 C34.06 14.19 32.46 32.46 50 50Z" fill="#e8183f"/>
+  <path d="M50.00 10.00 C34.06 14.19 32.46 32.46 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L78.28 21.72 C64.05 13.40 50.00 25.20 50 50Z" fill="#262a33"/>
+  <path d="M78.28 21.72 C64.05 13.40 50.00 25.20 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L90.00 50.00 C85.81 34.06 67.54 32.46 50 50Z" fill="#e8183f"/>
+  <path d="M90.00 50.00 C85.81 34.06 67.54 32.46 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L78.28 78.28 C86.60 64.05 74.80 50.00 50 50Z" fill="#262a33"/>
+  <path d="M78.28 78.28 C86.60 64.05 74.80 50.00 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L50.00 90.00 C65.94 85.81 67.54 67.54 50 50Z" fill="#e8183f"/>
+  <path d="M50.00 90.00 C65.94 85.81 67.54 67.54 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L21.72 78.28 C35.95 86.60 50.00 74.80 50 50Z" fill="#262a33"/>
+  <path d="M21.72 78.28 C35.95 86.60 50.00 74.80 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L10.00 50.00 C14.19 65.94 32.46 67.54 50 50Z" fill="#e8183f"/>
+  <path d="M10.00 50.00 C14.19 65.94 32.46 67.54 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M50 50 L21.72 21.72 C13.40 35.95 25.20 50.00 50 50Z" fill="#262a33"/>
+  <path d="M21.72 21.72 C13.40 35.95 25.20 50.00 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
 </svg>

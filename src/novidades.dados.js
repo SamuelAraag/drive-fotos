@@ -6,6 +6,14 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.10.2',
+    quando: '2026-10-12T22:58',
+    titulo: 'Ícone novo: um cata-vento vermelho',
+    mudancas: [
+      'O ícone do app, da aba do navegador e da tela inicial do celular agora é um cata-vento vermelho e grafite.',
+    ],
+  },
+  {
     versao: '1.10.1',
     quando: '2026-10-12T22:39',
     titulo: 'A grade só baixa o que você está vendo',
