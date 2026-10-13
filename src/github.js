@@ -20,7 +20,7 @@ export const REPO_DADOS = `${DONO}/${REPO}`;
 export const BRANCH_DADOS = BRANCH;
 export const BASE_DE_TESTES = LOCAL;
 
-// tipo: 'token' | 'permissao' | 'ausente' | 'vazio' | 'conflito' | 'limite' | 'rede' | 'servidor'
+// tipo: 'token' | 'permissao' | 'ausente' | 'vazio' | 'conflito' | 'limite' | 'rede' | 'servidor' | 'cortada'
 export class ErroGitHub extends Error {
   constructor(tipo, mensagem, { status = null, esperaMs = null } = {}) {
     super(mensagem);
@@ -46,6 +46,7 @@ export function salvarToken(token) {
 export function apagarToken() {
   localStorage.removeItem(CHAVE_TOKEN);
   esquecerPonta();
+  listagem = null;
 }
 
 // O GitHub usa 403 e 429 tanto para falta de permissão quanto para limite de ritmo.
@@ -158,13 +159,131 @@ function enviarComProgresso(caminho, corpo, aoProgredir) {
   });
 }
 
-// Uma chamada lista o repositório inteiro. Cada item é { caminho, sha, tamanho }.
+// Listagem do repositório
+//
+// O GitHub corta a lista acima de 100.000 entradas ou 7 MB e avisa com `truncated`. Lista
+// cortada nunca é devolvida: o app mostraria só parte das fotos, sem dizer que faltam.
+// A listagem fica guardada por pasta, cada uma com o sha dela. Como o sha de uma pasta muda
+// quando qualquer coisa dentro dela muda, a releitura abre só as pastas que mudaram.
+
+const PASTAS_AO_MESMO_TEMPO = 6;
+export const NOME_DO_CACHE_DA_LISTAGEM = 'drive-fotos-listagem-v1';
+const ENDERECO_DA_LISTAGEM = `${location.origin}/__listagem__/${BRANCH}`;
+// Só para teste na própria máquina: pula a leitura de uma chamada só e vai pasta por pasta.
+const SEMPRE_POR_PASTA = LOCAL && new URLSearchParams(location.search).has('listagem-por-pasta');
+
+// { raiz: sha da árvore da raiz, pastas: { caminho: { sha, arquivos, subpastas } } }
+// `arquivos` são os que ficam direto na pasta, cada um como { caminho, sha, tamanho }.
+let listagem = null;
+let listagemLida = false; // a guardada no aparelho já foi procurada nesta página
+
+async function lerListagemGuardada() {
+  try {
+    const resposta = await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).match(ENDERECO_DA_LISTAGEM);
+    const guardada = resposta ? await resposta.json() : null;
+    return guardada?.raiz && guardada.pastas ? guardada : null;
+  } catch {
+    return null; // sem Cache, ou guardada ilegível: lê do GitHub como da primeira vez
+  }
+}
+
+async function guardarListagem() {
+  try {
+    await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).put(ENDERECO_DA_LISTAGEM, new Response(JSON.stringify(listagem)));
+  } catch {
+    // sem espaço ou sem Cache: a próxima abertura lê do GitHub
+  }
+}
+
+const juntar = (pasta, nome) => (pasta ? `${pasta}/${nome}` : nome);
+const pastaDe = (caminho) => caminho.slice(0, Math.max(0, caminho.lastIndexOf('/')));
+
+// A resposta de uma chamada só traz também as pastas, cada uma com o sha: dá para montar a
+// mesma estrutura da leitura pasta por pasta.
+function pastasDaListaInteira(raiz, entradas) {
+  const pastas = { '': { sha: raiz, arquivos: [], subpastas: [] } };
+  for (const entrada of entradas) {
+    if (entrada.type === 'tree') pastas[entrada.path] = { sha: entrada.sha, arquivos: [], subpastas: [] };
+  }
+  for (const entrada of entradas) {
+    const mae = pastas[pastaDe(entrada.path)];
+    if (!mae) continue;
+    if (entrada.type === 'tree') mae.subpastas.push(entrada.path);
+    else if (entrada.type === 'blob') mae.arquivos.push({ caminho: entrada.path, sha: entrada.sha, tamanho: entrada.size });
+  }
+  return pastas;
+}
+
+let pastasLendo = 0;
+const pastasNaFila = [];
+
+async function comVagaDePasta(tarefa) {
+  while (pastasLendo >= PASTAS_AO_MESMO_TEMPO) await new Promise((seguir) => pastasNaFila.push(seguir));
+  pastasLendo++;
+  try {
+    return await tarefa();
+  } finally {
+    pastasLendo--;
+    pastasNaFila.shift()?.();
+  }
+}
+
+function copiarPasta(caminho, antigas, novas) {
+  novas[caminho] = antigas[caminho];
+  for (const sub of antigas[caminho].subpastas) copiarPasta(sub, antigas, novas);
+}
+
+// Lê uma pasta e as de dentro dela. A que tem o mesmo sha de antes vem da listagem guardada,
+// com tudo o que tem dentro, sem chamada nenhuma.
+async function lerPasta(caminho, sha, antigas, novas) {
+  if (antigas?.[caminho]?.sha === sha) {
+    copiarPasta(caminho, antigas, novas);
+    return;
+  }
+  const json = await comVagaDePasta(async () => (await requisitar(`/git/trees/${sha}`)).json());
+  if (json.truncated) {
+    throw new ErroGitHub(
+      'cortada',
+      `A pasta ${caminho || 'principal'} de ${REPO_DADOS} tem arquivos demais para o GitHub listar de uma vez. As fotos continuam guardadas, mas o app não consegue mostrar a lista completa.`,
+    );
+  }
+  const pasta = { sha, arquivos: [], subpastas: [] };
+  novas[caminho] = pasta;
+  const subpastas = [];
+  for (const entrada of json.tree) {
+    const inteiro = juntar(caminho, entrada.path);
+    if (entrada.type === 'tree') {
+      pasta.subpastas.push(inteiro);
+      subpastas.push(lerPasta(inteiro, entrada.sha, antigas, novas));
+    } else if (entrada.type === 'blob') {
+      pasta.arquivos.push({ caminho: inteiro, sha: entrada.sha, tamanho: entrada.size });
+    }
+  }
+  await Promise.all(subpastas);
+}
+
+// Lista o repositório inteiro. Cada item é { caminho, sha, tamanho }.
+// Sem nada novo no repositório, custa só a leitura da ponta da branch.
 export async function lerArvore() {
-  const resposta = await requisitar(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
-  const json = await resposta.json();
-  return json.tree
-    .filter((entrada) => entrada.type === 'blob')
-    .map((entrada) => ({ caminho: entrada.path, sha: entrada.sha, tamanho: entrada.size }));
+  const ponta = await lerPonta();
+  if (!listagem && !listagemLida) {
+    listagemLida = true;
+    listagem = await lerListagemGuardada();
+  }
+  if (listagem?.raiz !== ponta.arvore) {
+    let pastas = null;
+    if (!listagem && !SEMPRE_POR_PASTA) {
+      const json = await (await requisitar(`/git/trees/${ponta.arvore}?recursive=1`)).json();
+      if (!json.truncated) pastas = pastasDaListaInteira(ponta.arvore, json.tree);
+    }
+    if (!pastas) {
+      pastas = {};
+      await lerPasta('', ponta.arvore, listagem?.pastas, pastas);
+    }
+    listagem = { raiz: ponta.arvore, pastas };
+    guardarListagem();
+  }
+  return Object.values(listagem.pastas).flatMap((pasta) => pasta.arquivos);
 }
 
 // Arquivo de repositório privado não abre por URL direta: vem pela API, com o token.

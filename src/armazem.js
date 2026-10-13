@@ -2,7 +2,7 @@
 // a rede. Os arquivos ficam no Cache do navegador e a lista de fotos no localStorage.
 // "Sair" apaga tudo: são fotos de um repositório privado.
 
-import { BRANCH_DADOS } from './github.js';
+import { BRANCH_DADOS, NOME_DO_CACHE_DA_LISTAGEM } from './github.js';
 
 const NOME_DO_CACHE = 'drive-fotos-arquivos-v1';
 const CHAVE_ORIGINAIS = 'drive-fotos.originais'; // { sha: [tamanho, último uso] }
@@ -136,7 +136,10 @@ export async function limpar() {
     for (const chave of Object.keys(localStorage)) {
       if (chave === CHAVE_ORIGINAIS || chave.startsWith('drive-fotos.fotos.')) localStorage.removeItem(chave);
     }
-    if ('caches' in window) await caches.delete(NOME_DO_CACHE);
+    if ('caches' in window) {
+      await caches.delete(NOME_DO_CACHE);
+      await caches.delete(NOME_DO_CACHE_DA_LISTAGEM);
+    }
   } catch {
     // nada a fazer: o que não deu para apagar fica órfão no navegador
   }

@@ -4,6 +4,16 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.9.0',
+    quando: '2026-10-12T21:32',
+    titulo: 'O app aguenta um acervo grande sem perder fotos da lista',
+    mudancas: [
+      'Com milhares de fotos, o GitHub passa a cortar a lista do repositório. O app agora lê pasta por pasta e mostra todas.',
+      'Voltar para a aba ou tocar em "Atualizar" sem nada novo ficou quase instantâneo: o app confere se algo mudou antes de ler.',
+      'Quando muda, ele relê só as pastas dos anos que mudaram.',
+    ],
+  },
+  {
     versao: '1.8.2',
     quando: '2026-10-12T20:58',
     titulo: 'O backup não trava mais acima de 4 GB',
