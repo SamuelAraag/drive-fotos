@@ -8,8 +8,11 @@ const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
 const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
 
 const TETO_DE_ORIGINAIS = 1024 * 1024 * 1024;
+const TETO_DE_MINIATURAS = 2000;
+const GUARDADAS_ENTRE_FAXINAS = 100;
 
 const endereco = (sha) => `${location.origin}/__arquivo__/${sha}`;
+const ENDERECO_DA_LISTA = `${location.origin}/__lista__/${BRANCH_DADOS}`;
 
 let cache = null;
 
@@ -77,12 +80,26 @@ export async function ler(sha) {
   }
 }
 
+let guardadasDesdeAFaxina = 0;
+
+async function enxugarMiniaturas(arquivos) {
+  const originais = lerIndice();
+  const pequenos = (await arquivos.keys()).filter((pedido) => pedido.url.includes('/__arquivo__/') && !originais[pedido.url.split('/').pop()]);
+  for (const pedido of pequenos.slice(0, Math.max(0, pequenos.length - TETO_DE_MINIATURAS))) await arquivos.delete(pedido);
+}
+
 export async function guardar(sha, blob, { original }) {
   const arquivos = await abrir();
   if (!arquivos) return;
   try {
     await arquivos.put(endereco(sha), new Response(blob));
-    if (!original) return;
+    if (!original) {
+      if (++guardadasDesdeAFaxina >= GUARDADAS_ENTRE_FAXINAS) {
+        guardadasDesdeAFaxina = 0;
+        enxugarMiniaturas(arquivos).catch(() => {});
+      }
+      return;
+    }
     const indice = lerIndice();
     indice[sha] = [blob.size, Date.now()];
     gravarIndice(indice);
@@ -103,7 +120,7 @@ export async function apagar(shas) {
   gravarIndice(indice);
 }
 
-export function lerFotos() {
+function lerListaAntiga() {
   try {
     const lista = JSON.parse(localStorage.getItem(CHAVE_FOTOS));
     return Array.isArray(lista) ? lista : null;
@@ -112,11 +129,43 @@ export function lerFotos() {
   }
 }
 
-export function guardarFotos(lista) {
+function esquecerListaAntiga() {
   try {
-    localStorage.setItem(CHAVE_FOTOS, JSON.stringify(lista));
+    localStorage.removeItem(CHAVE_FOTOS);
   } catch {
+    return;
   }
+}
+
+export async function lerFotos() {
+  const arquivos = await abrir();
+  try {
+    const resposta = await arquivos?.match(ENDERECO_DA_LISTA);
+    const lista = resposta ? await resposta.json() : null;
+    if (Array.isArray(lista)) return lista;
+  } catch {
+    return lerListaAntiga();
+  }
+  return lerListaAntiga();
+}
+
+let gravacaoDaLista = Promise.resolve();
+
+export function guardarFotos(lista) {
+  const texto = JSON.stringify(lista);
+  gravacaoDaLista = gravacaoDaLista.then(async () => {
+    esquecerListaAntiga();
+    const arquivos = await abrir();
+    if (!arquivos) return false;
+    try {
+      await arquivos.put(ENDERECO_DA_LISTA, new Response(texto, { headers: { 'Content-Type': 'application/json' } }));
+      return true;
+    } catch {
+      await arquivos.delete(ENDERECO_DA_LISTA).catch(() => {});
+      return false;
+    }
+  });
+  return gravacaoDaLista;
 }
 
 export function manterIndices(atuais) {
@@ -130,6 +179,7 @@ export function manterIndices(atuais) {
 }
 
 export async function limpar() {
+  await gravacaoDaLista.catch(() => {});
   cache = null;
   indiceDasOriginais = null;
   try {

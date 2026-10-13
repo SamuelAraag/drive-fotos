@@ -158,7 +158,9 @@ function descricaoDaFoto(foto) {
   return `Foto de ${dia}, ${foto.hora.slice(0, 2)}:${foto.hora.slice(2, 4)}`;
 }
 
+const MINIATURAS_NA_GRADE = 1000;
 let observador = null;
+let quadrosComMiniatura = [];
 const baixarDoQuadro = new WeakMap();
 const jaMostradas = new Set();
 
@@ -169,7 +171,7 @@ function carregarQuadro(quadro) {
   quadro.classList.add('grade__quadro--carregando');
   baixar(foto.miniatura).then(
     (url) => {
-      observador?.unobserve(quadro);
+      if (!quadro.isConnected) return;
       const imagem = el('img', jaMostradas.has(foto.miniatura) ? 'grade__imagem' : 'grade__imagem grade__imagem--nova');
       jaMostradas.add(foto.miniatura);
       imagem.alt = '';
@@ -177,6 +179,9 @@ function carregarQuadro(quadro) {
       imagem.src = url;
       quadro.classList.remove('grade__quadro--carregando');
       quadro.querySelector('.grade__botao').append(imagem);
+      pedido.carregada = true;
+      quadrosComMiniatura.push(quadro);
+      aliviarGrade();
     },
     (falha) => {
       if (falha?.name !== 'AbortError') {
@@ -193,6 +198,26 @@ function carregarQuadro(quadro) {
       }
     },
   );
+}
+
+function aliviarGrade() {
+  let sobra = quadrosComMiniatura.length - MINIATURAS_NA_GRADE;
+  if (sobra <= 0) return;
+  const ficam = [];
+  for (const quadro of quadrosComMiniatura) {
+    const pedido = baixarDoQuadro.get(quadro);
+    if (!quadro.isConnected || !pedido) continue;
+    if (sobra > 0 && !pedido.perto) {
+      quadro.querySelector('.grade__imagem')?.remove();
+      pedido.carregada = false;
+      pedido.pedida = false;
+      pedido.baixar.soltar?.(pedido.foto.miniatura);
+      sobra--;
+    } else {
+      ficam.push(quadro);
+    }
+  }
+  quadrosComMiniatura = ficam;
 }
 
 function marcarSemMiniatura(quadro, foto) {
@@ -403,6 +428,7 @@ export function esquecerEnvio() {
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
+  quadrosComMiniatura = [];
   $('grade').replaceChildren();
 }
 
@@ -456,8 +482,9 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
         const quadro = entrada.target;
         const pedido = baixarDoQuadro.get(quadro);
         if (!pedido) continue;
-        if (entrada.isIntersecting && !pedido.pedida) carregarQuadro(quadro);
-        else if (!entrada.isIntersecting && pedido.pedida) pedido.baixar.cancelar?.(pedido.foto.miniatura);
+        pedido.perto = entrada.isIntersecting;
+        if (pedido.perto && !pedido.pedida) carregarQuadro(quadro);
+        else if (!pedido.perto && pedido.pedida && !pedido.carregada) pedido.baixar.cancelar?.(pedido.foto.miniatura);
       }
     },
     { rootMargin: '400px 0px' },

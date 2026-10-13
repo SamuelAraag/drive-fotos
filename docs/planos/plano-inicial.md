@@ -242,8 +242,8 @@ A regra é usar ao máximo o que já está no aparelho, para o app parecer imedi
    GitHub por trás. Só redesenha a grade se algo mudou.
 2. As miniaturas entram conforme aparecem na tela, não todas de uma vez, seis por vez. A
    que saiu de perto da tela antes de começar a baixar deixa a fila, e volta se reaparecer:
-   rolando depressa por milhares de fotos, só baixa o que a pessoa está vendo. Toda
-   miniatura baixada fica guardada no aparelho, sem limite, porque é pequena.
+   rolando depressa por milhares de fotos, só baixa o que a pessoa está vendo. A grade
+   mantém até 1.000 miniaturas carregadas e o aparelho guarda até 2.000 (Épico 27).
 3. A original só é baixada quando a foto é aberta. Até 2026-10-12 toda foto que ficava na
    tela por mais de 0,6 s tinha a original baixada em segundo plano. Com 4.312 fotos isso
    encheu o teto de 1 GB do aparelho com 831 originais, disputou a rede com as miniaturas e
@@ -670,6 +670,17 @@ Pedido em 2026-10-12.
 
 Pedido em 2026-10-12: trazer para o Drive Fotos tudo o que existe até hoje.
 
+**Em andamento.** A ferramenta está pronta e o envio do acervo segue em partes. Conferido em
+2026-10-13, comparando o conteúdo de cada arquivo do HD com a base oficial, que tinha 4.339
+fotos e 6,02 GB:
+
+- **Parte 2 da pasta:** enviada. 3.308 dos 3.313 arquivos estão na base. Faltam 2, e 3
+  passam de 25 MB.
+- **Parte 1 da pasta:** 499 dos 5.925 arquivos estão na base. Faltam 5.426, com 3,38 GB.
+  Com eles a base vai a cerca de 9.765 fotos e 9,4 GB.
+- **Fora da migração:** 1.888 HEIC e 2.885 arquivos que não são imagem (vídeos, RAW e PDF),
+  separados em pastas próprias no HD.
+
 **Implementação inicial:** a página dedicada `backup.html` aceita uma pasta ou uma seleção de
 arquivos, confere nomes e hashes antes do envio, estima o espaço, deixa pausar/retomar/cancelar
 e gera um CSV com o resultado. Após recarregar, é preciso escolher a mesma pasta novamente; a
@@ -981,10 +992,129 @@ Pedido em 2026-10-12 e feito no mesmo dia.
 - **Pronto quando:** abrir o app num aparelho sem nada guardado mostra o esqueleto da grade
   em vez do girador, e a grade real entra sem a página pular.
 
+### Épico 23: Botão de ir para o início
+
+Pedido em 2026-10-13.
+
+- **O problema:** com milhares de fotos a grade tem mais de cem telas de altura, e voltar ao
+  topo, onde ficam a zona de envio e o "Atualizar", é rolar tudo de volta.
+- **O botão:** aparece depois que a pessoa rola algumas telas e leva ao início da página
+  num toque. No topo ele some.
+- **Onde fica:** flutuando embaixo, sem cobrir a pílula de uso, o atalho da foto enviada
+  nem a barra do modo de seleção.
+- **Teclado e leitor de tela:** é um botão de verdade, com nome próprio, e o foco vai para
+  o começo da página depois do salto.
+- **Movimento:** rolagem suave, e direta para quem pediu movimento reduzido ao sistema.
+- **Em aberto:**
+  - Se a tela "Fotos sem data" ganha o mesmo botão.
+  - Se além do início vale um atalho para pular por ano.
+- **Pronto quando:** rolando até o meio da grade o botão aparece, um toque volta ao topo e
+  o botão some.
+
+### Épico 24: Lista de fotos guardada no navegador
+
+Pedido em 2026-10-13 e feito no mesmo dia. É o gap N3 da análise de gaps.
+
+- **O problema:** para abrir na hora, o app guardava no `localStorage` uma cópia da lista
+  de fotos. O `localStorage` tem teto de cerca de 5 MB por site, dividido com os outros
+  sites da mesma origem. Medido em 2026-10-12: 265 caracteres por foto, ou cerca de 1,15 MB
+  com 4.339 fotos e 2,6 MB com 9.765. Quando não cabia, a gravação falhava em silêncio e a
+  cópia antiga continuava lá: o app abria com a lista velha e desenhava a grade duas vezes.
+- **Primeira tentativa, descartada:** um teto fixo de 3 MB, apagando a cópia quando não
+  coubesse. Funcionava, mas ao bater o teto o app perdia a abertura na hora. O pedido foi
+  um sistema permissivo, que lide com o tamanho sem falhar.
+- **Como ficou:** a lista passou para o Cache do navegador, o mesmo lugar das miniaturas e
+  das originais, que é limitado pelo disco e não por um teto pequeno. Não há mais teto na
+  lista. Está em `src/armazem.js`.
+- **Sem lista velha.** As gravações entram numa fila, uma depois da outra, para a última
+  ser sempre a que fica. Se uma gravação falhar, a cópia é apagada, e a abertura seguinte
+  mostra o esqueleto e carrega do GitHub.
+- **Quem vem da versão anterior:** na primeira abertura o app ainda lê a lista do
+  `localStorage`, para não perder a abertura na hora, e a apaga de lá na primeira gravação.
+- **Verificado na base de testes:**
+  - lista de 30.000 fotos, 7,6 MB: gravada em 85 ms e lida em 47 ms;
+  - três gravações seguidas: fica a última;
+  - sem lista no Cache e com uma no `localStorage`: o app usa a antiga, e ela sai de lá na
+    gravação seguinte;
+  - o app aberto duas vezes: na segunda a grade aparece direto, sem esqueleto e sem erro.
+- **Em aberto:** navegador sem Cache (página fora de contexto seguro) abre sempre pelo
+  esqueleto. É o mesmo limite que as miniaturas já têm.
+
+### Épico 25: Corrigir a data de uma foto só
+
+Pedido em 2026-10-13.
+
+- **Data por foto, isolada.** Acertar a data de uma foto sem depender do bloco em que ela
+  está: cada foto tem o próprio salvar, e o commit leva só ela.
+- **A tela carrega as imagens como a grade principal.** As miniaturas entram conforme
+  aparecem na tela, seis por vez, e a que saiu de perto da tela deixa a fila. Hoje a tela
+  "Fotos sem data" desenha todas as fotos de uma vez; na base oficial são 1.136.
+- **O que continua:** o "Mesmo dia para todas" e o salvar do bloco inteiro, para quem quer
+  datar um envio de uma vez.
+- **Índice:** a troca de data já regrava o índice dos anos envolvidos no mesmo commit
+  (Épico 20).
+- **Em aberto:**
+  - Se a correção unitária também entra na foto aberta, para qualquer foto, e não só para as
+    que subiram sem data.
+  - Se a tela ganha o esqueleto do Épico 22 enquanto carrega.
+- **Pronto quando:** dá para salvar a data de uma foto sem tocar nas outras do bloco, e
+  abrir a tela com mais de mil fotos baixa só as miniaturas que estão à vista.
+
+### Épico 26: Sistema de backup
+
+Pedido em 2026-10-13: "sempre que eu abrir a tela ele faz um fork do repo da base de dados
+para a conta principal? Se isso trouxer os arquivos pode ser uma solução". Hoje a cópia de
+segurança é um `git clone` manual (RG10), e nada no app lembra dela.
+
+- **O que a cópia precisa garantir:** que as fotos sobrevivam se o GitHub limitar, suspender
+  ou apagar o repositório de dados ou a conta dele. É para isso que o repositório fica numa
+  conta separada.
+- **O fork, analisado.** A confirmar na documentação do GitHub antes de decidir:
+  - O fork de um repositório privado fica preso ao original. Apagar o original privado
+    apaga os forks privados junto, então o fork não cobre o caso que mais importa.
+  - Fork e original dividem o mesmo armazenamento no GitHub. Não é uma cópia independente.
+  - O app entra só com o token da conta separada. Criar e atualizar um fork na conta
+    principal pede um token dela, que hoje o app não tem e que o plano evita guardar.
+- **Alternativas a comparar:**
+  - Um repositório espelho na conta principal, sem vínculo de fork, atualizado por uma
+    rotina agendada que copia o repositório de dados.
+  - O `git clone` no HD, como hoje, com um lembrete no app de quando foi a última cópia.
+- **Tamanho:** a base está em 6,02 GB e vai a cerca de 9,4 GB. Qualquer cópia no GitHub
+  herda o mesmo limite recomendado de 5 GB por repositório.
+- **Em aberto:**
+  - Se a cópia é disparada ao abrir a tela, por agenda ou por um botão.
+  - Onde o app mostra a data da última cópia.
+- **Pronto quando:** existe uma cópia das fotos que não some junto com o repositório de
+  dados, atualizada sem depender de lembrar, e o app mostra quando ela foi feita.
+
+### Épico 27: Teto para as miniaturas
+
+Pedido em 2026-10-13 e feito no mesmo dia: "se eu navego para baixo e carrego mil imagens,
+a partir disso já pode ir limpando as imagens para trás. Se eu voltar, ele recarrega".
+
+- **O problema:** toda miniatura vista ficava para sempre, na grade e no aparelho. São 39 KB
+  cada em média: as 8.857 fotos da base em 2026-10-13 somam 338 MB só de miniaturas.
+  Ninguém vê tudo isso, e no celular o navegador dá menos espaço por site.
+- **Na grade, mil.** A grade mantém até 1.000 miniaturas carregadas. Passou disso, as
+  carregadas há mais tempo que estão longe da tela saem do quadro e da memória. O quadro
+  fica neutro e pede a miniatura de novo quando voltar a ficar perto da tela.
+- **No aparelho, duas mil.** O que não é original (miniaturas, registros e índices) tem
+  teto de 2.000 arquivos guardados. A cada cem gravações os mais antigos saem. Quem volta a
+  uma foto recente recarrega do aparelho, sem chamar o GitHub; quem volta a uma antiga
+  baixa de novo.
+- **O que está perto da tela nunca sai,** mesmo acima do teto.
+- **As originais** continuam com o teto de 1 GB que já tinham.
+- **Verificado na base de testes,** com os tetos reduzidos para 20 na grade e 40 no
+  aparelho, porque a base tem 98 fotos: rolando até o fim, as do topo saíram e todas as que
+  estavam na tela ficaram; voltando ao topo, as do topo recarregaram e as do fim saíram; o
+  aparelho ficou com 41 arquivos pequenos.
+- **Não verificado:** com os tetos reais, de 1.000 e 2.000, que pedem uma base grande.
+- **Em aberto:** a tela "Fotos sem data" não passa por este teto. Fica para o Épico 25.
+
 ## Pendências
 
-Lista anotada em 2026-10-12, na ordem em que foi passada. Cada item vira épico quando for a
-vez dele.
+Lista anotada em 2026-10-12 e revista em 2026-10-13. Cada item vira épico quando for a vez
+dele. Primeiro o que já foi feito, depois o que falta.
 
 - [x] A data de envio deve ser isolada da data de criação. Feito no Épico 8.
   - [x] Enviei hoje uma imagem de 2015, deve salvar em 2015.
@@ -994,22 +1124,37 @@ vez dele.
 - [x] Criar um link de download direto para enviar a alguém. Feito no Épico 10.
   - [x] A pessoa abre o link e baixa a imagem que está no git. Pode ser temporário: se
     vencer, um novo é criado e enviado de novo.
-- [ ] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Épico 11.
+- [x] Changelog igual ao do `pr-manager`: uma página dedicada só às entregas. Feito no
+  Épico 11.
 - [x] Selecionar mais de uma foto para apagar. Implementado no Épico 12; medição com 50 e
   200 fotos na base de testes ainda pendente.
-- [ ] Rodar a análise de gaps. Épico 13.
-- [ ] Revisar todos os arquivos. Épico 14.
 - [x] Remover todos os comentários. Feito no Épico 15.
-- [ ] Documentar as usabilidades. Épico 16.
-- [x] Migração de tudo o que tenho até hoje. Feito no Épico 17.
-- [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
-  - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
-- [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
-- [x] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Feito no Épico 22.
-- [x] Índice das fotos por ano, para o app não ler um registro por foto ao abrir. Feito no
-  Épico 20. Falta regerar o índice da base oficial depois que a migração terminar.
 - [x] Listagem do repositório acima de 7 MB: ler por pasta, reler só o que mudou e nunca
   mostrar lista cortada. Feito no Épico 19.
+- [x] Índice das fotos por ano, para o app não ler um registro por foto ao abrir. Feito no
+  Épico 20.
+- [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
+- [x] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Feito no Épico 22.
+- [x] Teto para as miniaturas: mil na grade e duas mil no aparelho. Feito no Épico 27.
+
+Lista revista em 2026-10-13. O que falta, do mais crítico para o menos, pelo risco de perder
+fotos ou de o app parar de funcionar bem:
+
+1. [ ] Sistema de backup. Épico 26.
+   - [ ] Sempre que eu abrir a tela ele faz um fork do repositório da base de dados para a
+     conta principal? Se isso trouxer os arquivos pode ser uma solução.
+2. [x] Lista de fotos guardada no navegador sem teto e sem lista velha. Feito no Épico 24,
+   com outra estratégia: a lista saiu do `localStorage` e foi para o Cache.
+3. [ ] Migração de tudo o que tenho até hoje. Épico 17.
+   - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
+4. [ ] Corrigir a data por foto isolada, unitária. Épico 25.
+   - [ ] A tela deve carregar as imagens como é feito na tela de listagem principal.
+5. [ ] Criar botão de ir para o início. Épico 23.
+6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
+   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
+7. [ ] Rodar a análise de gaps. Épico 13.
+8. [ ] Revisar todos os arquivos. Épico 14.
+9. [ ] Documentar as usabilidades. Épico 16.
 
 ## Linha do tempo
 
@@ -1040,6 +1185,11 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 20 | Índice das fotos por ano | 1 dia | 17 e 19 |
 | 21 | Grade no celular | 0,5 dia | 17 |
 | 22 | Skeleton na tela inicial | 0,5 dia | 21 |
+| 23 | Botão de ir para o início | 0,5 dia | Nada |
+| 24 | Lista de fotos guardada no navegador | 0,5 dia | 19 e 22 |
+| 25 | Corrigir a data de uma foto só | 1 dia | 8 e 20 |
+| 26 | Sistema de backup | 1 dia, fora a decisão | Nada |
+| 27 | Teto para as miniaturas | 0,5 dia | 21 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.

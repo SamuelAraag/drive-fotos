@@ -1,5 +1,23 @@
 export const NOVIDADES = [
   {
+    versao: '1.11.3',
+    quando: '2026-10-13T11:25',
+    titulo: 'A grade guarda só as miniaturas por onde você passou há pouco',
+    mudancas: [
+      'A grade mantém até mil miniaturas carregadas. Passando disso, as que ficaram para trás saem da tela e voltam quando você rola de volta.',
+      'No aparelho ficam guardadas as duas mil mais recentes. Antes ficavam todas as que você já tinha visto.',
+    ],
+  },
+  {
+    versao: '1.11.2',
+    quando: '2026-10-13T11:15',
+    titulo: 'A lista de fotos guardada no aparelho não tem mais teto',
+    mudancas: [
+      'Para abrir na hora, o app guarda a lista de fotos no aparelho. O lugar onde ela ficava tem um limite pequeno, e quando a lista não cabia o app abria com uma lista antiga.',
+      'A lista passou para o mesmo lugar das miniaturas, que comporta o acervo inteiro. Num teste com 30 mil fotos ela foi gravada em 85 milésimos de segundo.',
+    ],
+  },
+  {
     versao: '1.11.1',
     quando: '2026-10-12T23:28',
     titulo: 'O backup deixa as fotos HEIC de fora',
