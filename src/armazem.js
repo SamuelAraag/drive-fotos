@@ -163,6 +163,7 @@ export function manterIndices(atuais) {
 }
 
 export async function limpar() {
+  await gravacaoDaLista.catch(() => {});
   cache = null;
   indiceDasOriginais = null;
   try {
