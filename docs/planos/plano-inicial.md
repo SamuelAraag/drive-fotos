@@ -581,6 +581,13 @@ confirmação com contagem e remoção atômica em um único commit.
 Pedido em 2026-10-12. As análises anteriores foram a do plano inicial e as dos Épicos 7 e
 8, cada uma só do seu pedaço. Esta olha o app inteiro, como ele está depois do Épico 12.
 
+**Feito.** A análise rodou em 2026-10-12, sobre a versão 1.8.0, e foi refeita no dia
+seguinte com o acervo grande. O que ela achou virou trabalho: os Épicos 19, 20, 21, 24 e 27
+saíram dela, e o que sobrou está repartido entre os Épicos 16 e 28 e a nota do Épico 14. A lista escrita dos
+gaps ficou na branch `epico-13-analise-de-gaps`, que não foi mesclada e está atrás da
+`main`: o `../requisitos.md` da base principal não tem essa lista nem os requisitos dos
+épicos novos.
+
 - **O que é comparado:** este plano, `../requisitos.md` e o código. De um lado o que está
   escrito, do outro o que o app faz de fato.
 - **Três tipos de gap:**
@@ -602,6 +609,11 @@ Pedido em 2026-10-12. As análises anteriores foram a do plano inicial e as dos 
 Pedido em 2026-10-12. Em 2026-10-12 a base principal tem 9 arquivos de código, com 5.889
 linhas: `index.html`, `baixar.html`, `src/style.css` e seis arquivos em `src/`. Os dois
 maiores são `src/ui.js` e `src/app.js`.
+
+**Retirado da lista em 2026-10-13,** por decisão, sem ter sido feito. O que a análise de gaps
+tinha mandado para cá fica sem épico: a miniatura que decodifica a foto inteira (G01), a
+fila, o login e o nome livre duplicados na tela de backup (G06) e as leituras da API sem
+tempo máximo (G20).
 
 - **Um arquivo por vez, do começo ao fim.** Os de código, o `manifest.webmanifest`, o
   `README.md` e os dois documentos em `docs/`.
@@ -1192,8 +1204,8 @@ tela mudando a cada escolha.
   zona de envio, a grade, a pílula no lugar novo, "Fotos sem data" e a tela de backup.
 - **Não verificado:** foto aberta, diálogos, página de novidades e de download com as
   cores novas, nem em celular.
-- **Pronto quando:** todas as telas foram abertas com o tema novo, no computador e no
-  celular, e o que ficou em aberto foi decidido.
+- **Fechado em 2026-10-13,** por decisão, com a publicação da versão 1.13.0. Ficaram sem
+  conferir a foto aberta, os diálogos, as páginas de novidades e de download e o celular.
 
 ## Pendências
 
@@ -1236,11 +1248,10 @@ fotos ou de o app parar de funcionar bem:
 5. [x] Criar botão de ir para o início. Feito no Épico 23.
 6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
    - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
-7. [ ] Rodar a análise de gaps. Épico 13.
-8. [ ] Revisar todos os arquivos. Épico 14.
+7. [x] Rodar a análise de gaps. Feito no Épico 13.
+8. Retirado da lista em 2026-10-13: Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
-10. [ ] Reformulação do layout. Épico 28. Tema aplicado; falta decidir o menu "Mais" e
-    conferir todas as telas.
+10. [x] Reformulação do layout. Feito no Épico 28, publicado na versão 1.13.0.
 
 ## Linha do tempo
 
