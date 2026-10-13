@@ -1247,11 +1247,48 @@ celular.
 - **Movimento reduzido:** abrir e fechar viram um fade curto, sem escala nem deslocamento.
 - **Verificação em aparelho de verdade,** no Safari do iPhone e no Chrome do Android. Este
   épico não fecha com teste só no computador.
-- **Em aberto:**
-  - O que "proporções ideais" cobre: só a foto aberta, ou também a grade e as miniaturas.
-  - Se o toque fora da foto continua fechando no celular, onde quase não sobra fundo vazio.
-  - Até quanto o zoom amplia.
-  - O que acontece com o painel de informações, que hoje só existe em tela larga.
+- **Decisões propostas em 2026-10-13,** a confirmar antes da etapa em que cada uma entra:
+  - Proporções cobrem só a foto aberta. A grade foi refeita no Épico 28 e fica como está.
+  - No celular, tocar no palco nunca fecha: o toque só mostra e esconde os controles. No
+    computador, o clique no fundo vazio continua fechando.
+  - O zoom vai até 4 vezes o tamanho ajustado, ou até o tamanho real da original quando ela
+    for maior que isso. O duplo toque vai para 2,5 vezes.
+  - O painel de informações continua só em tela larga. Levar ele ao celular fica para outro
+    épico.
+- **Como está no código hoje,** conferido em 2026-10-13:
+  - O gesto de passar de foto só é lido ao soltar o dedo (`pointerup` em `ligarVisor`, em
+    `src/ui.js`): a foto não acompanha o dedo.
+  - O palco tem `touch-action: pan-y pinch-zoom`, então a pinça amplia a página inteira.
+  - `.visor__foto` é o elemento que recebe o tamanho da foto em `ajustarFoto`, e a prévia e a
+    original ficam sobrepostas dentro dele. É nele que a transformação do zoom e do arraste
+    entra.
+- **Etapas,** uma por PR, cada uma testável sozinha:
+  1. **Base dos gestos.** Arquivo novo `src/gestos.js`, que lê os Pointer Events do palco e
+     entrega ao visor quatro coisas: toque, duplo toque, arraste com eixo decidido e pinça.
+     O palco passa a `touch-action: none`. O gesto de passar de foto sai do `pointerup` e
+     passa a usar essa base, com o eixo decidido depois de 10 px. O toque simples mostra e
+     esconde os controles na hora, sem esperar para saber se vem um segundo toque: o duplo
+     toque esconde e mostra de novo, e o resultado é o mesmo.
+  2. **Arrastar para baixo fecha.** A transformação entra em `.visor__foto`, o fundo clareia
+     pela opacidade de `.visor__ambiente` e os controles somem. Ao confirmar, chama o
+     `fecharComEfeito` que já existe, partindo da posição em que o dedo soltou.
+  3. **Zoom.** Estado de escala e deslocamento por foto, zerado ao passar de foto e ao
+     fechar. Pinça em torno do ponto entre os dedos, duplo toque, duplo clique e roda do
+     mouse. Mover a foto ampliada com limite nas bordas. Botão de zoom visível no topo.
+     Enquanto a escala for maior que 1, as etapas 1 e 2 ficam desligadas.
+  4. **Proporções.** Áreas seguras em retrato e em paisagem, altura com `dvh` e controles
+     fora da foto quando há espaço.
+  5. **Aparelho de verdade.** Calibrar os valores de partida no Safari do iPhone e no Chrome
+     do Android, e só então marcar o épico como feito.
+- **Riscos conhecidos:**
+  - Com `touch-action: none` no palco, a pinça do navegador deixa de valer sobre a foto. O
+    zoom da página continua liberado no resto do app, e o zoom próprio entra na etapa 3, então
+    as etapas 1 e 2 ficam um tempo sem nenhum zoom na foto aberta. Se isso incomodar, a etapa
+    3 passa para antes da 2.
+  - No iPhone, arrastar a partir da borda esquerda é o voltar do Safari. O arraste que
+    começa a menos de 20 px da borda não é lido pelo app.
+  - A original pode ter mais de 20 megapixels. A transformação fica só em `.visor__foto`,
+    com `transform`, sem mexer em largura e altura durante o gesto.
 - **Pronto quando:** no celular, dá para ampliar com pinça e com duplo toque, mover a foto
   ampliada, fechar arrastando para baixo e ver o gesto incompleto voltar; e nenhum desses
   gestos dispara o outro por engano.
