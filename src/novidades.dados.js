@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.11.1',
+    quando: '2026-10-12T23:28',
+    titulo: 'O backup deixa as fotos HEIC de fora',
+    mudancas: [
+      'Fotos HEIC e HEIF da pasta escolhida não sobem mais no backup. Elas aparecem na lista do que fica de fora, com o motivo.',
+      'No Chrome essas fotos subiam sem miniatura e ficavam como um quadro vazio na grade.',
+    ],
+  },
+  {
     versao: '1.11.0',
     quando: '2026-10-12T23:21',
     titulo: 'Ao abrir, a tela já mostra o formato da grade',
