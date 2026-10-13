@@ -741,8 +741,9 @@ com cem fotos e a validação da permissão persistente da pasta nos navegadores
 - **Em aberto:**
   - Origem e tamanho reais do acervo. Fazer o levantamento antes de fechar a estratégia de
     capacidade e o tamanho dos lotes de teste.
-  - HEIC: decidir se a importação converte para JPEG ou conserva o original sem miniatura
-    em navegadores incompatíveis. A conversão precisa preservar orientação e data.
+  - HEIC. Decidido em 2026-10-12: o backup não aceita HEIC nem HEIF. O arquivo aparece em
+    "ficam de fora", com o motivo. As 261 que tinham subido sem miniatura foram apagadas da
+    base no mesmo dia. O envio comum da tela principal continua aceitando.
   - Metadados auxiliares: listar os formatos de exportação que serão lidos e como associar
     cada arquivo de metadados à imagem correta.
   - Persistência do acesso à pasta e retomada automática: confirmar o comportamento em cada
