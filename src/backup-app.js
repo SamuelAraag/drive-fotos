@@ -114,7 +114,7 @@ function definirEtapa(etapa) {
 function atualizarBotaoIniciar() {
   // Sem nada para enviar o botão some: o título do resumo já diz o porquê.
   $('backup-iniciar').hidden = !backupPronto || backupPronto.candidatas.length === 0;
-  $('backup-iniciar').disabled = !backupPronto || backupPronto.acimaDoAviso;
+  $('backup-iniciar').disabled = !backupPronto;
 }
 
 const plural = (quantidade, um, varios) => `${quantidade.toLocaleString('pt-BR')} ${quantidade === 1 ? um : varios}`;
@@ -507,8 +507,9 @@ async function preparar(arquivos, pasta) {
       return linha;
     }));
     $('backup-limite').hidden = !acimaDoAviso;
+    // Só avisa, não bloqueia, como o aviso de espaço do app.
     $('backup-limite').textContent = acimaDoAviso
-      ? `Com estas fotos o Drive Fotos passaria do limite de 4 GB (estimativa: ${foto.fmtTamanho(estimativa)}). Escolha uma pasta menor ou envie os arquivos em partes.`
+      ? `Com estas fotos o Drive Fotos passa de 4 GB (estimativa: ${foto.fmtTamanho(estimativa)}). O GitHub recomenda até 5 GB por repositório, e apagar fotos não libera espaço. Você pode enviar mesmo assim.`
       : '';
     atualizarBotaoIniciar();
     $('backup-relatorio-resumo').hidden = arquivos.length === 0;
@@ -699,7 +700,7 @@ async function bombear() {
 }
 
 async function iniciar() {
-  if (!backupPronto || backupPronto.acimaDoAviso || backupPronto.candidatas.length === 0) return;
+  if (!backupPronto || backupPronto.candidatas.length === 0) return;
   if (!github.lerToken()) {
     $('backup-login').hidden = false;
     mensagemLogin('Entre novamente para iniciar o backup.');

@@ -4,6 +4,14 @@
 
 export const NOVIDADES = [
   {
+    versao: '1.8.2',
+    quando: '2026-10-12T20:58',
+    titulo: 'O backup não trava mais acima de 4 GB',
+    mudancas: [
+      'Quando a pasta faz o Drive Fotos passar de 4 GB, a tela de backup avisa e deixa enviar.',
+    ],
+  },
+  {
     versao: '1.8.1',
     quando: '2026-10-12T19:57',
     titulo: 'O backup confere a pasta bem mais rápido',
