@@ -761,7 +761,7 @@ function mesmaLista(a, b) {
 }
 
 async function carregar() {
-  const guardadas = armazem.lerFotos();
+  const guardadas = await armazem.lerFotos();
   if (guardadas) {
     fotos = guardadas;
     aplicarRota();

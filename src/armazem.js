@@ -8,9 +8,9 @@ const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
 const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
 
 const TETO_DE_ORIGINAIS = 1024 * 1024 * 1024;
-const TETO_DA_LISTA = 3 * 1024 * 1024;
 
 const endereco = (sha) => `${location.origin}/__arquivo__/${sha}`;
+const ENDERECO_DA_LISTA = `${location.origin}/__lista__/${BRANCH_DADOS}`;
 
 let cache = null;
 
@@ -104,7 +104,7 @@ export async function apagar(shas) {
   gravarIndice(indice);
 }
 
-export function lerFotos() {
+function lerListaAntiga() {
   try {
     const lista = JSON.parse(localStorage.getItem(CHAVE_FOTOS));
     return Array.isArray(lista) ? lista : null;
@@ -113,24 +113,43 @@ export function lerFotos() {
   }
 }
 
-export function guardarFotos(lista) {
-  try {
-    const texto = JSON.stringify(lista);
-    if (texto.length > TETO_DA_LISTA) throw new RangeError('lista de fotos acima do teto');
-    localStorage.setItem(CHAVE_FOTOS, texto);
-    return true;
-  } catch {
-    esquecerFotos();
-    return false;
-  }
-}
-
-function esquecerFotos() {
+function esquecerListaAntiga() {
   try {
     localStorage.removeItem(CHAVE_FOTOS);
   } catch {
     return;
   }
+}
+
+export async function lerFotos() {
+  const arquivos = await abrir();
+  try {
+    const resposta = await arquivos?.match(ENDERECO_DA_LISTA);
+    const lista = resposta ? await resposta.json() : null;
+    if (Array.isArray(lista)) return lista;
+  } catch {
+    return lerListaAntiga();
+  }
+  return lerListaAntiga();
+}
+
+let gravacaoDaLista = Promise.resolve();
+
+export function guardarFotos(lista) {
+  const texto = JSON.stringify(lista);
+  gravacaoDaLista = gravacaoDaLista.then(async () => {
+    esquecerListaAntiga();
+    const arquivos = await abrir();
+    if (!arquivos) return false;
+    try {
+      await arquivos.put(ENDERECO_DA_LISTA, new Response(texto, { headers: { 'Content-Type': 'application/json' } }));
+      return true;
+    } catch {
+      await arquivos.delete(ENDERECO_DA_LISTA).catch(() => {});
+      return false;
+    }
+  });
+  return gravacaoDaLista;
 }
 
 export function manterIndices(atuais) {

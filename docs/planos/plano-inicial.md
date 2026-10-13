@@ -1015,34 +1015,30 @@ Pedido em 2026-10-13.
 
 Pedido em 2026-10-13 e feito no mesmo dia. É o gap N3 da análise de gaps.
 
-- **Como ficou:** em `src/armazem.js`, a lista só é gravada se tiver até 3 MB em
-  caracteres, o que dá perto de 11.800 fotos. Acima disso, ou quando o navegador recusa a
-  gravação, a cópia que estava guardada é apagada. Sem cópia, a abertura seguinte mostra o
-  esqueleto e carrega do GitHub, como na primeira vez.
-- **Verificado na base de testes:** lista pequena é gravada; lista acima do teto não é
-  gravada e a cópia antiga some; gravação recusada pelo navegador (simulada) também apaga a
-  cópia antiga.
-- **Limite conhecido:** 3 MB em caracteres passam do que o Safari aceita, que conta dois
-  bytes por caractere. Lá a gravação é recusada antes do teto, e vale o mesmo tratamento.
-
-- **O problema:** para abrir na hora, o app guarda no `localStorage` uma cópia da lista de
-  fotos. O `localStorage` tem teto de cerca de 5 MB por site, dividido com os outros sites
-  da mesma origem, e cada navegador conta de um jeito. Medido em 2026-10-12: 265 caracteres
-  por foto, ou cerca de 1,15 MB com 4.339 fotos e 2,6 MB com 9.765.
-- **O que acontece hoje quando não cabe:** a gravação falha em silêncio e a cópia antiga
-  continua lá. A cada abertura o app mostra a lista velha, busca a certa e desenha a grade
-  duas vezes.
-- **Limite fixo.** A lista só é gravada se couber num tamanho definido. Acima dele o app
-  nem tenta.
-- **Tratamento da falha.** Quando a lista não cabe, ou o navegador recusa a gravação, a
-  cópia antiga é apagada, para nunca aparecer uma lista velha. A abertura seguinte mostra o
-  esqueleto do Épico 22 e carrega do GitHub.
-- **Em aberto:**
-  - O valor do limite.
-  - A alternativa de não ter a cópia: desde o Épico 19 a listagem do repositório fica no
-    Cache do navegador, que não tem esse teto, e a lista de fotos pode ser montada dela.
-- **Pronto quando:** com uma lista acima do limite o app não mostra lista velha em nenhuma
-  abertura, e abaixo dele abre na hora como hoje.
+- **O problema:** para abrir na hora, o app guardava no `localStorage` uma cópia da lista
+  de fotos. O `localStorage` tem teto de cerca de 5 MB por site, dividido com os outros
+  sites da mesma origem. Medido em 2026-10-12: 265 caracteres por foto, ou cerca de 1,15 MB
+  com 4.339 fotos e 2,6 MB com 9.765. Quando não cabia, a gravação falhava em silêncio e a
+  cópia antiga continuava lá: o app abria com a lista velha e desenhava a grade duas vezes.
+- **Primeira tentativa, descartada:** um teto fixo de 3 MB, apagando a cópia quando não
+  coubesse. Funcionava, mas ao bater o teto o app perdia a abertura na hora. O pedido foi
+  um sistema permissivo, que lide com o tamanho sem falhar.
+- **Como ficou:** a lista passou para o Cache do navegador, o mesmo lugar das miniaturas e
+  das originais, que é limitado pelo disco e não por um teto pequeno. Não há mais teto na
+  lista. Está em `src/armazem.js`.
+- **Sem lista velha.** As gravações entram numa fila, uma depois da outra, para a última
+  ser sempre a que fica. Se uma gravação falhar, a cópia é apagada, e a abertura seguinte
+  mostra o esqueleto e carrega do GitHub.
+- **Quem vem da versão anterior:** na primeira abertura o app ainda lê a lista do
+  `localStorage`, para não perder a abertura na hora, e a apaga de lá na primeira gravação.
+- **Verificado na base de testes:**
+  - lista de 30.000 fotos, 7,6 MB: gravada em 85 ms e lida em 47 ms;
+  - três gravações seguidas: fica a última;
+  - sem lista no Cache e com uma no `localStorage`: o app usa a antiga, e ela sai de lá na
+    gravação seguinte;
+  - o app aberto duas vezes: na segunda a grade aparece direto, sem esqueleto e sem erro.
+- **Em aberto:** navegador sem Cache (página fora de contexto seguro) abre sempre pelo
+  esqueleto. É o mesmo limite que as miniaturas já têm.
 
 ### Épico 25: Corrigir a data de uma foto só
 
@@ -1122,8 +1118,8 @@ fotos ou de o app parar de funcionar bem:
 1. [ ] Sistema de backup. Épico 26.
    - [ ] Sempre que eu abrir a tela ele faz um fork do repositório da base de dados para a
      conta principal? Se isso trouxer os arquivos pode ser uma solução.
-2. [x] Lista de fotos do `localStorage`: limite fixo e tratamento em caso de falha. Feito no
-   Épico 24.
+2. [x] Lista de fotos guardada no navegador sem teto e sem lista velha. Feito no Épico 24,
+   com outra estratégia: a lista saiu do `localStorage` e foi para o Cache.
 3. [ ] Migração de tudo o que tenho até hoje. Épico 17.
    - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
 4. [ ] Corrigir a data por foto isolada, unitária. Épico 25.
