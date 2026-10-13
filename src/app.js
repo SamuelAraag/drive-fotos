@@ -8,8 +8,6 @@ import * as ui from './ui.js';
 
 const MAX_DOWNLOADS = 6; // miniaturas baixando ao mesmo tempo
 const TETO_NA_MEMORIA = 150 * 1024 * 1024; // originais abertas ou prontas para abrir, em bytes
-const MAX_DE_FUNDO = 2; // originais baixando em segundo plano ao mesmo tempo
-const ESPERA_DE_FUNDO = 600; // ms que a foto precisa ficar na tela antes de entrar na fila de fundo
 const INTERVALO_DE_CONFERENCIA = 30000; // ms entre duas releituras do repositório ao voltar para a tela
 
 // fotos/2026/20261012T153045-a1b2.jpg -> pasta, ano, id e extensão.
@@ -24,10 +22,6 @@ const espera = []; // downloads aguardando vaga
 let baixando = 0;
 const buscando = new Map(); // sha -> promessa do Blob em download agora, para não baixar duas vezes
 const originais = new Map(); // sha -> { promessa da URL, tamanho }; a menos usada sai primeiro
-const naTela = new Map(); // id -> temporizador das fotos visíveis, à espera da fila de fundo
-const filaDeFundo = []; // ids das fotos visíveis cuja original ainda não está no aparelho
-let fundoAtivos = 0;
-let fundoPausadoAte = 0;
 let aberta = null; // id da foto aberta em tela cheia
 let conferindo = false;
 let conferidoEm = 0; // hora da última leitura do repositório
@@ -120,6 +114,15 @@ function proximoDownload() {
     });
 }
 
+// A miniatura que ainda espera a vez e saiu de perto da tela deixa a fila: rolando depressa por
+// milhares de fotos, só baixa o que a pessoa está vendo. Volta para a fila se reaparecer.
+function cancelarMiniatura(sha) {
+  const posicao = espera.findIndex((pedido) => pedido.sha === sha);
+  if (posicao < 0) return;
+  const [pedido] = espera.splice(posicao, 1);
+  pedido.rejeitar(new DOMException('A miniatura saiu da tela antes de baixar.', 'AbortError'));
+}
+
 // Cada miniatura é lida uma vez por sessão. A que falha sai do mapa para poder tentar de novo.
 function baixarMiniatura(sha) {
   if (!miniaturas.has(sha)) {
@@ -132,6 +135,8 @@ function baixarMiniatura(sha) {
   }
   return miniaturas.get(sha);
 }
+
+baixarMiniatura.cancelar = cancelarMiniatura;
 
 function esquecerMiniaturas() {
   espera.length = 0;
@@ -168,65 +173,6 @@ function baixarOriginal(item) {
 function esquecerOriginais() {
   for (const { promessa } of originais.values()) promessa.then(URL.revokeObjectURL, () => {});
   originais.clear();
-}
-
-// Fila de fundo: baixa para o aparelho a original de toda foto que está na tela, para ela
-// abrir na hora quando for tocada. Vai para o disco, não para a memória.
-
-function tirarDaFilaDeFundo(id) {
-  const posicao = filaDeFundo.indexOf(id);
-  if (posicao >= 0) filaDeFundo.splice(posicao, 1);
-}
-
-// A interface avisa quando uma foto entra ou sai da tela. Sem id, a grade foi redesenhada.
-function visibilidade(id, visivel) {
-  if (id == null) {
-    for (const temporizador of naTela.values()) clearTimeout(temporizador);
-    naTela.clear();
-    filaDeFundo.length = 0;
-    return;
-  }
-  if (!visivel) {
-    clearTimeout(naTela.get(id));
-    naTela.delete(id);
-    tirarDaFilaDeFundo(id); // saiu da tela antes da vez dela: não baixa
-    return;
-  }
-  // Quem pediu economia de dados ao navegador não tem download que não pediu.
-  if (naTela.has(id) || navigator.connection?.saveData) return;
-  // Só entra na fila a foto que ficou na tela: rolar depressa não dispara downloads.
-  naTela.set(
-    id,
-    setTimeout(() => {
-      filaDeFundo.push(id);
-      proximoDeFundo();
-    }, ESPERA_DE_FUNDO),
-  );
-}
-
-async function proximoDeFundo() {
-  // O envio tem a vez: os dois disputam a mesma rede e o mesmo limite do GitHub.
-  if (enviando || fundoAtivos >= MAX_DE_FUNDO || filaDeFundo.length === 0 || Date.now() < fundoPausadoAte) return;
-  const item = fotos?.find((candidato) => candidato.id === filaDeFundo[0]);
-  filaDeFundo.shift();
-  if (!item) {
-    proximoDeFundo();
-    return;
-  }
-  fundoAtivos++;
-  try {
-    if (!(await armazem.tem(item.sha))) await obterBlob(item.sha, { original: true });
-  } catch (erro) {
-    // Em segundo plano nada vira aviso. O limite de ritmo só faz a fila esperar.
-    if (erro.tipo === 'limite') {
-      fundoPausadoAte = Date.now() + erro.esperaMs;
-      setTimeout(proximoDeFundo, erro.esperaMs);
-    }
-    if (erro.tipo === 'token') filaDeFundo.length = 0;
-  } finally {
-    fundoAtivos--;
-    proximoDeFundo();
-  }
 }
 
 // Deixa as vizinhas prontas na memória, para a seta passar de foto sem espera.
@@ -594,7 +540,6 @@ async function apagarFoto() {
 function removerFotosDaLista(removidas) {
   for (const item of removidas) {
     registros.delete(item.id);
-    tirarDaFilaDeFundo(item.id);
     fotosSelecionadas.delete(item.id);
   }
   if (!fotos) return false; // saiu da conta enquanto o commit corria
@@ -841,7 +786,6 @@ async function datar(mudancas) {
     armazem.guardar(nova.registro, new Blob([texto], { type: 'application/json' }), { original: false });
     registros.delete(antiga.id);
     registros.set(nova.id, registro);
-    tirarDaFilaDeFundo(antiga.id);
   }
   if (fotos) {
     const novas = new Map(trocas.map(({ antiga, nova }) => [antiga.id, nova]));
@@ -1016,7 +960,6 @@ function sair() {
   renderFila();
   ui.fecharVisor();
   ui.limparPrincipal();
-  visibilidade(null);
   registros.clear();
   indice = new Map();
   anosComIndice = new Set();
@@ -1467,7 +1410,6 @@ async function bombear() {
   }
   enviando = false;
   soltarTela();
-  proximoDeFundo(); // a fila de fundo esperou o envio terminar
   // A leva acabou: o que subiu sai da fila, e só as falhas ficam na tela.
   const enviadas = fila.filter((item) => item.estado === 'concluido').length;
   fila = fila.filter((item) => item.estado !== 'concluido');
@@ -1522,7 +1464,6 @@ ui.ligarEventos({
   apagarSelecao,
   sairDaSelecao,
   estaEmSelecao: () => modoSelecao,
-  visibilidade,
 });
 
 // A fila vive só nesta página: sair no meio perde o que ainda não subiu.

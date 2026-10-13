@@ -153,15 +153,16 @@ function descricaoDaFoto(foto) {
 }
 
 let observador = null; // carrega a miniatura quando o quadro chega perto da tela
-let observadorDaTela = null; // avisa o app de quais fotos estão de fato na tela
-let avisarVisibilidade = () => {};
 const baixarDoQuadro = new WeakMap();
 const jaMostradas = new Set(); // miniaturas que já surgiram uma vez: redesenhar a grade não anima de novo
 
 function carregarQuadro(quadro) {
-  const { foto, baixar } = baixarDoQuadro.get(quadro);
+  const pedido = baixarDoQuadro.get(quadro);
+  const { foto, baixar } = pedido;
+  pedido.pedida = true;
   baixar(foto.miniatura).then(
     (url) => {
+      observador?.unobserve(quadro);
       const imagem = el('img', jaMostradas.has(foto.miniatura) ? 'grade__imagem' : 'grade__imagem grade__imagem--nova');
       jaMostradas.add(foto.miniatura);
       imagem.alt = ''; // o nome acessível já está no botão
@@ -170,7 +171,20 @@ function carregarQuadro(quadro) {
       quadro.classList.remove('grade__quadro--carregando');
       quadro.querySelector('.grade__botao').append(imagem);
     },
-    () => marcarSemMiniatura(quadro, foto),
+    (falha) => {
+      if (falha?.name !== 'AbortError') {
+        observador?.unobserve(quadro);
+        marcarSemMiniatura(quadro, foto);
+        return;
+      }
+      // Saiu da tela antes de baixar. Observar de novo faz o pedido voltar se o quadro reaparecer,
+      // ou se outro quadro com a mesma miniatura foi quem desistiu.
+      pedido.pedida = false;
+      if (observador && quadro.isConnected) {
+        observador.unobserve(quadro);
+        observador.observe(quadro);
+      }
+    },
   );
 }
 
@@ -401,9 +415,6 @@ export function esquecerEnvio() {
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
-  observadorDaTela?.disconnect();
-  observadorDaTela = null;
-  avisarVisibilidade(null); // os quadros vão ser trocados: o que estava na tela deixa de valer
   $('grade').replaceChildren();
 }
 
@@ -454,22 +465,19 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
   renderEspaco(espaco);
   atualizarSelecao(selecao.ativa, selecao.ids, total);
 
+  // O quadro pede a miniatura quando chega perto da tela e desiste se sair antes de ela começar
+  // a baixar. Só deixa de ser observado quando a miniatura chega.
   observador = new IntersectionObserver(
     (entradas) => {
       for (const entrada of entradas) {
-        if (!entrada.isIntersecting) continue;
-        observador.unobserve(entrada.target);
-        carregarQuadro(entrada.target);
+        const quadro = entrada.target;
+        const pedido = baixarDoQuadro.get(quadro);
+        if (!pedido) continue;
+        if (entrada.isIntersecting && !pedido.pedida) carregarQuadro(quadro);
+        else if (!entrada.isIntersecting && pedido.pedida) pedido.baixar.cancelar?.(pedido.foto.miniatura);
       }
     },
     { rootMargin: '400px 0px' },
-  );
-  // Sem margem e com metade do quadro à vista: é o que a pessoa pode tocar agora.
-  observadorDaTela = new IntersectionObserver(
-    (entradas) => {
-      for (const entrada of entradas) avisarVisibilidade(entrada.target.dataset.id, entrada.isIntersecting);
-    },
-    { threshold: 0.5 },
   );
 
   for (const grupo of grupos) {
@@ -503,7 +511,6 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
       } else {
         marcarSemMiniatura(quadro, foto);
       }
-      observadorDaTela.observe(quadro);
       lista.append(quadro);
     }
     const marcadas = grupo.fotos.filter((foto) => selecao.ids.has(foto.id)).length;
@@ -1698,7 +1705,6 @@ export function loginOcupado(ocupado) {
 }
 
 export function ligarEventos(acoes) {
-  avisarVisibilidade = acoes.visibilidade;
   const entrada = $('zona-entrada');
   $('zona').addEventListener('click', () => entrada.click());
   entrada.addEventListener('change', () => {

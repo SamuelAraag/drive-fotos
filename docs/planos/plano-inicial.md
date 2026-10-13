@@ -240,19 +240,21 @@ A regra é usar ao máximo o que já está no aparelho, para o app parecer imedi
 
 1. Ao abrir, o app mostra na hora a lista de fotos guardada no aparelho e confere com o
    GitHub por trás. Só redesenha a grade se algo mudou.
-2. As miniaturas entram conforme aparecem na tela, não todas de uma vez. Toda miniatura
-   baixada fica guardada no aparelho, sem limite, porque é pequena.
-3. Toda foto que fica na tela por mais de 0,6 s entra numa fila de fundo, que baixa a
-   original para o aparelho, duas por vez. Ao tocar numa foto visível, ela abre sem
-   chamar o GitHub. Rolar depressa não dispara downloads, e a fila cede a vez ao envio.
+2. As miniaturas entram conforme aparecem na tela, não todas de uma vez, seis por vez. A
+   que saiu de perto da tela antes de começar a baixar deixa a fila, e volta se reaparecer:
+   rolando depressa por milhares de fotos, só baixa o que a pessoa está vendo. Toda
+   miniatura baixada fica guardada no aparelho, sem limite, porque é pequena.
+3. A original só é baixada quando a foto é aberta. Até 2026-10-12 toda foto que ficava na
+   tela por mais de 0,6 s tinha a original baixada em segundo plano. Com 4.312 fotos isso
+   encheu o teto de 1 GB do aparelho com 831 originais, disputou a rede com as miniaturas e
+   travou a tela, e saiu na versão 1.10.1.
 4. Com a foto aberta, a anterior e a próxima ficam prontas na memória, para a seta passar
    sem espera.
 5. Limites: as originais guardadas no aparelho têm teto de 1 GB, e as menos usadas saem
    primeiro. Na memória da aba o teto é de 150 MB. Os dois são em bytes, não em número de
    fotos, porque uma foto pode ter 300 KB ou 25 MB.
 6. O que acabou de ser enviado já fica guardado, sem baixar de volta.
-7. "Sair" apaga tudo que está guardado. Quem ativou economia de dados no navegador não tem
-   a fila de fundo.
+7. "Sair" apaga tudo que está guardado.
 
 O arquivo é identificado pelo conteúdo (o `sha` do git), então o que está guardado nunca
 fica desatualizado.
