@@ -1207,6 +1207,55 @@ tela mudando a cada escolha.
 - **Fechado em 2026-10-13,** por decisão, com a publicação da versão 1.13.0. Ficaram sem
   conferir a foto aberta, os diálogos, as páginas de novidades e de download e o celular.
 
+### Épico 29: UX no celular: zoom, arrastar para fechar e proporções
+
+Pedido em 2026-10-13: implementar na foto aberta o que se espera de um app de fotos no
+celular.
+
+- **Como está hoje.** A foto aberta passa para a anterior e a próxima deslizando na
+  horizontal. Fecha no botão, no Esc, no voltar do aparelho e tocando fora da foto. O zoom é
+  o da página inteira, feito pelo navegador, e não existe arrastar para fechar.
+- **Zoom na foto.**
+  - Pinça amplia em torno do ponto entre os dedos.
+  - Duplo toque alterna entre a foto ajustada à tela e ampliada no ponto tocado. No
+    computador, duplo clique e a roda do mouse fazem o mesmo.
+  - Com a foto ampliada, arrastar move a foto, e ela não sai da área visível.
+  - Enquanto está ampliada, passar de foto e arrastar para fechar ficam desligados. Voltando
+    ao tamanho ajustado, os dois voltam a valer.
+  - A original só entra no zoom depois de carregada. Antes disso vale a prévia.
+- **Arrastar para baixo fecha.**
+  - A foto acompanha o dedo desde o começo, encolhe de leve, o fundo clareia junto e os
+    controles somem.
+  - Confirma por distância ou por velocidade: um gesto curto e rápido também fecha.
+  - Gesto incompleto volta ao lugar. Toque cancelado pelo sistema e mudança de orientação
+    também.
+  - Ao fechar, a foto volta para o quadro dela na grade, como já acontece no botão.
+  - O eixo é decidido no começo do gesto: horizontal passa de foto, vertical fecha, e um não
+    vira o outro no meio.
+- **Tocar na foto não fecha.** Um toque mostra e esconde os controles. Só o fundo vazio, o
+  botão e o gesto fecham.
+- **Proporções.**
+  - A foto aberta ocupa o máximo da tela mantendo a proporção, centralizada e dentro das
+    áreas seguras, em retrato e em paisagem.
+  - Os controles ficam fora das regiões importantes da foto.
+  - Na grade, conferir se o quadro quadrado em três colunas é a melhor leitura no celular.
+- **Todo gesto tem um caminho sem gesto:** fechar tem o botão, passar de foto tem as setas,
+  e o zoom ganha um controle visível.
+- **Valores de partida,** para calibrar no aparelho: reconhecer o arraste depois de 8 a 10
+  px; fechar com 20% a 25% da altura da tela ou acima de 450 px por segundo; encolher até
+  0,85; volta em 200 a 300 ms.
+- **Movimento reduzido:** abrir e fechar viram um fade curto, sem escala nem deslocamento.
+- **Verificação em aparelho de verdade,** no Safari do iPhone e no Chrome do Android. Este
+  épico não fecha com teste só no computador.
+- **Em aberto:**
+  - O que "proporções ideais" cobre: só a foto aberta, ou também a grade e as miniaturas.
+  - Se o toque fora da foto continua fechando no celular, onde quase não sobra fundo vazio.
+  - Até quanto o zoom amplia.
+  - O que acontece com o painel de informações, que hoje só existe em tela larga.
+- **Pronto quando:** no celular, dá para ampliar com pinça e com duplo toque, mover a foto
+  ampliada, fechar arrastando para baixo e ver o gesto incompleto voltar; e nenhum desses
+  gestos dispara o outro por engano.
+
 ## Pendências
 
 Lista anotada em 2026-10-12 e revista em 2026-10-13. Cada item vira épico quando for a vez
@@ -1252,6 +1301,7 @@ fotos ou de o app parar de funcionar bem:
 8. Retirado da lista em 2026-10-13: Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
 10. [x] Reformulação do layout. Feito no Épico 28, publicado na versão 1.13.0.
+11. [ ] UX no celular: zoom, arrastar para fechar e proporções. Épico 29.
 
 ## Linha do tempo
 
@@ -1288,6 +1338,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 26 | Sistema de backup | 1 dia, fora a decisão | Nada |
 | 27 | Teto para as miniaturas | 0,5 dia | 21 |
 | 28 | Reformulação do layout | 1 dia, fora as decisões | 22 e 23 |
+| 29 | UX no celular: zoom, arrastar para fechar e proporções | 2 dias | 4 e 28 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
