@@ -581,6 +581,13 @@ confirmação com contagem e remoção atômica em um único commit.
 Pedido em 2026-10-12. As análises anteriores foram a do plano inicial e as dos Épicos 7 e
 8, cada uma só do seu pedaço. Esta olha o app inteiro, como ele está depois do Épico 12.
 
+**Feito.** A análise rodou em 2026-10-12, sobre a versão 1.8.0, e foi refeita no dia
+seguinte com o acervo grande. O que ela achou virou trabalho: os Épicos 19, 20, 21, 24 e 27
+saíram dela, e o que sobrou está repartido entre os Épicos 14, 16 e 28. A lista escrita dos
+gaps ficou na branch `epico-13-analise-de-gaps`, que não foi mesclada e está atrás da
+`main`: o `../requisitos.md` da base principal não tem essa lista nem os requisitos dos
+épicos novos.
+
 - **O que é comparado:** este plano, `../requisitos.md` e o código. De um lado o que está
   escrito, do outro o que o app faz de fato.
 - **Três tipos de gap:**
@@ -1226,11 +1233,12 @@ fotos ou de o app parar de funcionar bem:
 5. [x] Criar botão de ir para o início. Feito no Épico 23.
 6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
    - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
-7. [ ] Rodar a análise de gaps. Épico 13.
+7. [x] Rodar a análise de gaps. Feito no Épico 13.
 8. [ ] Revisar todos os arquivos. Épico 14.
 9. [ ] Documentar as usabilidades. Épico 16.
-10. [ ] Reformulação do layout. Épico 28. Tema aplicado; falta decidir o menu "Mais" e
-    conferir todas as telas.
+10. [ ] Reformulação do layout. Épico 28. Tema e menu "Mais" publicados na versão 1.13.0.
+    Falta conferir a foto aberta, os diálogos e o celular, e decidir se o aviso de fotos
+    sem data fica só no menu.
 
 ## Linha do tempo
 
