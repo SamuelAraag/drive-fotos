@@ -619,6 +619,27 @@ html {
   gap: var(--e3);
 }
 
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e5);
+  pointer-events: none;
+  animation: pulsar 1.6s ease-in-out infinite;
+}
+
+.esqueleto .esqueleto__vazio,
+.esqueleto .esqueleto__vazio * {
+  color: transparent;
+}
+
+.esqueleto__linha {
+  display: block;
+  width: 9rem;
+  height: 1.5em;
+  border-radius: var(--e1);
+  background: var(--superficie);
+}
+
 .zona {
   position: relative;
   display: flex;
@@ -2031,6 +2052,7 @@ body.modo-selecao .dia__selecao {
     transition: none;
   }
 
+  .esqueleto,
   .grade__quadro--carregando,
   .grade__quadro--pousou,
   .grade__quadro--pousou::after,

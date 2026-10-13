@@ -948,7 +948,17 @@ crítica feita no mesmo dia, medindo o app publicado na versão 1.10.2.
 
 ### Épico 22: Skeleton na tela inicial
 
-Pedido em 2026-10-12.
+Pedido em 2026-10-12 e feito no mesmo dia.
+
+- **Como ficou:** a tela de carregamento usa as mesmas classes da tela principal (`envio`,
+  `zona`, `selecao-topo`, `dias`, `dia`, `grade`, `grade__quadro`), com o texto escondido
+  e 24 quadros neutros. O bloco inteiro tem uma animação só, a mesma `pulsar` dos quadros.
+- **Verificado na base de testes,** em tela larga: a zona de envio, o botão de backup, a
+  linha do "Selecionar", o título do dia e o primeiro quadro ficam exatamente no mesmo
+  lugar e com o mesmo tamanho no esqueleto e na tela real. Uma animação rodando.
+- **Não verificado:** em tela de celular. As colunas vêm das mesmas regras da grade.
+- **Limite:** os avisos que só aparecem com a lista em mãos (espaço usado, fotos sem data)
+  empurram a grade para baixo quando existem.
 
 - **Onde:** na tela inicial, quando o app abre pela primeira vez num aparelho e ainda não
   tem a lista de fotos guardada, e sempre que a lista estiver carregando. Hoje aparece um
@@ -994,7 +1004,7 @@ vez dele.
 - [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
   - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.
 - [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
-- [ ] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Épico 22.
+- [x] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Feito no Épico 22.
 - [x] Índice das fotos por ano, para o app não ler um registro por foto ao abrir. Feito no
   Épico 20. Falta regerar o índice da base oficial depois que a migração terminar.
 - [x] Listagem do repositório acima de 7 MB: ler por pasta, reler só o que mudou e nunca

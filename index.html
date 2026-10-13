@@ -37,9 +37,29 @@
       <p id="atualizar-erro-texto"></p>
       <button type="button" class="botao botao--secundario" id="atualizar-de-novo">Tentar de novo</button>
     </div>
-    <section class="tela tela--centro" id="tela-carregando" hidden>
-      <div class="girador" aria-hidden="true"></div>
-      <p role="status">Carregando suas fotos...</p>
+    <section class="tela" id="tela-carregando" hidden>
+      <p class="so-leitor" role="status">Carregando suas fotos...</p>
+      <div class="esqueleto" aria-hidden="true">
+        <div class="envio">
+          <span class="botao botao--secundario backup__abrir esqueleto__vazio">Backup de uma pasta</span>
+          <div class="zona esqueleto__vazio">
+            <svg class="zona__icone" viewBox="0 0 24 24"></svg>
+            <span class="zona__titulo">Enviar fotos</span>
+            <span class="zona__detalhe">Toque para escolher ou arraste as fotos para cá</span>
+          </div>
+        </div>
+        <div class="selecao-topo">
+          <span class="botao botao--secundario esqueleto__vazio">Selecionar</span>
+        </div>
+        <div class="dias">
+          <section class="dia">
+            <div class="dia__cabeca">
+              <span class="dia__titulo esqueleto__linha"></span>
+            </div>
+            <ul class="grade" id="esqueleto-grade"></ul>
+          </section>
+        </div>
+      </div>
     </section>
 
     <section class="tela tela--centro" id="tela-erro" hidden>
