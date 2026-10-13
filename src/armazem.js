@@ -8,6 +8,8 @@ const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
 const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
 
 const TETO_DE_ORIGINAIS = 1024 * 1024 * 1024;
+const TETO_DE_MINIATURAS = 2000;
+const GUARDADAS_ENTRE_FAXINAS = 100;
 
 const endereco = (sha) => `${location.origin}/__arquivo__/${sha}`;
 const ENDERECO_DA_LISTA = `${location.origin}/__lista__/${BRANCH_DADOS}`;
@@ -78,12 +80,26 @@ export async function ler(sha) {
   }
 }
 
+let guardadasDesdeAFaxina = 0;
+
+async function enxugarMiniaturas(arquivos) {
+  const originais = lerIndice();
+  const pequenos = (await arquivos.keys()).filter((pedido) => pedido.url.includes('/__arquivo__/') && !originais[pedido.url.split('/').pop()]);
+  for (const pedido of pequenos.slice(0, Math.max(0, pequenos.length - TETO_DE_MINIATURAS))) await arquivos.delete(pedido);
+}
+
 export async function guardar(sha, blob, { original }) {
   const arquivos = await abrir();
   if (!arquivos) return;
   try {
     await arquivos.put(endereco(sha), new Response(blob));
-    if (!original) return;
+    if (!original) {
+      if (++guardadasDesdeAFaxina >= GUARDADAS_ENTRE_FAXINAS) {
+        guardadasDesdeAFaxina = 0;
+        enxugarMiniaturas(arquivos).catch(() => {});
+      }
+      return;
+    }
     const indice = lerIndice();
     indice[sha] = [blob.size, Date.now()];
     gravarIndice(indice);

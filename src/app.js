@@ -118,7 +118,15 @@ function baixarMiniatura(sha) {
   return miniaturas.get(sha);
 }
 
+function soltarMiniatura(sha) {
+  const promessa = miniaturas.get(sha);
+  if (!promessa) return;
+  miniaturas.delete(sha);
+  promessa.then(URL.revokeObjectURL, () => {});
+}
+
 baixarMiniatura.cancelar = cancelarMiniatura;
+baixarMiniatura.soltar = soltarMiniatura;
 
 function esquecerMiniaturas() {
   espera.length = 0;

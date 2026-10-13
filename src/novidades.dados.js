@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.11.3',
+    quando: '2026-10-13T11:25',
+    titulo: 'A grade guarda só as miniaturas por onde você passou há pouco',
+    mudancas: [
+      'A grade mantém até mil miniaturas carregadas. Passando disso, as que ficaram para trás saem da tela e voltam quando você rola de volta.',
+      'No aparelho ficam guardadas as duas mil mais recentes. Antes ficavam todas as que você já tinha visto.',
+    ],
+  },
+  {
     versao: '1.11.2',
     quando: '2026-10-13T11:15',
     titulo: 'A lista de fotos guardada no aparelho não tem mais teto',

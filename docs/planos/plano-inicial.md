@@ -242,8 +242,8 @@ A regra é usar ao máximo o que já está no aparelho, para o app parecer imedi
    GitHub por trás. Só redesenha a grade se algo mudou.
 2. As miniaturas entram conforme aparecem na tela, não todas de uma vez, seis por vez. A
    que saiu de perto da tela antes de começar a baixar deixa a fila, e volta se reaparecer:
-   rolando depressa por milhares de fotos, só baixa o que a pessoa está vendo. Toda
-   miniatura baixada fica guardada no aparelho, sem limite, porque é pequena.
+   rolando depressa por milhares de fotos, só baixa o que a pessoa está vendo. A grade
+   mantém até 1.000 miniaturas carregadas e o aparelho guarda até 2.000 (Épico 27).
 3. A original só é baixada quando a foto é aberta. Até 2026-10-12 toda foto que ficava na
    tela por mais de 0,6 s tinha a original baixada em segundo plano. Com 4.312 fotos isso
    encheu o teto de 1 GB do aparelho com 831 originais, disputou a rede com as miniaturas e
@@ -1087,6 +1087,30 @@ segurança é um `git clone` manual (RG10), e nada no app lembra dela.
 - **Pronto quando:** existe uma cópia das fotos que não some junto com o repositório de
   dados, atualizada sem depender de lembrar, e o app mostra quando ela foi feita.
 
+### Épico 27: Teto para as miniaturas
+
+Pedido em 2026-10-13 e feito no mesmo dia: "se eu navego para baixo e carrego mil imagens,
+a partir disso já pode ir limpando as imagens para trás. Se eu voltar, ele recarrega".
+
+- **O problema:** toda miniatura vista ficava para sempre, na grade e no aparelho. São 39 KB
+  cada em média: as 8.857 fotos da base em 2026-10-13 somam 338 MB só de miniaturas.
+  Ninguém vê tudo isso, e no celular o navegador dá menos espaço por site.
+- **Na grade, mil.** A grade mantém até 1.000 miniaturas carregadas. Passou disso, as
+  carregadas há mais tempo que estão longe da tela saem do quadro e da memória. O quadro
+  fica neutro e pede a miniatura de novo quando voltar a ficar perto da tela.
+- **No aparelho, duas mil.** O que não é original (miniaturas, registros e índices) tem
+  teto de 2.000 arquivos guardados. A cada cem gravações os mais antigos saem. Quem volta a
+  uma foto recente recarrega do aparelho, sem chamar o GitHub; quem volta a uma antiga
+  baixa de novo.
+- **O que está perto da tela nunca sai,** mesmo acima do teto.
+- **As originais** continuam com o teto de 1 GB que já tinham.
+- **Verificado na base de testes,** com os tetos reduzidos para 20 na grade e 40 no
+  aparelho, porque a base tem 98 fotos: rolando até o fim, as do topo saíram e todas as que
+  estavam na tela ficaram; voltando ao topo, as do topo recarregaram e as do fim saíram; o
+  aparelho ficou com 41 arquivos pequenos.
+- **Não verificado:** com os tetos reais, de 1.000 e 2.000, que pedem uma base grande.
+- **Em aberto:** a tela "Fotos sem data" não passa por este teto. Fica para o Épico 25.
+
 ## Pendências
 
 Lista anotada em 2026-10-12 e revista em 2026-10-13. Cada item vira épico quando for a vez
@@ -1111,6 +1135,7 @@ dele. Primeiro o que já foi feito, depois o que falta.
   Épico 20.
 - [x] Grade no celular: animações, transformação da página e toque. Feito no Épico 21.
 - [x] Skeleton na tela inicial, na primeira abertura e enquanto carrega. Feito no Épico 22.
+- [x] Teto para as miniaturas: mil na grade e duas mil no aparelho. Feito no Épico 27.
 
 Lista revista em 2026-10-13. O que falta, do mais crítico para o menos, pelo risco de perder
 fotos ou de o app parar de funcionar bem:
@@ -1164,6 +1189,7 @@ Durações estimadas, em dias de trabalho focado. Uma branch por etapa.
 | 24 | Lista de fotos guardada no navegador | 0,5 dia | 19 e 22 |
 | 25 | Corrigir a data de uma foto só | 1 dia | 8 e 20 |
 | 26 | Sistema de backup | 1 dia, fora a decisão | Nada |
+| 27 | Teto para as miniaturas | 0,5 dia | 21 |
 
 - **Dia 1:** Épicos 0 e 1, juntos, na branch `fundacao-e-login`. Dá para entrar com o
   token.
