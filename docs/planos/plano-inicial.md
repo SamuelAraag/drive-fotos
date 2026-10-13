@@ -1247,7 +1247,11 @@ celular.
 - **Movimento reduzido:** abrir e fechar viram um fade curto, sem escala nem deslocamento.
 - **Verificação em aparelho de verdade,** no Safari do iPhone e no Chrome do Android. Este
   épico não fecha com teste só no computador.
-- **Decisões propostas em 2026-10-13,** a confirmar antes da etapa em que cada uma entra:
+- **Implementado em 2026-10-13,** num PR só, a pedido: etapas 1 a 4. Vale para toque e para
+  tela menor que 900 px. No computador nada mudou, e o zoom com roda do mouse e duplo clique
+  ficou de fora. Testado com toques simulados numa moldura de 390 px; a etapa 5, em aparelho
+  de verdade, continua pendente e é o que falta para fechar o épico.
+- **Decisões de 2026-10-13,** que valeram na implementação:
   - Proporções cobrem só a foto aberta. A grade foi refeita no Épico 28 e fica como está.
   - No celular, tocar no palco nunca fecha: o toque só mostra e esconde os controles. No
     computador, o clique no fundo vazio continua fechando.

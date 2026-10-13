@@ -1,4 +1,5 @@
 import { analisar, diaEmTexto, fmtTamanho } from './foto.js';
+import { ligarGestos } from './gestos.js';
 import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
 import { VERSAO_ATUAL } from './novidades.dados.js';
 
@@ -574,6 +575,87 @@ let camadaDoAmbiente = 0;
 let fechando = false;
 const analises = new Map();
 
+const ZOOM_DO_DUPLO_TOQUE = 2.5;
+const ZOOM_MAXIMO = 4;
+const FOLGA_DA_PINCA = 0.3;
+const PASSA_COM = 48;
+const FECHA_COM = 0.22;
+const VELOCIDADE_QUE_CONFIRMA = 0.45;
+const ENCOLHE_ATE = 0.85;
+
+let zoom = { escala: 1, x: 0, y: 0 };
+let zoomDeAntes = null;
+let fimDoAssento = null;
+let sentidoDaPassagem = 0;
+let tocouEm = 0;
+
+const entre = (valor, minimo, maximo) => Math.min(maximo, Math.max(minimo, valor));
+
+function zoomMaximo() {
+  const largura = $('visor-foto').offsetWidth;
+  return Math.max(ZOOM_MAXIMO, largura ? $('visor-original').naturalWidth / largura : 0);
+}
+
+function pintarZoom() {
+  const { escala, x, y } = zoom;
+  $('visor-foto').style.transform = escala === 1 && x === 0 && y === 0 ? '' : `translate(${x}px, ${y}px) scale(${escala})`;
+  const ampliada = escala > 1;
+  $('visor').classList.toggle('visor--ampliada', ampliada);
+  const botao = $('visor-zoom');
+  if (!botao) return;
+  botao.textContent = ampliada ? 'Reduzir' : 'Ampliar';
+  botao.setAttribute('aria-pressed', String(ampliada));
+}
+
+function assentar() {
+  if (semMovimento.matches) return;
+  $('visor').classList.add('visor--assentando');
+  clearTimeout(fimDoAssento);
+  fimDoAssento = setTimeout(() => $('visor').classList.remove('visor--assentando'), 320);
+}
+
+function soltarAssento() {
+  clearTimeout(fimDoAssento);
+  $('visor').classList.remove('visor--assentando');
+}
+
+function definirZoom(escala, x, y, suave = false) {
+  const nova = entre(escala, 1, zoomMaximo());
+  const sobraX = Math.max(0, ($('visor-foto').offsetWidth * nova - $('visor-palco').clientWidth) / 2);
+  const sobraY = Math.max(0, ($('visor-foto').offsetHeight * nova - $('visor-palco').clientHeight) / 2);
+  zoom = { escala: nova, x: entre(x, -sobraX, sobraX), y: entre(y, -sobraY, sobraY) };
+  if (suave) assentar();
+  pintarZoom();
+}
+
+function zoomEmTorno(ponto, escala, de = zoom, destino = ponto) {
+  const palco = $('visor-palco').getBoundingClientRect();
+  const centroX = palco.left + palco.width / 2;
+  const centroY = palco.top + palco.height / 2;
+  return {
+    escala,
+    x: destino.x - centroX - (escala * (ponto.x - centroX - de.x)) / de.escala,
+    y: destino.y - centroY - (escala * (ponto.y - centroY - de.y)) / de.escala,
+  };
+}
+
+function alternarZoom(ponto) {
+  if (zoom.escala > 1) {
+    definirZoom(1, 0, 0, true);
+    return;
+  }
+  const alvo = zoomEmTorno(ponto, ZOOM_DO_DUPLO_TOQUE);
+  definirZoom(alvo.escala, alvo.x, alvo.y, true);
+}
+
+function limparGestos() {
+  soltarAssento();
+  zoom = { escala: 1, x: 0, y: 0 };
+  pintarZoom();
+  $('visor-ambiente').style.opacity = '';
+  $('visor').classList.remove('visor--limpo', 'visor--arrastando');
+}
+
 const cromo = () => [$('visor-topo'), $('visor-anterior'), $('visor-proxima'), $('visor-painel'), $('visor-rodape')];
 
 export function visorAberto() {
@@ -719,6 +801,9 @@ export function renderVisor(foto, { posicao, total, temAnterior, temProxima }) {
   noVisor = foto.id;
   prontaNoVisor = null;
   proporcaoNoVisor = null;
+  soltarAssento();
+  zoom = { escala: 1, x: 0, y: 0 };
+  pintarZoom();
   const previa = $('visor-previa');
   const original = $('visor-original');
   for (const animacao of original.getAnimations()) animacao.cancel();
@@ -790,7 +875,10 @@ export async function abrirVisor(foto, dados) {
 
 export function passouParaAFoto(id) {
   if (foraDaGrade != null) tirarDaGrade(id);
-  if (podeAnimar()) animar($('visor-foto'), [{ opacity: 0.3 }, { opacity: 1 }], { duration: 200, easing: 'ease' });
+  const desloca = sentidoDaPassagem * 32;
+  sentidoDaPassagem = 0;
+  if (!podeAnimar()) return;
+  animar($('visor-foto'), [{ opacity: 0.3, transform: `translateX(${desloca}px)` }, { opacity: 1, transform: 'none' }], { duration: desloca ? 260 : 200, easing: desloca ? SUAVE : 'ease' });
 }
 
 async function fecharComEfeito() {
@@ -799,26 +887,38 @@ async function fecharComEfeito() {
   const quadro = noVisor == null ? null : quadroDe(noVisor);
   if (!podeAnimar() || !quadro || !proporcaoNoVisor) {
     visor.close();
+    limparGestos();
     return;
   }
   fechando = true;
+  soltarAssento();
+  const caixa = $('visor-foto');
+  const ambiente = $('visor-ambiente');
+  const saindoDe = { transform: caixa.style.transform || 'none', clipPath: 'inset(0px 0px)' };
+  const opacidade = (no) => getComputedStyle(no).opacity;
+  const ambienteEm = opacidade(ambiente);
+  caixa.style.transform = '';
   quadro.scrollIntoView({ block: 'nearest' });
   tirarDaGrade(noVisor);
   const partida = medirPartida(quadro);
   const saida = [
-    animar($('visor-foto'), [partida.inteira, partida.quadro], { duration: 280, fill: 'forwards' }),
-    animar($('visor-ambiente'), [{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease', fill: 'forwards' }),
-    ...cromo().map((parte) => animar(parte, [{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease', fill: 'forwards' })),
+    animar(caixa, [saindoDe, partida.quadro], { duration: 280, fill: 'forwards' }),
+    animar(ambiente, [{ opacity: ambienteEm }, { opacity: 0 }], { duration: 240, easing: 'ease', fill: 'forwards' }),
+    ...cromo().map((parte) => animar(parte, [{ opacity: opacidade(parte) }, { opacity: 0 }], { duration: 120, easing: 'ease', fill: 'forwards' })),
   ];
   await saida[0].finished.catch(() => {});
   visor.close();
+  limparGestos();
   for (const animacao of saida) animacao.cancel();
   fechando = false;
 }
 
 export function fecharVisor({ efeito = false } = {}) {
   if (efeito) fecharComEfeito();
-  else if ($('visor').open) $('visor').close();
+  else if ($('visor').open) {
+    $('visor').close();
+    limparGestos();
+  }
 }
 
 export function voltarParaAFoto(id) {
@@ -1110,6 +1210,7 @@ function ligarVisor(acoes) {
     fecharComEfeito();
   });
   visor.addEventListener('close', () => {
+    limparGestos();
     devolverParaAGrade();
     noVisor = null;
     acoes.fotoFechada();
@@ -1122,7 +1223,11 @@ function ligarVisor(acoes) {
   });
 
   $('visor-palco').addEventListener('click', (evento) => {
-    if (evento.target === $('visor-palco')) fecharComEfeito();
+    if (evento.target === $('visor-palco') && performance.now() - tocouEm > 600) fecharComEfeito();
+  });
+  $('visor-zoom')?.addEventListener('click', () => {
+    const palco = $('visor-palco').getBoundingClientRect();
+    alternarZoom({ x: palco.left + palco.width / 2, y: palco.top + palco.height / 2 });
   });
 
   $('visor-original').addEventListener('error', () => {
@@ -1131,26 +1236,87 @@ function ligarVisor(acoes) {
     erroNoVisor('Este navegador não consegue mostrar o formato desta foto.', { podeTentar: false });
   });
   addEventListener('resize', () => {
-    if (visor.open) ajustarFoto();
+    if (!visor.open) return;
+    ajustarFoto();
+    definirZoom(1, 0, 0);
   });
   telaLarga.addEventListener('change', () => {
     if (visor.open) aplicarPainel();
   });
 
-  let inicio = null;
-  visor.addEventListener('pointerdown', (evento) => {
-    inicio = evento.pointerType === 'touch' ? { x: evento.clientX, y: evento.clientY } : null;
-  });
-  visor.addEventListener('pointerup', (evento) => {
-    if (!inicio) return;
-    const dx = evento.clientX - inicio.x;
-    const dy = evento.clientY - inicio.y;
-    inicio = null;
-    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    acoes.passarFoto(dx < 0 ? 1 : -1);
-  });
-  visor.addEventListener('pointercancel', () => {
-    inicio = null;
+  const caixa = $('visor-foto');
+  const ambiente = $('visor-ambiente');
+  const temVizinha = (dx) => !$(dx < 0 ? 'visor-proxima' : 'visor-anterior').disabled;
+  const voltarAoLugar = () => {
+    assentar();
+    visor.classList.remove('visor--arrastando');
+    ambiente.style.opacity = '';
+    pintarZoom();
+  };
+
+  ligarGestos($('visor-palco'), {
+    podeComecar: (evento) => !fechando && !evento.target.closest('button'),
+    eixoLivre: () => zoom.escala > 1,
+    toque() {
+      tocouEm = performance.now();
+      visor.classList.toggle('visor--limpo');
+    },
+    duploToque(ponto) {
+      tocouEm = performance.now();
+      visor.classList.toggle('visor--limpo');
+      alternarZoom(ponto);
+    },
+    arrasteComeca(eixo) {
+      soltarAssento();
+      zoomDeAntes = { ...zoom };
+      if (eixo === 'y') visor.classList.add('visor--arrastando');
+    },
+    arrasteMove({ eixo, dx, dy }) {
+      if (eixo === 'livre') {
+        definirZoom(zoomDeAntes.escala, zoomDeAntes.x + dx, zoomDeAntes.y + dy);
+      } else if (eixo === 'x') {
+        caixa.style.transform = `translateX(${temVizinha(dx) ? dx : dx * 0.3}px)`;
+      } else if (dy <= 0) {
+        caixa.style.transform = `translateY(${dy * 0.2}px)`;
+        ambiente.style.opacity = '';
+      } else {
+        const avanco = Math.min(1, dy / innerHeight);
+        caixa.style.transform = `translate(${dx}px, ${dy}px) scale(${Math.max(ENCOLHE_ATE, 1 - avanco * 0.4)})`;
+        ambiente.style.opacity = String(Math.max(0, 1 - avanco * 1.6));
+      }
+    },
+    arrasteTermina({ eixo, dx, dy, vx, vy, cancelado }) {
+      if (eixo === 'livre') return;
+      if (eixo === 'x') {
+        const passa = !cancelado && temVizinha(dx) && (Math.abs(dx) >= PASSA_COM || (Math.abs(vx) > VELOCIDADE_QUE_CONFIRMA && Math.abs(dx) > 16));
+        if (!passa) {
+          voltarAoLugar();
+          return;
+        }
+        sentidoDaPassagem = dx < 0 ? 1 : -1;
+        pintarZoom();
+        acoes.passarFoto(sentidoDaPassagem);
+        return;
+      }
+      const fecha = !cancelado && dy > 0 && (dy > innerHeight * FECHA_COM || (vy > VELOCIDADE_QUE_CONFIRMA && dy > 24));
+      if (!fecha) {
+        voltarAoLugar();
+        return;
+      }
+      fecharComEfeito();
+    },
+    pincaComeca(centro) {
+      soltarAssento();
+      zoomDeAntes = { ...zoom, centro };
+    },
+    pincaMove({ x, y, fator }) {
+      const escala = entre(zoomDeAntes.escala * fator, 1 - FOLGA_DA_PINCA, zoomMaximo() * (1 + FOLGA_DA_PINCA));
+      zoom = zoomEmTorno(zoomDeAntes.centro, escala, zoomDeAntes, { x, y });
+      pintarZoom();
+    },
+    pincaTermina() {
+      definirZoom(zoom.escala, zoom.x, zoom.y, true);
+    },
   });
 }
 
