@@ -1490,7 +1490,125 @@ body.modo-selecao .dia__selecao {
   justify-content: center;
   min-width: 0;
   min-height: 0;
-  touch-action: pan-y pinch-zoom;
+  touch-action: none;
+}
+
+.visor__topo,
+.visor__rodape,
+.visor__seta {
+  transition: opacity var(--rapido);
+}
+
+.visor--limpo .visor__topo,
+.visor--limpo .visor__rodape,
+.visor--limpo .visor__seta,
+.visor--arrastando .visor__topo,
+.visor--arrastando .visor__rodape,
+.visor--arrastando .visor__seta,
+.visor--ampliada .visor__seta {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.visor--assentando .visor__foto {
+  transition: transform var(--medio);
+}
+
+.visor--assentando .visor__ambiente {
+  transition: opacity var(--medio);
+}
+
+.visor__zoom {
+  display: none;
+}
+
+.visor__botoes {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--e1);
+  padding: var(--e1);
+  border: 1px solid color-mix(in srgb, var(--trilho) 70%, transparent);
+  border-radius: var(--raio-pilula);
+  background: color-mix(in srgb, var(--superficie) 75%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.visor__acao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: var(--raio-pilula);
+}
+
+.visor__acao:active {
+  background: var(--trilho);
+}
+
+.visor__rodape .visor__botoes .visor__acao--apagar {
+  color: var(--erro);
+}
+
+.visor__icone {
+  width: var(--e5);
+  height: var(--e5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.visor__acao[aria-busy='true'] .visor__icone {
+  animation: pulsar 1.6s ease-in-out infinite;
+}
+
+.visor__rotulo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.visor__divisor {
+  display: block;
+  width: 1px;
+  height: var(--e5);
+  background: var(--trilho);
+}
+
+@media (max-width: 899px) {
+  .visor__zoom {
+    display: block;
+  }
+
+  .visor__corpo {
+    position: absolute;
+    inset: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .visor__topo,
+  .visor__rodape {
+    position: relative;
+    z-index: 1;
+  }
+
+  .visor__topo {
+    padding-bottom: var(--e5);
+    background: linear-gradient(color-mix(in srgb, var(--fundo) 80%, transparent), transparent);
+  }
+
+  .visor__rodape {
+    margin-top: auto;
+    padding-top: var(--e6);
+    background: linear-gradient(transparent, color-mix(in srgb, var(--fundo) 80%, transparent));
+  }
 }
 
 .visor__foto {
@@ -1619,9 +1737,7 @@ body.modo-selecao .dia__selecao {
 
 .visor__botoes {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: var(--e2);
 }
 
 .visor__rodape .botao--fantasma {

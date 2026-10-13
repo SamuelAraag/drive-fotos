@@ -1,5 +1,17 @@
 export const NOVIDADES = [
   {
+    versao: '1.15.0',
+    quando: '2026-10-13T15:53',
+    titulo: 'Zoom e arrastar para fechar na foto aberta, no celular',
+    mudancas: [
+      'No celular, a foto aberta ocupa a tela inteira. Um toque esconde e mostra os botões.',
+      'Pinça e duplo toque ampliam a foto, e o botão "Ampliar" faz o mesmo. Ampliada, dá para arrastar e ver o resto.',
+      'Arrastar a foto para baixo fecha e volta para a grade.',
+      'Ao passar para a foto ao lado, ela acompanha o dedo.',
+      'Baixar, copiar link, renomear e apagar viraram quatro ícones numa barra no pé da foto. Apagar fica separado, em vermelho.',
+    ],
+  },
+  {
     versao: '1.14.0',
     quando: '2026-10-13T13:57',
     titulo: 'Acerte a data de uma foto sem mexer nas outras',

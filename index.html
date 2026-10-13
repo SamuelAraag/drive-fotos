@@ -187,6 +187,7 @@
       <p class="visor__legenda"><span id="visor-legenda"></span><span class="texto-suave texto-pequeno" id="visor-posicao"></span></p>
       <div class="visor__acoes">
         <button type="button" class="botao botao--fantasma visor__info" id="visor-info" aria-pressed="false" aria-controls="visor-painel">Informações</button>
+        <button type="button" class="botao botao--fantasma visor__zoom" id="visor-zoom" aria-pressed="false">Ampliar</button>
         <button type="button" class="botao botao--fantasma" id="visor-fechar">Fechar</button>
       </div>
     </div>
@@ -226,10 +227,11 @@
     <div class="visor__rodape" id="visor-rodape">
       <p class="campo__erro" id="visor-aviso" role="alert" hidden></p>
       <div class="visor__botoes">
-        <button type="button" class="botao botao--fantasma" id="visor-baixar">Baixar</button>
-        <button type="button" class="botao botao--fantasma" id="visor-link">Copiar link</button>
-        <button type="button" class="botao botao--fantasma" id="visor-renomear">Renomear</button>
-        <button type="button" class="botao botao--fantasma" id="visor-apagar">Apagar</button>
+        <button type="button" class="botao botao--fantasma visor__acao" id="visor-baixar" title="Baixar"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg><span class="visor__rotulo">Baixar</span></button>
+        <button type="button" class="botao botao--fantasma visor__acao" id="visor-link" title="Copiar link"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg><span class="visor__rotulo">Copiar link</span></button>
+        <button type="button" class="botao botao--fantasma visor__acao" id="visor-renomear" title="Renomear"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3zM13.5 8.5l3 3"/></svg><span class="visor__rotulo">Renomear</span></button>
+        <span class="visor__divisor" aria-hidden="true"></span>
+        <button type="button" class="botao botao--fantasma visor__acao visor__acao--apagar" id="visor-apagar" title="Apagar"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5"/></svg><span class="visor__rotulo">Apagar</span></button>
       </div>
     </div>
   </dialog>
