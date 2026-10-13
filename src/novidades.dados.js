@@ -4,7 +4,7 @@ export const NOVIDADES = [
     quando: '2026-10-13T11:15',
     titulo: 'A lista de fotos guardada no aparelho não tem mais teto',
     mudancas: [
-      'Para abrir na hora, o app guarda a lista de fotos no aparelho. O lugar onde ela ficava enche com alguns milhares de fotos, e aí o app abria com uma lista antiga.',
+      'Para abrir na hora, o app guarda a lista de fotos no aparelho. O lugar onde ela ficava tem um limite pequeno, e quando a lista não cabia o app abria com uma lista antiga.',
       'A lista passou para o mesmo lugar das miniaturas, que comporta o acervo inteiro. Num teste com 30 mil fotos ela foi gravada em 85 milésimos de segundo.',
     ],
   },
