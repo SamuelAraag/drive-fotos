@@ -1065,7 +1065,14 @@ Pedido em 2026-10-13 e feito no mesmo dia. É o gap N3 da análise de gaps.
 
 ### Épico 25: Corrigir a data de uma foto só
 
-Pedido em 2026-10-13.
+Pedido em 2026-10-13 e feito no mesmo dia.
+
+- **Como ficou:** cada foto de "Fotos sem data" ganhou o botão "Salvar esta", que grava só
+  ela, num commit próprio. Ele fica disponível quando a data da foto mudou ou quando "A
+  data está certa" foi marcada. O "Salvar datas" do bloco e o "Mesmo dia para todas"
+  continuam.
+- **Miniaturas sob demanda:** a tela pede a miniatura quando a foto chega perto da tela e
+  desiste se ela sair antes de começar a baixar, como na grade principal.
 
 - **Data por foto, isolada.** Acertar a data de uma foto sem depender do bloco em que ela
   está: cada foto tem o próprio salvar, e o commit leva só ela.
@@ -1224,8 +1231,8 @@ fotos ou de o app parar de funcionar bem:
    com outra estratégia: a lista saiu do `localStorage` e foi para o Cache.
 3. [ ] Migração de tudo o que tenho até hoje. Épico 17.
    - [ ] Fazendo: falta a parte 1 da pasta, com 5.426 fotos.
-4. [ ] Corrigir a data por foto isolada, unitária. Épico 25.
-   - [ ] A tela deve carregar as imagens como é feito na tela de listagem principal.
+4. [x] Corrigir a data por foto isolada, unitária. Feito no Épico 25.
+   - [x] A tela deve carregar as imagens como é feito na tela de listagem principal.
 5. [x] Criar botão de ir para o início. Feito no Épico 23.
 6. [ ] Botão ou rotina para enviar as fotos do dia. Bem específico. Épico 18.
    - [ ] Tirei fotos hoje, e no fim do dia quero enviar todas.

@@ -1436,18 +1436,55 @@ export function linkDasPendentes(quantas) {
 
 const camposDasPendentes = () => [...$('pendentes').querySelectorAll('input[data-id]')];
 
+function decisaoDoItem(item) {
+  const campo = item.querySelector('input[data-id]');
+  if (item.querySelector('input[type=checkbox]').checked) return { id: campo.dataset.id, dia: null };
+  return campo.value && campo.value !== campo.dataset.atual ? { id: campo.dataset.id, dia: campo.value } : null;
+}
+
 function decisoesDoBloco(grupo) {
-  return [...grupo.querySelectorAll('.pendentes__item')].flatMap((item) => {
-    const campo = item.querySelector('input[data-id]');
-    if (item.querySelector('input[type=checkbox]').checked) return [{ id: campo.dataset.id, dia: null }];
-    return campo.value && campo.value !== campo.dataset.atual ? [{ id: campo.dataset.id, dia: campo.value }] : [];
-  });
+  return [...grupo.querySelectorAll('.pendentes__item')].map(decisaoDoItem).filter(Boolean);
+}
+
+let observadorDasPendentes = null;
+const miniaturasDasPendentes = new WeakMap();
+
+function observarPendentes() {
+  observadorDasPendentes?.disconnect();
+  observadorDasPendentes = new IntersectionObserver(
+    (entradas) => {
+      for (const entrada of entradas) {
+        const imagem = entrada.target;
+        const pedido = miniaturasDasPendentes.get(imagem);
+        if (!pedido) continue;
+        if (!entrada.isIntersecting) {
+          if (pedido.pedida) pedido.baixar.cancelar?.(pedido.sha);
+          continue;
+        }
+        if (pedido.pedida) continue;
+        pedido.pedida = true;
+        pedido.baixar(pedido.sha).then(
+          (url) => {
+            observadorDasPendentes?.unobserve(imagem);
+            imagem.src = url;
+          },
+          (falha) => {
+            pedido.pedida = false;
+            observadorDasPendentes?.unobserve(imagem);
+            if (falha?.name === 'AbortError' && imagem.isConnected) observadorDasPendentes?.observe(imagem);
+          },
+        );
+      }
+    },
+    { rootMargin: '400px 0px' },
+  );
 }
 
 function renderBotoesDasPendentes() {
   for (const grupo of $('pendentes').querySelectorAll('.pendentes__grupo')) {
     for (const item of grupo.querySelectorAll('.pendentes__item')) {
       item.querySelector('input[data-id]').disabled = item.querySelector('input[type=checkbox]').checked;
+      item.querySelector('[data-acao=salvar-uma]').disabled = pendentesOcupadas || !decisaoDoItem(item);
     }
     const quantas = decisoesDoBloco(grupo).length;
     grupo.querySelector('.pendentes__resumo').textContent =
@@ -1460,6 +1497,7 @@ let pendentesOcupadas = false;
 
 export function renderSemData(grupos, { lendo, incompleta }, baixar) {
   baixarAtual = baixar;
+  observarPendentes();
 
   const escolhidos = new Map(camposDasPendentes().map((campo) => [campo.dataset.id, campo.value]));
   const certas = new Set([...$('pendentes').querySelectorAll('input[type=checkbox]:checked')].map((caixa) => caixa.dataset.de));
@@ -1500,7 +1538,11 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
         const item = el('li', 'pendentes__item');
         const miniatura = el('img', 'pendentes__imagem');
         miniatura.alt = '';
-        if (foto.miniatura) baixar(foto.miniatura).then((url) => (miniatura.src = url), () => {});
+        miniatura.decoding = 'async';
+        if (foto.miniatura) {
+          miniaturasDasPendentes.set(miniatura, { sha: foto.miniatura, baixar, pedida: false });
+          observadorDasPendentes.observe(miniatura);
+        }
         const rotulo = el('label', 'pendentes__nome', nome);
         const campo = el('input', 'campo');
         const atual = `${foto.dia.slice(0, 4)}-${foto.dia.slice(4, 6)}-${foto.dia.slice(6, 8)}`;
@@ -1519,7 +1561,11 @@ export function renderSemData(grupos, { lendo, incompleta }, baixar) {
         caixa.dataset.de = foto.id;
         caixa.checked = certas.has(foto.id);
         certa.append(caixa, el('span', null, 'A data está certa'));
-        item.append(miniatura, rotulo, campo, certa);
+        const salvarUma = el('button', 'botao botao--secundario', 'Salvar esta');
+        salvarUma.type = 'button';
+        salvarUma.dataset.acao = 'salvar-uma';
+        salvarUma.setAttribute('aria-label', `Salvar a data de ${nome}`);
+        item.append(miniatura, rotulo, campo, certa, salvarUma);
         lista.append(item);
       }
       grupo.append(lista);
@@ -1554,6 +1600,12 @@ function ligarPendentes(acoes) {
   const tela = $('pendentes');
   tela.addEventListener('input', renderBotoesDasPendentes);
   tela.addEventListener('click', (evento) => {
+    const umaSo = evento.target.closest('button[data-acao=salvar-uma]');
+    if (umaSo) {
+      const decisao = decisaoDoItem(umaSo.closest('.pendentes__item'));
+      if (decisao) acoes.datar([decisao]);
+      return;
+    }
     const botao = evento.target.closest('button[data-acao=aplicar]');
     if (!botao) return;
     const grupo = botao.closest('.pendentes__grupo');
