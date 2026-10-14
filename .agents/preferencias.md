@@ -10,11 +10,14 @@ Convenções do Drive Fotos. Valem para qualquer pessoa ou agente que mexa no c�
   `docs/planos/plano-inicial.md`.
 * Os comentários que existiam saíram no Épico 15. O que eles diziam está no histórico do git.
 
-## Novidades
+## Textos para pessoas
 
-* Toda entrada nova de `src/novidades.dados.js` passa pelo humanizer antes do commit: cada
-  frase diz um fato a quem usa o app, sem travessão, sem adjetivo de venda e sem repetir o
+* Todo texto escrito para uma pessoa ler passa pelo humanizer: título e corpo de PR, entradas
+  de `src/novidades.dados.js` e qualquer texto visível no app (avisos, erros, rótulos,
+  diálogos). Cada frase diz um fato, sem travessão, sem adjetivo de venda e sem repetir o
   título. Número só quando foi medido.
+* Não vale para nomes no código nem para mensagens de commit, que seguem o estilo curto do
+  repositório.
 
 ## Idioma
 
