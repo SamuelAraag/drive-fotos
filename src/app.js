@@ -932,9 +932,10 @@ async function adicionarArquivos(arquivos, { temPasta = false } = {}) {
   const semSuporte = arquivos.filter((arquivo) => arquivo.size > 0 && foto.ehImagemSemSuporte(arquivo));
   const naoImagens = arquivos.filter((arquivo) => arquivo.size > 0 && !foto.ehImagem(arquivo) && !foto.ehImagemSemSuporte(arquivo));
   const grandes = arquivos.filter((arquivo) => foto.ehImagem(arquivo) && arquivo.size > foto.TAMANHO_MAXIMO);
-  const aceitos = arquivos.filter(
-    (arquivo) => arquivo.size > 0 && foto.ehImagem(arquivo) && arquivo.size <= foto.TAMANHO_MAXIMO,
-  );
+  const aceitos = [];
+  for (const arquivo of arquivos.filter((arquivo) => arquivo.size > 0 && foto.ehImagem(arquivo) && arquivo.size <= foto.TAMANHO_MAXIMO)) {
+    (await foto.conteudoSemSuporte(arquivo) ? semSuporte : aceitos).push(arquivo);
+  }
 
   const nomes = (lista) => lista.map((arquivo) => arquivo.name).join(', ');
   if (vazios.length) recusas.push(`${nomes(vazios)}: ${plural(vazios.length, 'arquivo vazio', 'arquivos vazios')}.`);

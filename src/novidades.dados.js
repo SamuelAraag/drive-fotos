@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.15.1',
+    quando: '2026-10-14T11:20',
+    titulo: 'Arquivo que não é foto fica de fora do envio',
+    mudancas: [
+      'Arquivos que começam com "._", que o Mac cria ao copiar para um HD, não sobem mais. Eles não são fotos e apareciam como quadro vazio na grade.',
+      'Foto do iPhone em HEIC com nome terminado em .jpg agora é recusada no envio e no backup, com o aviso de converter para JPEG.',
+    ],
+  },
+  {
     versao: '1.15.0',
     quando: '2026-10-13T15:53',
     titulo: 'Zoom e arrastar para fechar na foto aberta, no celular',
