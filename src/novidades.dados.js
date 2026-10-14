@@ -1,5 +1,11 @@
 export const NOVIDADES = [
   {
+    versao: '1.17.1',
+    quando: '2026-10-14T18:50',
+    titulo: 'Barra e porcentagem de progresso melhoradas',
+    mudancas: ['A barra de progresso e a porcentagem agora são mais visíveis e informativas. Mostrando o progresso e tempo estimado para conclusão'],
+  },
+  {
     versao: '1.16.1',
     quando: '2026-10-14T13:20',
     titulo: 'Sem o aviso de espaço no topo',
