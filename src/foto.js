@@ -144,14 +144,30 @@ export function extensaoDe(arquivo) {
   return extensaoDoNome(arquivo.name) ?? EXTENSAO_DO_TIPO[arquivo.type] ?? 'jpg';
 }
 
+const MARCAS_SEM_SUPORTE = ['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1'];
+
+const ehArquivoDoMac = (arquivo) => arquivo.name.startsWith('._');
+
 export function ehImagem(arquivo) {
+  if (ehArquivoDoMac(arquivo)) return false;
   if (arquivo.type) return TIPOS_ACEITOS.includes(arquivo.type);
   return EXTENSOES_ACEITAS.includes(extensaoDoNome(arquivo.name));
 }
 
 export function ehImagemSemSuporte(arquivo) {
-  if (ehImagem(arquivo)) return false;
+  if (ehImagem(arquivo) || ehArquivoDoMac(arquivo)) return false;
   return arquivo.type.startsWith('image/') || EXTENSOES_SEM_SUPORTE.includes(extensaoDoNome(arquivo.name));
+}
+
+export async function conteudoSemSuporte(arquivo) {
+  try {
+    const bytes = new Uint8Array(await arquivo.slice(0, 12).arrayBuffer());
+    const texto = String.fromCharCode(...bytes);
+    if (texto.startsWith('II*\0') || texto.startsWith('MM\0*')) return true;
+    return texto.slice(4, 8) === 'ftyp' && MARCAS_SEM_SUPORTE.includes(texto.slice(8, 12));
+  } catch {
+    return false;
+  }
 }
 
 export async function gerarMiniatura(arquivo) {

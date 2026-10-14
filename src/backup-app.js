@@ -415,6 +415,10 @@ async function preparar(arquivos, pasta) {
         ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'formato não reconhecido como imagem' });
         continue;
       }
+      if (await foto.conteudoSemSuporte(arquivo)) {
+        ignorados.push({ caminho: origem.caminho, nome: arquivo.name, estado: 'ignorado', motivo: 'formato que o navegador não mostra' });
+        continue;
+      }
       if (arquivo.size > foto.TAMANHO_MAXIMO) {
         ignorados.push({
           caminho: origem.caminho,
