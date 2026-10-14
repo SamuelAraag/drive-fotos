@@ -1,5 +1,11 @@
 export const NOVIDADES = [
   {
+    versao: '1.16.1',
+    quando: '2026-10-14T13:20',
+    titulo: 'Sem o aviso de espaço no topo',
+    mudancas: ['O aviso de que as fotos passaram do tamanho que o GitHub recomenda saiu da tela inicial.'],
+  },
+  {
     versao: '1.16.0',
     quando: '2026-10-14T13:00',
     titulo: 'O app acha a data da foto em mais lugares',

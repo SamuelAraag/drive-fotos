@@ -549,14 +549,6 @@ function deslizarDe(posicoes) {
   }
 }
 
-const AVISO_DE_ESPACO = 4 * 1024 * 1024 * 1024;
-
-function renderEspaco(espaco) {
-  const aviso = $('principal-espaco');
-  aviso.hidden = espaco <= AVISO_DE_ESPACO;
-  aviso.textContent = `As fotos já ocupam ${fmtTamanho(espaco)}, perto dos 5 GB que o GitHub recomenda por repositório. Apagar fotos não libera espaço: faça a cópia de segurança antes de enviar mais.`;
-}
-
 export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }) {
   encerrarVoo();
   const posicoes = posicoesVisiveis();
@@ -568,7 +560,6 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
   $('uso').hidden = total === 0;
   $('uso-valor').textContent = `${fmtTamanho(espaco)} usados`;
   $('uso-detalhe').textContent = total === 1 ? '1 foto' : `${total.toLocaleString('pt-BR')} fotos`;
-  renderEspaco(espaco);
   atualizarSelecao(selecao.ativa, selecao.ids, total);
 
   observador = new IntersectionObserver(
