@@ -1,5 +1,15 @@
 export const NOVIDADES = [
   {
+    versao: '1.16.0',
+    quando: '2026-10-14T13:00',
+    titulo: 'O app acha a data da foto em mais lugares',
+    mudancas: [
+      'Além do EXIF de JPEG, o app lê a data gravada em PNG e WebP e o bloco XMP que o Lightroom e o Photoshop gravam ao exportar.',
+      'O nome do arquivo também conta quando vem como dia-mês-ano (09_07_2016) ou como número de milissegundos (1692646049361).',
+      'Quando o arquivo traz mais de uma data, vale a mais antiga, que costuma ser a de quando a foto foi tirada.',
+    ],
+  },
+  {
     versao: '1.15.2',
     quando: '2026-10-14T12:10',
     titulo: 'A grade abre mais rápido',
