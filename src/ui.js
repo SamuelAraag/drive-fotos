@@ -242,7 +242,13 @@ let voo = null;
 let fotosPorId = new Map();
 let baixarAtual = null;
 
-const quadroDe = (id) => $('grade').querySelector(`[data-id="${id}"]`);
+const quadroDe = (id) => {
+  const seletor = `[data-id="${id}"]`;
+  const quadro = $('grade').querySelector(seletor);
+  if (quadro || !fotosPorId.has(id) || gruposPorDesenhar.length === 0) return quadro;
+  desenharAte(id);
+  return $('grade').querySelector(seletor);
+};
 const podeAnimar = () => !semMovimento.matches && !document.hidden;
 
 function animar(no, quadros, opcoes) {
@@ -430,9 +436,93 @@ export function esquecerEnvio() {
   $('grade').classList.remove('dias--holofote');
 }
 
+const PRIMEIRA_LEVA = 150;
+const LEVA = 300;
+
+let gruposPorDesenhar = [];
+let desenhadas = 0;
+let selecaoNaGrade = { ativa: false, ids: new Set() };
+let fimDaGrade = null;
+
+function desenharGrupo(grupo) {
+  const selecao = selecaoNaGrade;
+  const secao = el('section', 'dia');
+  const titulo = el('h3', 'dia__titulo', tituloDoDia(grupo.dia));
+  const cabeca = el('div', 'dia__cabeca');
+  cabeca.dataset.dia = grupo.dia;
+  const rotuloDia = el('label', 'dia__selecao');
+  const caixaDia = el('input');
+  caixaDia.type = 'checkbox';
+  caixaDia.setAttribute('aria-label', `Selecionar todas as fotos de ${titulo.textContent}`);
+  rotuloDia.append(caixaDia);
+  cabeca.append(titulo, rotuloDia);
+  secao.append(cabeca);
+  const lista = el('ul', 'grade');
+  for (const foto of grupo.fotos) {
+    const quadro = el('li', 'grade__quadro');
+    quadro.dataset.id = foto.id;
+    const botao = el('button', 'grade__botao');
+    botao.type = 'button';
+    botao.setAttribute('aria-label', descricaoDaFoto(foto));
+    if (selecao.ativa) botao.setAttribute('aria-pressed', String(selecao.ids.has(foto.id)));
+    quadro.append(botao);
+    quadro.classList.toggle('grade__quadro--selecionado', selecao.ids.has(foto.id));
+    if (foto.id === destaqueId) marcarDestaque(quadro, false);
+    if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
+    if (foto.miniatura) {
+      baixarDoQuadro.set(quadro, { foto, baixar: baixarAtual });
+      observador.observe(quadro);
+    } else {
+      marcarSemMiniatura(quadro, foto);
+    }
+    lista.append(quadro);
+  }
+  const marcadas = grupo.fotos.filter((foto) => selecao.ids.has(foto.id)).length;
+  caixaDia.checked = marcadas === grupo.fotos.length;
+  caixaDia.indeterminate = marcadas > 0 && marcadas < grupo.fotos.length;
+  secao.append(lista);
+  return secao;
+}
+
+function desenharLeva(quantas) {
+  const secoes = [];
+  let nestaLeva = 0;
+  while (gruposPorDesenhar.length > 0 && nestaLeva < quantas) {
+    const grupo = gruposPorDesenhar.shift();
+    secoes.push(desenharGrupo(grupo));
+    nestaLeva += grupo.fotos.length;
+  }
+  desenhadas += nestaLeva;
+  $('grade').append(...secoes);
+  vigiarFimDaGrade();
+}
+
+function desenharAte(id) {
+  const posicao = gruposPorDesenhar.findIndex((grupo) => grupo.fotos.some((foto) => foto.id === id));
+  if (posicao < 0) return;
+  desenharLeva(gruposPorDesenhar.slice(0, posicao + 1).reduce((soma, grupo) => soma + grupo.fotos.length, 0));
+}
+
+function vigiarFimDaGrade() {
+  fimDaGrade?.disconnect();
+  fimDaGrade = null;
+  const ultima = $('grade').lastElementChild;
+  if (gruposPorDesenhar.length === 0 || !ultima) return;
+  fimDaGrade = new IntersectionObserver(
+    (entradas) => {
+      if (entradas.some((entrada) => entrada.isIntersecting)) desenharLeva(LEVA);
+    },
+    { rootMargin: '0px 0px 1500px 0px' },
+  );
+  fimDaGrade.observe(ultima);
+}
+
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
+  fimDaGrade?.disconnect();
+  fimDaGrade = null;
+  gruposPorDesenhar = [];
   quadrosComMiniatura = [];
   $('grade').replaceChildren();
 }
@@ -495,48 +585,16 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
     { rootMargin: '400px 0px' },
   );
 
-  for (const grupo of grupos) {
-    const secao = el('section', 'dia');
-    const titulo = el('h3', 'dia__titulo', tituloDoDia(grupo.dia));
-    const cabeca = el('div', 'dia__cabeca');
-    cabeca.dataset.dia = grupo.dia;
-    const rotuloDia = el('label', 'dia__selecao');
-    const caixaDia = el('input');
-    caixaDia.type = 'checkbox';
-    caixaDia.setAttribute('aria-label', `Selecionar todas as fotos de ${titulo.textContent}`);
-    rotuloDia.append(caixaDia);
-    cabeca.append(titulo, rotuloDia);
-    secao.append(cabeca);
-    const lista = el('ul', 'grade');
-    for (const foto of grupo.fotos) {
-      const quadro = el('li', 'grade__quadro');
-      quadro.dataset.id = foto.id;
-      const botao = el('button', 'grade__botao');
-      botao.type = 'button';
-      botao.setAttribute('aria-label', descricaoDaFoto(foto));
-      if (selecao.ativa) botao.setAttribute('aria-pressed', String(selecao.ids.has(foto.id)));
-      quadro.append(botao);
-      quadro.classList.toggle('grade__quadro--selecionado', selecao.ids.has(foto.id));
-      if (foto.id === destaqueId) marcarDestaque(quadro, false);
-      if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
-      if (foto.miniatura) {
-        baixarDoQuadro.set(quadro, { foto, baixar });
-        observador.observe(quadro);
-      } else {
-        marcarSemMiniatura(quadro, foto);
-      }
-      lista.append(quadro);
-    }
-    const marcadas = grupo.fotos.filter((foto) => selecao.ids.has(foto.id)).length;
-    caixaDia.checked = marcadas === grupo.fotos.length;
-    caixaDia.indeterminate = marcadas > 0 && marcadas < grupo.fotos.length;
-    secao.append(lista);
-    $('grade').append(secao);
-  }
+  selecaoNaGrade = selecao;
+  const jaDesenhadas = desenhadas;
+  desenhadas = 0;
+  gruposPorDesenhar = [...grupos];
+  desenharLeva(Math.max(PRIMEIRA_LEVA, jaDesenhadas));
   deslizarDe(posicoes);
 }
 
 export function atualizarSelecao(ativa, ids, total) {
+  selecaoNaGrade = { ativa, ids };
   document.body.classList.toggle('modo-selecao', ativa);
   $('grade').classList.toggle('grade--selecao', ativa);
   $('selecao-topo').hidden = total === 0 || ativa;

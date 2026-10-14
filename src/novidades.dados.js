@@ -1,5 +1,13 @@
 export const NOVIDADES = [
   {
+    versao: '1.15.2',
+    quando: '2026-10-14T12:10',
+    titulo: 'A grade abre mais rápido',
+    mudancas: [
+      'Ao abrir, o app desenha só os primeiros dias da grade. Os outros entram conforme você rola. Com 11.955 fotos, montar a tela caiu de 1,6 s para menos de 0,1 s no computador.',
+    ],
+  },
+  {
     versao: '1.15.1',
     quando: '2026-10-14T11:20',
     titulo: 'Arquivo que não é foto fica de fora do envio',
