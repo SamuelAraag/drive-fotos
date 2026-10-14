@@ -7,7 +7,11 @@ export const TAMANHO_MAXIMO = 25 * 1024 * 1024;
 const pad = (n, casas = 2) => String(n).padStart(casas, '0');
 
 const ANO_MINIMO = 1990;
-const TRECHO_DO_EXIF = 256 * 1024;
+const TRECHO_DO_INICIO = 512 * 1024;
+const TRECHO_DO_FIM = 128 * 1024;
+const ETIQUETAS_DE_DATA = [0x9003, 0x9004, 0x0132];
+const CAMPOS_XMP = ['exif:DateTimeOriginal', 'exif:DateTimeDigitized', 'photoshop:DateCreated', 'xmp:CreateDate', 'tiff:DateTime', 'xmp:ModifyDate'];
+const BLOCOS_PNG = ['eXIf', 'tEXt', 'zTXt', 'iTXt'];
 
 function dataValida(ano, mes, dia, hora = 12, minuto = 0, segundo = 0) {
   const data = new Date(ano, mes - 1, dia, hora, minuto, segundo);
@@ -16,76 +20,181 @@ function dataValida(ano, mes, dia, hora = 12, minuto = 0, segundo = 0) {
   return data;
 }
 
-function dataDoTiff(bytes, base) {
-  const ordem = bytes.getUint16(base);
-  if (ordem !== 0x4949 && ordem !== 0x4d4d) return null;
-  const invertido = ordem === 0x4949;
-  const u16 = (posicao) => bytes.getUint16(base + posicao, invertido);
-  const u32 = (posicao) => bytes.getUint32(base + posicao, invertido);
-  const lerBloco = (inicio) => {
-    const etiquetas = new Map();
-    const quantas = u16(inicio);
-    for (let i = 0; i < quantas; i++) {
-      const entrada = inicio + 2 + i * 12;
-      etiquetas.set(u16(entrada), { tipo: u16(entrada + 2), quantos: u32(entrada + 4), valor: entrada + 8 });
-    }
-    return etiquetas;
-  };
-
-  const texto = (etiqueta) => {
-    if (!etiqueta || etiqueta.tipo !== 2 || etiqueta.quantos < 19) return null;
-    const inicio = u32(etiqueta.valor);
-    let lido = '';
-    for (let i = 0; i < 19; i++) lido += String.fromCharCode(bytes.getUint8(base + inicio + i));
-    return lido;
-  };
-  const principal = lerBloco(u32(4));
-  const exif = principal.has(0x8769) ? lerBloco(u32(principal.get(0x8769).valor)) : new Map();
-  for (const candidata of [texto(exif.get(0x9003)), texto(exif.get(0x9004)), texto(principal.get(0x0132))]) {
-    const partes = candidata && /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)$/.exec(candidata);
-    const data = partes && dataValida(...partes.slice(1).map(Number));
-    if (data) return data;
-  }
-  return null;
+function dataDeTexto(texto) {
+  const partes = /^\s*(\d{4})[:-](\d\d)[:-](\d\d)(?:[ T](\d\d):(\d\d)(?::(\d\d))?)?/.exec(texto ?? '');
+  if (!partes) return null;
+  const numeros = partes.slice(1).map((parte) => (parte === undefined ? undefined : Number(parte)));
+  return partes[4] === undefined ? dataValida(...numeros.slice(0, 3)) : dataValida(...numeros.slice(0, 5), numeros[5] ?? 0);
 }
 
-async function dataDoExif(arquivo) {
+function datasDoTiff(bytes, base) {
   try {
-    const bytes = new DataView(await arquivo.slice(0, TRECHO_DO_EXIF).arrayBuffer());
-    if (bytes.getUint16(0) !== 0xffd8) return null;
-    let posicao = 2;
-    while (posicao + 4 <= bytes.byteLength) {
-      if (bytes.getUint8(posicao) !== 0xff) return null;
-      const marcador = bytes.getUint8(posicao + 1);
-      if (marcador === 0xda || marcador === 0xd9) return null;
-      const tamanho = bytes.getUint16(posicao + 2);
-
-      if (marcador === 0xe1 && bytes.getUint32(posicao + 4) === 0x45786966 && bytes.getUint16(posicao + 8) === 0) {
-        return dataDoTiff(bytes, posicao + 10);
+    const ordem = bytes.getUint16(base);
+    if (ordem !== 0x4949 && ordem !== 0x4d4d) return [];
+    const invertido = ordem === 0x4949;
+    const u16 = (posicao) => bytes.getUint16(base + posicao, invertido);
+    const u32 = (posicao) => bytes.getUint32(base + posicao, invertido);
+    const lerBloco = (inicio) => {
+      const etiquetas = new Map();
+      const quantas = u16(inicio);
+      for (let i = 0; i < quantas; i++) {
+        const entrada = inicio + 2 + i * 12;
+        etiquetas.set(u16(entrada), { tipo: u16(entrada + 2), quantos: u32(entrada + 4), valor: entrada + 8 });
       }
-      posicao += 2 + tamanho;
-    }
-    return null;
+      return etiquetas;
+    };
+    const texto = (etiqueta) => {
+      if (!etiqueta || etiqueta.tipo !== 2 || etiqueta.quantos < 19) return null;
+      const inicio = u32(etiqueta.valor);
+      let lido = '';
+      for (let i = 0; i < 19; i++) lido += String.fromCharCode(bytes.getUint8(base + inicio + i));
+      return lido;
+    };
+    const principal = lerBloco(u32(4));
+    const exif = principal.has(0x8769) ? lerBloco(u32(principal.get(0x8769).valor)) : new Map();
+    return ETIQUETAS_DE_DATA.map((etiqueta) => dataDeTexto(texto(exif.get(etiqueta) ?? principal.get(etiqueta)))).filter(Boolean);
   } catch {
-    return null;
+    return [];
+  }
+}
+
+function posicoesDe(bytes, marca) {
+  const posicoes = [];
+  const codigos = [...marca].map((letra) => letra.charCodeAt(0));
+  for (let i = bytes.indexOf(codigos[0]); i >= 0 && i + codigos.length <= bytes.length; i = bytes.indexOf(codigos[0], i + 1)) {
+    if (codigos.every((codigo, k) => bytes[i + k] === codigo)) posicoes.push(i);
+  }
+  return posicoes;
+}
+
+const comoTexto = (bytes) => new TextDecoder('latin1').decode(bytes);
+
+function datasDoXmp(texto) {
+  const datas = [];
+  for (const campo of CAMPOS_XMP) {
+    const padrao = new RegExp(`${campo}(?:\\s*=\\s*"([^"]+)"|>([^<]+)<)`, 'g');
+    for (const achado of texto.matchAll(padrao)) datas.push(dataDeTexto(achado[1] ?? achado[2]));
+  }
+  return datas.filter(Boolean);
+}
+
+async function descomprimir(bytes) {
+  const fluxo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Uint8Array(await new Response(fluxo).arrayBuffer());
+}
+
+async function datasDoPerfilExif(texto) {
+  const partes = /exif\s*\n\s*\d+\s*\n([0-9a-f\s]+)/i.exec(texto);
+  if (!partes) return [];
+  const hexa = partes[1].replace(/\s+/g, '');
+  const bytes = new Uint8Array(hexa.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hexa.slice(i * 2, i * 2 + 2), 16);
+  return datasNosBytes(bytes, { soExif: true });
+}
+
+async function datasDoPng(bytes) {
+  const visao = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const datas = [];
+  for (const tipo of BLOCOS_PNG) {
+    for (const posicao of posicoesDe(bytes, tipo)) {
+      if (posicao < 4) continue;
+      const tamanho = visao.getUint32(posicao - 4);
+      if (posicao + 4 + tamanho > bytes.length) continue;
+      const corpo = bytes.subarray(posicao + 4, posicao + 4 + tamanho);
+      try {
+        if (tipo === 'eXIf') {
+          const inicio = comoTexto(corpo.subarray(0, 6)) === 'Exif\0\0' ? 6 : 0;
+          datas.push(...datasDoTiff(new DataView(corpo.buffer, corpo.byteOffset + inicio, corpo.byteLength - inicio), 0));
+          continue;
+        }
+        const fimDaChave = corpo.indexOf(0);
+        if (fimDaChave < 0) continue;
+        const chave = comoTexto(corpo.subarray(0, fimDaChave));
+        let valor = corpo.subarray(fimDaChave + 1);
+        if (tipo === 'zTXt') valor = await descomprimir(valor.subarray(1));
+        if (tipo === 'iTXt') {
+          const comprimido = valor[0] === 1;
+          let resto = valor.subarray(2);
+          resto = resto.subarray(resto.indexOf(0) + 1);
+          resto = resto.subarray(resto.indexOf(0) + 1);
+          valor = comprimido ? await descomprimir(resto) : resto;
+        }
+        const texto = new TextDecoder().decode(valor);
+        if (/^raw profile type (exif|app1)$/i.test(chave)) datas.push(...(await datasDoPerfilExif(texto)));
+        else if (/^creation time$/i.test(chave)) datas.push(dataDeTexto(texto) ?? (Number.isNaN(Date.parse(texto)) ? null : new Date(Date.parse(texto))));
+        else datas.push(...datasDoXmp(texto));
+      } catch {
+      }
+    }
+  }
+  return datas.filter(Boolean);
+}
+
+async function datasNosBytes(bytes, { soExif = false } = {}) {
+  const visao = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const datas = [];
+  for (const posicao of posicoesDe(bytes, 'Exif\0\0')) datas.push(...datasDoTiff(visao, posicao + 6));
+  if (soExif) return datas;
+  if (comoTexto(bytes.subarray(0, 4)) === 'RIFF') {
+    for (const posicao of posicoesDe(bytes, 'EXIF')) datas.push(...datasDoTiff(visao, posicao + 8));
+  }
+  if (comoTexto(bytes.subarray(1, 4)) === 'PNG' || posicoesDe(bytes, 'IEND').length > 0) datas.push(...(await datasDoPng(bytes)));
+  datas.push(...datasDoXmp(comoTexto(bytes)));
+  return datas;
+}
+
+async function datasDoArquivo(arquivo) {
+  try {
+    const inicio = new Uint8Array(await arquivo.slice(0, TRECHO_DO_INICIO).arrayBuffer());
+    const datas = await datasNosBytes(inicio);
+    if (arquivo.size > TRECHO_DO_INICIO) {
+      const fim = new Uint8Array(await arquivo.slice(Math.max(TRECHO_DO_INICIO, arquivo.size - TRECHO_DO_FIM)).arrayBuffer());
+      datas.push(...(await datasNosBytes(fim)));
+    }
+    return datas;
+  } catch {
+    return [];
   }
 }
 
 const DATA_NO_NOME = /(?:^|\D)((?:19|20)\d\d)[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?:[-_. T]?([01]\d|2[0-3])[-_.:h]?([0-5]\d)[-_.:m]?([0-5]\d))?(?!\d)/;
+const DIA_MES_ANO_NO_NOME = /(?:^|\D)(0[1-9]|[12]\d|3[01])[-_.]?(0[1-9]|1[0-2])[-_.]?((?:19|20)\d\d)(?:\D+([01]\d|2[0-3])[-_.:h]([0-5]\d))?(?!\d)/;
+const MILISSEGUNDOS_NO_NOME = /(?:^|\D)(1[2-7]\d{11})(?!\d)/;
+const GRAVACAO_DE_TELA = /RPReplay_Final(1[2-7]\d{8})(?!\d)/;
+
+function dataDeInstante(milissegundos) {
+  const data = new Date(milissegundos);
+  return dataValida(data.getFullYear(), data.getMonth() + 1, data.getDate(), data.getHours(), data.getMinutes(), data.getSeconds());
+}
 
 export function dataDoNome(nome) {
-  const partes = DATA_NO_NOME.exec(nome);
-  if (!partes) return null;
-  const [ano, mes, dia] = partes.slice(1, 4).map(Number);
-
-  return partes[4] ? dataValida(ano, mes, dia, ...partes.slice(4, 7).map(Number)) : dataValida(ano, mes, dia);
+  const iso = DATA_NO_NOME.exec(nome);
+  if (iso) {
+    const [ano, mes, dia] = iso.slice(1, 4).map(Number);
+    const data = iso[4] ? dataValida(ano, mes, dia, ...iso.slice(4, 7).map(Number)) : dataValida(ano, mes, dia);
+    if (data) return data;
+  }
+  const brasileira = DIA_MES_ANO_NO_NOME.exec(nome);
+  if (brasileira) {
+    const [dia, mes, ano] = brasileira.slice(1, 4).map(Number);
+    const data = brasileira[4] ? dataValida(ano, mes, dia, Number(brasileira[4]), Number(brasileira[5])) : dataValida(ano, mes, dia);
+    if (data) return data;
+  }
+  const milissegundos = MILISSEGUNDOS_NO_NOME.exec(nome);
+  if (milissegundos) {
+    const data = dataDeInstante(Number(milissegundos[1]));
+    if (data) return data;
+  }
+  const gravacao = GRAVACAO_DE_TELA.exec(nome);
+  return gravacao ? dataDeInstante(Number(gravacao[1]) * 1000) : null;
 }
 
 export async function dataDaFoto(arquivo) {
-  const doExif = await dataDoExif(arquivo);
-  if (doExif) return { data: doExif, origem: 'exif' };
+  const candidatas = (await datasDoArquivo(arquivo)).map((data) => ({ data, origem: 'exif' }));
   const doNome = dataDoNome(arquivo.name);
-  return doNome ? { data: doNome, origem: 'nome' } : null;
+  if (doNome) candidatas.push({ data: doNome, origem: 'nome' });
+  if (candidatas.length === 0) return null;
+  return candidatas.reduce((mais, candidata) => (candidata.data < mais.data ? candidata : mais));
 }
 
 export function sugestaoDeData(arquivo) {
