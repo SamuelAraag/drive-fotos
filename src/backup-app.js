@@ -22,6 +22,15 @@ let pausada = false;
 let cancelada = false;
 let leituraAtiva = false;
 
+const JANELA_DO_RITMO = 3 * 60 * 1000;
+const TEMPO_MINIMO_PARA_ESTIMAR = 20 * 1000;
+const INTERVALO_DO_TEMPO_NA_TELA = 5 * 1000;
+const TITULO_DA_PAGINA = document.title;
+
+let amostras = [];
+let tempoNaTela = { texto: '', em: 0 };
+let comecouEm = 0;
+
 let indice = new Map();
 let anosComIndice = new Set();
 let anosPorGravar = new Set();
@@ -185,6 +194,85 @@ function atualizarRelatorio() {
   );
 }
 
+const pesoDe = (item) => (item.shaExistente ? 0 : (item.arquivo?.size ?? 0));
+
+function medirAndamento() {
+  const fila = backupAtivo.candidatas.filter((item) => !item.foraDaFila);
+  let total = 0;
+  let feito = 0;
+  let fotosFeitas = 0;
+  for (const item of fila) {
+    const peso = pesoDe(item);
+    total += peso;
+    if (['concluido', 'erro', 'ignorado'].includes(item.estado)) {
+      feito += peso;
+      fotosFeitas++;
+    } else if (item.estado === 'gravando') feito += peso;
+    else if (item.estado === 'enviando') feito += peso * (item.progresso ?? 0);
+  }
+  const fracao = total > 0 ? feito / total : fila.length > 0 ? fotosFeitas / fila.length : 1;
+  return { total, feito, fotos: fila.length, fotosFeitas, fracao };
+}
+
+function registrarAmostra(andamento) {
+  const agora = Date.now();
+  if (pausada || !enviando || cancelada) {
+    amostras = [];
+    return;
+  }
+  if (amostras.length && agora - amostras.at(-1).em < 1000) return;
+  amostras.push({ em: agora, bytes: andamento.feito, fotos: andamento.fotosFeitas });
+  while (amostras.length > 2 && agora - amostras[0].em > JANELA_DO_RITMO) amostras.shift();
+}
+
+function estimarRestante(andamento) {
+  if (amostras.length < 2) return null;
+  const primeira = amostras[0];
+  const ultima = amostras.at(-1);
+  const tempo = ultima.em - primeira.em;
+  if (tempo < TEMPO_MINIMO_PARA_ESTIMAR) return null;
+  const restantes = [];
+  const fotos = ultima.fotos - primeira.fotos;
+  if (fotos >= 2) restantes.push(((andamento.fotos - andamento.fotosFeitas) * tempo) / fotos);
+  const bytes = ultima.bytes - primeira.bytes;
+  if (bytes > 0 && andamento.total > 0) restantes.push(((andamento.total - andamento.feito) * tempo) / bytes);
+  return restantes.length ? Math.max(...restantes) : null;
+}
+
+function duracaoEmTexto(ms) {
+  const minutos = ms / 60000;
+  if (minutos < 1) return 'menos de 1 minuto';
+  if (minutos < 10) {
+    const inteiros = Math.round(minutos);
+    return `${inteiros} ${inteiros === 1 ? 'minuto' : 'minutos'}`;
+  }
+  if (minutos < 60) return `${Math.round(minutos / 5) * 5} minutos`;
+  const arredondados = Math.round(minutos / 10) * 10;
+  const horas = Math.floor(arredondados / 60);
+  const resto = arredondados % 60;
+  return `${horas} h${resto ? ` ${resto} min` : ''}`;
+}
+
+const horaEmTexto = (instante) => new Date(instante).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+function textoDoTempo(andamento, concluida) {
+  if (concluida) return cancelada ? '' : `Levou ${duracaoEmTexto(Date.now() - comecouEm)}`;
+  if (pausada) return 'Pausado';
+  if (limiteAte > Date.now()) return `O GitHub pediu uma pausa. Volta às ${horaEmTexto(limiteAte)}`;
+  const restante = estimarRestante(andamento);
+  if (restante == null) return 'Calculando o tempo restante...';
+  const texto = restante < 60000 ? 'Falta menos de 1 minuto' : `Faltam cerca de ${duracaoEmTexto(restante)}`;
+  return restante >= 10 * 60000 ? `${texto}, até umas ${horaEmTexto(Date.now() + restante)}` : texto;
+}
+
+function mostrarTempo(texto, imediato) {
+  const agora = Date.now();
+  if (!imediato && texto !== tempoNaTela.texto && agora - tempoNaTela.em < INTERVALO_DO_TEMPO_NA_TELA) return;
+  if (texto === tempoNaTela.texto) return;
+  tempoNaTela = { texto, em: agora };
+  $('backup-tempo').textContent = texto;
+}
+
 function renderizar(comLista = true) {
   if (!backupAtivo) return;
   const enviadas = backupAtivo.candidatas.filter((item) => item.estado === 'concluido').length;
@@ -194,7 +282,6 @@ function renderizar(comLista = true) {
   const pendentes = aguardando + emAndamento;
   const ignoradas = backupAtivo.ignorados.length + backupAtivo.candidatas.filter((item) => item.estado === 'ignorado').length;
   const concluida = pendentes === 0 && !enviando && !pausada;
-  const resolvidas = enviadas + falhas + ignoradas;
 
   $('backup-status').textContent = cancelada
     ? 'Backup cancelado.'
@@ -209,17 +296,28 @@ function renderizar(comLista = true) {
           : 'Preparando a fila de arquivos.';
   const subindo = backupAtivo.candidatas.filter((item) => item.estado === 'enviando');
   const gravando = backupAtivo.candidatas.filter((item) => item.estado === 'gravando');
+  const nomeDe = (item) => item.caminho.split('/').pop();
   $('backup-atual').textContent = subindo.length
-    ? `Enviando agora: ${subindo.map((item) => `${item.caminho} (${item.etapa ?? 'Preparando'}${item.progresso > 0 ? ` ${Math.round(item.progresso * 100)}%` : ''})`).join(' · ')}`
+    ? `Enviando ${nomeDe(subindo[0])}${subindo.length > 1 ? ` e mais ${subindo.length - 1}` : ''}`
     : gravando.length
       ? gravando[0].etapa
       : '';
-  $('backup-contagem').textContent =
-    `${enviadas} enviadas · ${ignoradas} ignoradas · ${falhas} com erro · ${aguardando} aguardando` +
-    (emAndamento ? ` · ${emAndamento} em andamento` : '');
-  const fracaoAtual = [...subindo, ...gravando].reduce((soma, item) => soma + (item.progresso ?? 0), 0);
-  const total = backupAtivo.candidatas.length + backupAtivo.ignorados.length;
-  $('backup-progresso').value = total ? Math.min(100, Math.round(((resolvidas + fracaoAtual) / total) * 100)) : 100;
+
+  const andamento = medirAndamento();
+  registrarAmostra(andamento);
+  const percentual = concluida && !cancelada ? 100 : Math.min(99, Math.floor(andamento.fracao * 100));
+  $('backup-percentual').textContent = `${percentual}%`;
+  $('backup-andamento').classList.toggle('backup__andamento--concluido', concluida && !cancelada);
+  $('backup-progresso').value = percentual;
+  $('backup-progresso').setAttribute('aria-valuetext', `${percentual}%, ${andamento.fotosFeitas} de ${andamento.fotos} fotos`);
+  mostrarTempo(textoDoTempo(andamento, concluida), concluida || pausada);
+  document.title = concluida ? TITULO_DA_PAGINA : `${percentual}% · ${TITULO_DA_PAGINA}`;
+
+  const extras = [];
+  if (ignoradas) extras.push(`${ignoradas} ${ignoradas === 1 ? 'ignorada' : 'ignoradas'}`);
+  if (falhas) extras.push(`${falhas} com erro`);
+  const tamanho = andamento.total > 0 ? ` · ${foto.fmtTamanho(andamento.feito)} de ${foto.fmtTamanho(andamento.total)}` : '';
+  $('backup-contagem').textContent = [`${andamento.fotosFeitas} de ${andamento.fotos} fotos${tamanho}`, ...extras].join(' · ');
   $('backup-pausar').hidden = concluida || pausada || !enviando;
   $('backup-retomar-botao').hidden = concluida || !pausada;
   $('backup-cancelar').hidden = concluida;
@@ -727,7 +825,7 @@ async function iniciar() {
     pasta: backupPronto.pasta,
     candidatas: backupPronto.candidatas.map((item) => {
       if (item.repetidaConteudo && !selecionados.has(item.caminho)) {
-        return { ...item, estado: 'ignorado', motivo: 'conteúdo repetido não selecionado' };
+        return { ...item, estado: 'ignorado', motivo: 'conteúdo repetido não selecionado', foraDaFila: true };
       }
       return { ...item, estado: 'aguardando' };
     }),
@@ -736,6 +834,9 @@ async function iniciar() {
   backupPronto = null;
   pausada = false;
   cancelada = false;
+  comecouEm = Date.now();
+  amostras = [];
+  tempoNaTela = { texto: '', em: 0 };
   $('backup-lista-detalhes').open = true;
   salvarMarcador(true);
   definirEtapa('andamento');

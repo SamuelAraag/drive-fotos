@@ -72,8 +72,12 @@
 
       <div class="backup__andamento" id="backup-andamento" hidden>
         <p id="backup-status" role="status" aria-live="polite"></p>
+        <div class="backup__placar">
+          <p class="backup__percentual" id="backup-percentual" aria-hidden="true"></p>
+          <p class="texto-suave" id="backup-tempo"></p>
+        </div>
+        <progress id="backup-progresso" max="100" value="0" aria-label="Progresso do backup"></progress>
         <p class="texto-suave texto-pequeno" id="backup-atual"></p>
-        <progress id="backup-progresso" max="100" value="0"></progress>
         <p class="texto-suave texto-pequeno" id="backup-contagem"></p>
         <details id="backup-lista-detalhes">
           <summary>Estado dos arquivos</summary>
