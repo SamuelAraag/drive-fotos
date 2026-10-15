@@ -637,9 +637,10 @@ const naTelaDeFavoritas = () => location.hash === '#favoritas';
 
 function lerFavoritasGuardadas() {
   try {
-    return new Set(JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS_LIDAS) ?? '[]'));
+    const guardadas = JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS_LIDAS) ?? '[]');
+    return new Map(guardadas.map((entrada) => (Array.isArray(entrada) ? entrada : [entrada, ''])));
   } catch {
-    return new Set();
+    return new Map();
   }
 }
 
@@ -652,7 +653,8 @@ function guardarFavoritasLidas() {
 
 function lerFavoritasPendentes() {
   try {
-    return new Map(JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS) ?? '[]'));
+    const guardadas = JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS) ?? '[]');
+    return new Map(guardadas.filter(([, valor]) => typeof valor === 'object' && valor));
   } catch {
     return new Map();
   }
@@ -666,13 +668,15 @@ function guardarFavoritasPendentes() {
   }
 }
 
-const ehFavorita = (item) => favoritasPendentes.get(item.sha) ?? favoritasNoRepositorio.has(item.sha);
+const ehFavorita = (item) => favoritasPendentes.get(item.sha)?.favorita ?? favoritasNoRepositorio.has(item.sha);
+const favoritadaEm = (item) => favoritasPendentes.get(item.sha)?.em ?? favoritasNoRepositorio.get(item.sha) ?? '';
 
 async function lerArquivoDeFavoritas(arvore) {
   const arquivo = arvore.find((item) => item.caminho === ARQUIVO_DE_FAVORITAS);
-  if (!arquivo) return { sha: null, fotos: new Set() };
+  if (!arquivo) return { sha: null, fotos: new Map() };
   const dados = JSON.parse(await (await obterBlob(arquivo.sha, { original: false })).text());
-  return { sha: arquivo.sha, fotos: new Set(Array.isArray(dados?.fotos) ? dados.fotos : []) };
+  const fotos = Array.isArray(dados?.fotos) ? dados.fotos.map((sha) => [sha, '']) : Object.entries(dados?.fotos ?? {});
+  return { sha: arquivo.sha, fotos: new Map(fotos) };
 }
 
 async function lerFavoritas() {
@@ -701,17 +705,18 @@ async function gravarFavoritas() {
   const enviadas = new Map(favoritasPendentes);
   try {
     const remoto = await lerArquivoDeFavoritas(await github.lerArvore());
-    for (const [sha, favorita] of enviadas) {
-      if (favorita) remoto.fotos.add(sha);
+    for (const [sha, { favorita, em }] of enviadas) {
+      if (favorita) remoto.fotos.set(sha, em);
       else remoto.fotos.delete(sha);
     }
-    const texto = `${JSON.stringify({ versao: 1, fotos: [...remoto.fotos].sort() })}\n`;
+    const ordenadas = [...remoto.fotos].sort(([a], [b]) => (a < b ? -1 : 1));
+    const texto = `${JSON.stringify({ versao: 2, fotos: Object.fromEntries(ordenadas) })}\n`;
     await github.gravar([{ caminho: ARQUIVO_DE_FAVORITAS, texto }], `favoritas: ${enviadas.size} ${enviadas.size === 1 ? 'mudança' : 'mudanças'}`);
     favoritasNoRepositorio = remoto.fotos;
     favoritasLidasDe = await foto.shaDoGit(texto);
     guardarFavoritasLidas();
-    for (const [sha, favorita] of enviadas) {
-      if (favoritasPendentes.get(sha) === favorita) favoritasPendentes.delete(sha);
+    for (const [sha, enviada] of enviadas) {
+      if (favoritasPendentes.get(sha) === enviada) favoritasPendentes.delete(sha);
     }
     guardarFavoritasPendentes();
   } catch (erro) {
@@ -723,12 +728,22 @@ async function gravarFavoritas() {
 }
 
 function definirFavoritas(itens, favorita) {
-  for (const item of itens) {
-    if (favoritasNoRepositorio.has(item.sha) === favorita) favoritasPendentes.delete(item.sha);
-    else favoritasPendentes.set(item.sha, favorita);
-  }
+  const agora = Date.now();
+  itens.forEach((item, posicao) => {
+    if (favoritasNoRepositorio.has(item.sha) === favorita && !favorita) favoritasPendentes.delete(item.sha);
+    else favoritasPendentes.set(item.sha, { favorita, em: new Date(agora - posicao).toISOString() });
+  });
   guardarFavoritasPendentes();
   agendarFavoritas();
+}
+
+function mostrarMudancaDeFavoritas(itens, favorita) {
+  if (naTelaDeFavoritas()) {
+    render();
+    return;
+  }
+  for (const item of itens) ui.marcarFavorita(item.id, item, favorita);
+  renderFaixaDeFavoritas({ entrando: favorita ? itens.map((item) => item.id) : [] });
 }
 
 function alternarFavorita(id) {
@@ -736,11 +751,7 @@ function alternarFavorita(id) {
   if (!item) return;
   const favorita = !ehFavorita(item);
   definirFavoritas([item], favorita);
-  if (naTelaDeFavoritas()) render();
-  else {
-    ui.marcarFavorita(id, item, favorita);
-    renderFaixaDeFavoritas();
-  }
+  mostrarMudancaDeFavoritas([item], favorita);
   if (aberta === id) ui.marcarFavoritaNoVisor(favorita);
 }
 
@@ -750,23 +761,29 @@ function alternarFavoritaAberta() {
   const favorita = !ehFavorita(item);
   definirFavoritas([item], favorita);
   ui.marcarFavoritaNoVisor(favorita, { avisar: true });
-  if (naTelaDeFavoritas()) render();
-  else {
-    ui.marcarFavorita(item.id, item, favorita);
-    renderFaixaDeFavoritas();
-  }
+  mostrarMudancaDeFavoritas([item], favorita);
 }
 
 function favoritarSelecao() {
   const itens = fotos?.filter((item) => fotosSelecionadas.has(item.id)) ?? [];
   if (itens.length === 0) return;
-  definirFavoritas(itens, !itens.every(ehFavorita));
+  const favorita = !itens.every(ehFavorita);
+  const mudam = itens.filter((item) => ehFavorita(item) !== favorita);
+  definirFavoritas(mudam, favorita);
   sairDaSelecao();
-  render();
+  mostrarMudancaDeFavoritas(mudam, favorita);
 }
 
-function renderFaixaDeFavoritas() {
-  ui.renderFavoritas({ lista: fotos?.filter(ehFavorita) ?? [], filtro: naTelaDeFavoritas() });
+function renderFaixaDeFavoritas({ entrando = [] } = {}) {
+  const lista = (fotos ?? [])
+    .filter(ehFavorita)
+    .sort((a, b) => {
+      const quandoA = favoritadaEm(a);
+      const quandoB = favoritadaEm(b);
+      if (quandoA !== quandoB) return quandoA < quandoB ? 1 : -1;
+      return a.id < b.id ? 1 : -1;
+    });
+  ui.renderFavoritas({ lista, filtro: naTelaDeFavoritas(), entrando });
 }
 let lendoPendentes = false;
 let pendentesIncompletas = false;

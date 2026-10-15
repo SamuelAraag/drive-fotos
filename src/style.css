@@ -7,7 +7,7 @@
   --azul: #3b9dff;
   --erro: #ff8585;
   --sucesso: #4ade80;
-  --favorita: var(--atencao);
+  --favorita: var(--erro);
   --atencao: #f5a524;
   --foco: #a9d3ff;
 
