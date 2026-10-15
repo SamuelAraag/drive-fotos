@@ -436,6 +436,38 @@ export function esquecerEnvio() {
   $('grade').classList.remove('dias--holofote');
 }
 
+const CORACAO = 'M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3z';
+const MAXIMO_NA_FAIXA = 24;
+
+let ehFavoritaNaGrade = () => false;
+
+function coracao(cheio) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', cheio ? 'coracao coracao--cheio' : 'coracao');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const caminho = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  caminho.setAttribute('d', CORACAO);
+  svg.append(caminho);
+  return svg;
+}
+
+function marcarFavoritaNoQuadro(quadro, foto, favorita) {
+  quadro.querySelector('.grade__selo-favorita')?.remove();
+  const botao = quadro.querySelector('.grade__favoritar');
+  if (botao) {
+    botao.setAttribute('aria-pressed', String(favorita));
+    botao.setAttribute('aria-label', favorita ? 'Tirar das favoritas' : 'Favoritar');
+    botao.title = favorita ? 'Tirar das favoritas' : 'Favoritar';
+    botao.replaceChildren(coracao(favorita));
+  }
+  quadro.querySelector('.grade__botao').setAttribute('aria-label', `${descricaoDaFoto(foto)}${favorita ? ', favorita' : ''}`);
+  if (!favorita) return;
+  const selo = el('span', 'grade__selo-favorita');
+  selo.append(coracao(true));
+  quadro.append(selo);
+}
+
 const PRIMEIRA_LEVA = 150;
 const LEVA = 300;
 
@@ -465,7 +497,10 @@ function desenharGrupo(grupo) {
     botao.type = 'button';
     botao.setAttribute('aria-label', descricaoDaFoto(foto));
     if (selecao.ativa) botao.setAttribute('aria-pressed', String(selecao.ids.has(foto.id)));
-    quadro.append(botao);
+    const favoritar = el('button', 'grade__favoritar');
+    favoritar.type = 'button';
+    quadro.append(botao, favoritar);
+    marcarFavoritaNoQuadro(quadro, foto, ehFavoritaNaGrade(foto));
     quadro.classList.toggle('grade__quadro--selecionado', selecao.ids.has(foto.id));
     if (foto.id === destaqueId) marcarDestaque(quadro, false);
     if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
@@ -517,6 +552,68 @@ function vigiarFimDaGrade() {
   fimDaGrade.observe(ultima);
 }
 
+export function renderFavoritas({ lista, filtro }) {
+  const secao = $('favoritas-destaque');
+  if (!secao) return;
+  const quantas = lista.length === 1 ? '· 1 foto' : `· ${lista.length.toLocaleString('pt-BR')} fotos`;
+  secao.hidden = filtro || lista.length === 0;
+  $('favoritas-filtro').hidden = !filtro;
+  $('favoritas-vazia').hidden = !filtro || lista.length > 0;
+  $('favoritas-quantas').textContent = quantas;
+  $('favoritas-filtro-quantas').textContent = quantas;
+  if (secao.hidden) {
+    $('favoritas-faixa').replaceChildren();
+    return;
+  }
+  $('favoritas-faixa').replaceChildren(
+    ...lista.slice(0, MAXIMO_NA_FAIXA).map((foto) => {
+      const item = el('li', 'favoritas__item');
+      const botao = el('button');
+      botao.type = 'button';
+      botao.dataset.abrir = foto.id;
+      botao.setAttribute('aria-label', `Abrir favorita, ${descricaoDaFoto(foto)}`);
+      const data = el('span', 'favoritas__data', tituloDoDia(foto.dia));
+      botao.append(data);
+      if (foto.miniatura && baixarAtual) {
+        baixarAtual(foto.miniatura).then(
+          (url) => {
+            const imagem = el('img');
+            imagem.alt = '';
+            imagem.decoding = 'async';
+            imagem.src = url;
+            botao.prepend(imagem);
+          },
+          () => {},
+        );
+      }
+      item.append(botao);
+      return item;
+    }),
+  );
+}
+
+export function marcarFavorita(id, foto, favorita) {
+  const quadro = $('grade').querySelector(`[data-id="${id}"]`);
+  if (quadro) {
+    marcarFavoritaNoQuadro(quadro, foto, favorita);
+    if (podeAnimar()) quadro.querySelector('.grade__favoritar .coracao')?.classList.add('pulsa');
+  }
+}
+
+export function marcarFavoritaNoVisor(favorita, { avisar = false } = {}) {
+  const botao = $('visor-favoritar');
+  if (!botao) return;
+  botao.setAttribute('aria-pressed', String(favorita));
+  botao.title = favorita ? 'Tirar das favoritas' : 'Favoritar';
+  botao.querySelector('.visor__rotulo').textContent = favorita ? 'Tirar das favoritas' : 'Favoritar';
+  if (!avisar) return;
+  const icone = botao.querySelector('.coracao');
+  icone.classList.remove('pulsa');
+  void icone.getBoundingClientRect();
+  if (podeAnimar()) icone.classList.add('pulsa');
+  confirmarNoVisor(favorita ? 'Adicionada às favoritas' : 'Saiu das favoritas');
+}
+
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
@@ -549,7 +646,8 @@ function deslizarDe(posicoes) {
   }
 }
 
-export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }) {
+export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }, { ehFavorita = () => false } = {}) {
+  ehFavoritaNaGrade = ehFavorita;
   encerrarVoo();
   const posicoes = posicoesVisiveis();
   limparPrincipal();
@@ -584,8 +682,13 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
   deslizarDe(posicoes);
 }
 
-export function atualizarSelecao(ativa, ids, total) {
+export function atualizarSelecao(ativa, ids, total, todasFavoritas = false) {
   selecaoNaGrade = { ativa, ids };
+  const favoritar = $('favoritar-selecionadas');
+  if (favoritar) {
+    favoritar.disabled = ids.size === 0;
+    favoritar.textContent = todasFavoritas ? 'Tirar das favoritas' : 'Favoritar';
+  }
   document.body.classList.toggle('modo-selecao', ativa);
   $('grade').classList.toggle('grade--selecao', ativa);
   $('selecao-topo').hidden = total === 0 || ativa;
@@ -1234,6 +1337,11 @@ function ligarVisor(acoes) {
     if (evento.target.closest('.grade__botao')) evento.preventDefault();
   });
   $('grade').addEventListener('click', (evento) => {
+    const favoritar = evento.target.closest('.grade__favoritar');
+    if (favoritar) {
+      acoes.alternarFavorita(favoritar.closest('[data-id]').dataset.id);
+      return;
+    }
     const botao = evento.target.closest('.grade__botao');
     const quadro = botao?.closest('[data-id]');
     if (!quadro) return;
@@ -2077,6 +2185,12 @@ export function ligarEventos(acoes) {
   $('entrar-selecao').addEventListener('click', () => acoes.iniciarSelecao());
   $('apagar-selecionadas').addEventListener('click', acoes.abrirConfirmacaoSelecao);
   $('cancelar-selecao').addEventListener('click', acoes.sairDaSelecao);
+  $('favoritar-selecionadas')?.addEventListener('click', acoes.favoritarSelecao);
+  $('favoritas-faixa')?.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('[data-abrir]');
+    if (botao) acoes.abrirFoto(botao.dataset.abrir);
+  });
+  $('visor-favoritar')?.addEventListener('click', acoes.alternarFavoritaAberta);
   $('apagar-selecao-form').addEventListener('submit', (evento) => {
     evento.preventDefault();
     acoes.apagarSelecao();

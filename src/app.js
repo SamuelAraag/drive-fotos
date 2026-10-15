@@ -29,6 +29,17 @@ let anosComIndice = new Set();
 let indicePronto = false;
 let lendoIndice = null;
 
+const ARQUIVO_DE_FAVORITAS = 'favoritas.json';
+const CHAVE_DAS_FAVORITAS = 'drive-fotos.favoritas-pendentes';
+const CHAVE_DAS_FAVORITAS_LIDAS = 'drive-fotos.favoritas';
+const ESPERA_PARA_GRAVAR_FAVORITAS = 3000;
+let arvoreLida = [];
+let favoritasNoRepositorio = lerFavoritasGuardadas();
+let favoritasLidasDe = null;
+let favoritasPendentes = lerFavoritasPendentes();
+let gravandoFavoritas = false;
+let gravarFavoritasEm = null;
+
 let fila = [];
 let proximoItem = 1;
 let enviando = false;
@@ -262,6 +273,7 @@ async function mostrarAberta({ abrindo = false } = {}) {
   };
   if (abrindo) ui.abrirVisor(item, dados);
   else ui.renderVisor(item, dados);
+  ui.marcarFavoritaNoVisor(ehFavorita(item));
   lerRegistro(item).then((registro) => ui.dadosDoRegistro(item.id, registro));
   try {
     const url = await baixarOriginal(item);
@@ -526,7 +538,8 @@ function removerFotosDaLista(removidas) {
 }
 
 function atualizarSelecao() {
-  ui.atualizarSelecao(modoSelecao, fotosSelecionadas, fotos?.length ?? 0);
+  const selecionadas = fotos?.filter((item) => fotosSelecionadas.has(item.id)) ?? [];
+  ui.atualizarSelecao(modoSelecao, fotosSelecionadas, fotos?.length ?? 0, selecionadas.length > 0 && selecionadas.every(ehFavorita));
 }
 
 function iniciarSelecao(id = null) {
@@ -620,6 +633,141 @@ async function apagarSelecao() {
 }
 
 const naTelaSemData = () => location.hash === '#sem-data';
+const naTelaDeFavoritas = () => location.hash === '#favoritas';
+
+function lerFavoritasGuardadas() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS_LIDAS) ?? '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function guardarFavoritasLidas() {
+  try {
+    localStorage.setItem(CHAVE_DAS_FAVORITAS_LIDAS, JSON.stringify([...favoritasNoRepositorio]));
+  } catch {
+  }
+}
+
+function lerFavoritasPendentes() {
+  try {
+    return new Map(JSON.parse(localStorage.getItem(CHAVE_DAS_FAVORITAS) ?? '[]'));
+  } catch {
+    return new Map();
+  }
+}
+
+function guardarFavoritasPendentes() {
+  try {
+    if (favoritasPendentes.size) localStorage.setItem(CHAVE_DAS_FAVORITAS, JSON.stringify([...favoritasPendentes]));
+    else localStorage.removeItem(CHAVE_DAS_FAVORITAS);
+  } catch {
+  }
+}
+
+const ehFavorita = (item) => favoritasPendentes.get(item.sha) ?? favoritasNoRepositorio.has(item.sha);
+
+async function lerArquivoDeFavoritas(arvore) {
+  const arquivo = arvore.find((item) => item.caminho === ARQUIVO_DE_FAVORITAS);
+  if (!arquivo) return { sha: null, fotos: new Set() };
+  const dados = JSON.parse(await (await obterBlob(arquivo.sha, { original: false })).text());
+  return { sha: arquivo.sha, fotos: new Set(Array.isArray(dados?.fotos) ? dados.fotos : []) };
+}
+
+async function lerFavoritas() {
+  const arquivo = arvoreLida.find((item) => item.caminho === ARQUIVO_DE_FAVORITAS);
+  if ((arquivo?.sha ?? null) === favoritasLidasDe) return;
+  try {
+    const lido = await lerArquivoDeFavoritas(arvoreLida);
+    favoritasNoRepositorio = lido.fotos;
+    favoritasLidasDe = lido.sha;
+    guardarFavoritasLidas();
+  } catch (erro) {
+    if (tokenVenceu(erro)) return;
+  }
+  render();
+  if (favoritasPendentes.size) agendarFavoritas(0);
+}
+
+function agendarFavoritas(espera = ESPERA_PARA_GRAVAR_FAVORITAS) {
+  clearTimeout(gravarFavoritasEm);
+  gravarFavoritasEm = setTimeout(gravarFavoritas, espera);
+}
+
+async function gravarFavoritas() {
+  if (gravandoFavoritas || favoritasPendentes.size === 0 || !github.lerToken()) return;
+  gravandoFavoritas = true;
+  const enviadas = new Map(favoritasPendentes);
+  try {
+    const remoto = await lerArquivoDeFavoritas(await github.lerArvore());
+    for (const [sha, favorita] of enviadas) {
+      if (favorita) remoto.fotos.add(sha);
+      else remoto.fotos.delete(sha);
+    }
+    const texto = `${JSON.stringify({ versao: 1, fotos: [...remoto.fotos].sort() })}\n`;
+    await github.gravar([{ caminho: ARQUIVO_DE_FAVORITAS, texto }], `favoritas: ${enviadas.size} ${enviadas.size === 1 ? 'mudança' : 'mudanças'}`);
+    favoritasNoRepositorio = remoto.fotos;
+    favoritasLidasDe = await foto.shaDoGit(texto);
+    guardarFavoritasLidas();
+    for (const [sha, favorita] of enviadas) {
+      if (favoritasPendentes.get(sha) === favorita) favoritasPendentes.delete(sha);
+    }
+    guardarFavoritasPendentes();
+  } catch (erro) {
+    if (!tokenVenceu(erro)) agendarFavoritas(60000);
+  } finally {
+    gravandoFavoritas = false;
+  }
+  if (favoritasPendentes.size) agendarFavoritas();
+}
+
+function definirFavoritas(itens, favorita) {
+  for (const item of itens) {
+    if (favoritasNoRepositorio.has(item.sha) === favorita) favoritasPendentes.delete(item.sha);
+    else favoritasPendentes.set(item.sha, favorita);
+  }
+  guardarFavoritasPendentes();
+  agendarFavoritas();
+}
+
+function alternarFavorita(id) {
+  const item = fotos?.find((candidato) => candidato.id === id);
+  if (!item) return;
+  const favorita = !ehFavorita(item);
+  definirFavoritas([item], favorita);
+  if (naTelaDeFavoritas()) render();
+  else {
+    ui.marcarFavorita(id, item, favorita);
+    renderFaixaDeFavoritas();
+  }
+  if (aberta === id) ui.marcarFavoritaNoVisor(favorita);
+}
+
+function alternarFavoritaAberta() {
+  const item = fotos?.find((candidato) => candidato.id === aberta);
+  if (!item) return;
+  const favorita = !ehFavorita(item);
+  definirFavoritas([item], favorita);
+  ui.marcarFavoritaNoVisor(favorita, { avisar: true });
+  if (naTelaDeFavoritas()) render();
+  else {
+    ui.marcarFavorita(item.id, item, favorita);
+    renderFaixaDeFavoritas();
+  }
+}
+
+function favoritarSelecao() {
+  const itens = fotos?.filter((item) => fotosSelecionadas.has(item.id)) ?? [];
+  if (itens.length === 0) return;
+  definirFavoritas(itens, !itens.every(ehFavorita));
+  sairDaSelecao();
+  render();
+}
+
+function renderFaixaDeFavoritas() {
+  ui.renderFavoritas({ lista: fotos?.filter(ehFavorita) ?? [], filtro: naTelaDeFavoritas() });
+}
 let lendoPendentes = false;
 let pendentesIncompletas = false;
 
@@ -657,10 +805,15 @@ function render() {
   }
 
   const espaco = fotos.reduce((soma, item) => soma + (item.peso ?? item.tamanho), 0);
-  ui.renderPrincipal(agruparPorDia(fotos), { total: fotos.length, espaco }, baixarMiniatura, {
-    ativa: modoSelecao,
-    ids: fotosSelecionadas,
-  });
+  const naGrade = naTelaDeFavoritas() ? fotos.filter(ehFavorita) : fotos;
+  ui.renderPrincipal(
+    agruparPorDia(naGrade),
+    { total: fotos.length, espaco },
+    baixarMiniatura,
+    { ativa: modoSelecao, ids: fotosSelecionadas },
+    { ehFavorita },
+  );
+  renderFaixaDeFavoritas();
   ui.linkDasPendentes(pendentes().length);
   ui.mostrarTela('principal');
 }
@@ -679,6 +832,8 @@ async function abrirSemData() {
 
 function aplicarRota() {
   if (!fotos) return;
+  if (naTelaDeFavoritas() && modoSelecao) limparSelecao();
+  if (naTelaDeFavoritas() || location.hash === '') scrollTo({ top: 0 });
   if (naTelaSemData() && modoSelecao) limparSelecao();
   if (naTelaSemData()) abrirSemData();
   else render();
@@ -761,7 +916,9 @@ function renderFila() {
 }
 
 async function lerFotos() {
-  const lista = montarFotos(await github.lerArvore());
+  arvoreLida = await github.lerArvore();
+  const lista = montarFotos(arvoreLida);
+  lerFavoritas();
   conferidoEm = Date.now();
   return lista;
 }
@@ -1371,6 +1528,9 @@ ui.ligarEventos({
   apagarSelecao,
   sairDaSelecao,
   estaEmSelecao: () => modoSelecao,
+  alternarFavorita,
+  alternarFavoritaAberta,
+  favoritarSelecao,
 });
 
 window.addEventListener('beforeunload', (evento) => {
