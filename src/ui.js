@@ -453,6 +453,7 @@ function coracao(cheio) {
 }
 
 function marcarFavoritaNoQuadro(quadro, foto, favorita) {
+  quadro.classList.toggle('grade__quadro--favorita', favorita);
   const botao = quadro.querySelector('.grade__favoritar');
   if (botao) {
     botao.setAttribute('aria-pressed', String(favorita));

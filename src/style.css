@@ -1254,6 +1254,22 @@ body.modo-selecao .dia__selecao {
   transition: opacity var(--medio);
 }
 
+.grade__quadro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 2px solid var(--favorita);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--medio);
+  pointer-events: none;
+}
+
+.grade__quadro--favorita::before {
+  opacity: 1;
+}
+
 .grade__quadro--destaque {
   z-index: 1;
   overflow: visible;
@@ -2481,6 +2497,7 @@ body.modo-selecao .dia__selecao {
 
 .grade__favoritar {
   position: absolute;
+  z-index: 2;
   right: var(--e1);
   bottom: var(--e1);
   display: flex;
