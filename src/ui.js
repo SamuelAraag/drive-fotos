@@ -436,6 +436,34 @@ export function esquecerEnvio() {
   $('grade').classList.remove('dias--holofote');
 }
 
+const CORACAO = 'M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3z';
+const MAXIMO_NA_FAIXA = 24;
+
+let ehFavoritaNaGrade = () => false;
+
+function coracao(cheio) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', cheio ? 'coracao coracao--cheio' : 'coracao');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const caminho = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  caminho.setAttribute('d', CORACAO);
+  svg.append(caminho);
+  return svg;
+}
+
+function marcarFavoritaNoQuadro(quadro, foto, favorita) {
+  quadro.classList.toggle('grade__quadro--favorita', favorita);
+  const botao = quadro.querySelector('.grade__favoritar');
+  if (botao) {
+    botao.setAttribute('aria-pressed', String(favorita));
+    botao.setAttribute('aria-label', favorita ? 'Tirar das favoritas' : 'Favoritar');
+    botao.title = favorita ? 'Tirar das favoritas' : 'Favoritar';
+    botao.replaceChildren(coracao(favorita));
+  }
+  quadro.querySelector('.grade__botao').setAttribute('aria-label', `${descricaoDaFoto(foto)}${favorita ? ', favorita' : ''}`);
+}
+
 const PRIMEIRA_LEVA = 150;
 const LEVA = 300;
 
@@ -465,7 +493,10 @@ function desenharGrupo(grupo) {
     botao.type = 'button';
     botao.setAttribute('aria-label', descricaoDaFoto(foto));
     if (selecao.ativa) botao.setAttribute('aria-pressed', String(selecao.ids.has(foto.id)));
-    quadro.append(botao);
+    const favoritar = el('button', 'grade__favoritar');
+    favoritar.type = 'button';
+    quadro.append(botao, favoritar);
+    marcarFavoritaNoQuadro(quadro, foto, ehFavoritaNaGrade(foto));
     quadro.classList.toggle('grade__quadro--selecionado', selecao.ids.has(foto.id));
     if (foto.id === destaqueId) marcarDestaque(quadro, false);
     if (foto.id === foraDaGrade) quadro.style.visibility = 'hidden';
@@ -517,6 +548,140 @@ function vigiarFimDaGrade() {
   fimDaGrade.observe(ultima);
 }
 
+let entradasAdiadas = [];
+let saidaDaFaixa = null;
+
+function itemDaFaixa(foto) {
+  const item = el('li', 'favoritas__item');
+  item.dataset.id = foto.id;
+  const botao = el('button');
+  botao.type = 'button';
+  botao.dataset.abrir = foto.id;
+  botao.setAttribute('aria-label', `Abrir favorita, ${descricaoDaFoto(foto)}`);
+  botao.append(el('span', 'favoritas__data', tituloDoDia(foto.dia)));
+  if (foto.miniatura && baixarAtual) {
+    baixarAtual(foto.miniatura).then(
+      (url) => {
+        const imagem = el('img');
+        imagem.alt = '';
+        imagem.decoding = 'async';
+        imagem.src = url;
+        botao.prepend(imagem);
+      },
+      () => {},
+    );
+  }
+  item.append(botao);
+  return item;
+}
+
+function corDaFavorita() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--favorita').trim();
+}
+
+function entrarNaFaixa(item, atraso = 0) {
+  const cor = corDaFavorita();
+  animar(item, [{ opacity: 0, transform: 'scale(0.6) translateY(16px)' }, { opacity: 1, transform: 'none' }], { duration: 480, delay: atraso, fill: 'backwards' });
+  item.animate(
+    [
+      { boxShadow: '0 0 0 0 transparent' },
+      { boxShadow: `0 0 0 3px ${cor}, 0 0 28px 4px ${cor}73`, offset: 0.3 },
+      { boxShadow: '0 0 0 0 transparent' },
+    ],
+    { duration: 1400, delay: atraso, easing: 'ease-out' },
+  );
+}
+
+function pulsarContagemDeFavoritas() {
+  animar($('favoritas-quantas'), [{ transform: 'scale(1)' }, { transform: 'scale(1.35)', color: corDaFavorita() }, { transform: 'scale(1)' }], { duration: 420 });
+}
+
+function animarEntradas(ids) {
+  if (!podeAnimar() || $('favoritas-destaque').hidden) return;
+  const faixa = $('favoritas-faixa');
+  if (faixa.scrollLeft > 0) faixa.scrollTo({ left: 0, behavior: 'smooth' });
+  ids.forEach((id, posicao) => {
+    const item = faixa.querySelector(`[data-id="${id}"]`);
+    if (item) entrarNaFaixa(item, posicao * 90);
+  });
+  if (ids.length) pulsarContagemDeFavoritas();
+}
+
+async function sairDaFaixa(ids) {
+  const itens = ids.map((id) => $('favoritas-faixa').querySelector(`[data-id="${id}"]`)).filter(Boolean);
+  if (!podeAnimar() || itens.length === 0) return;
+  await Promise.all(itens.map((item) => animar(item, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.7)' }], { duration: 240, easing: 'ease-in', fill: 'forwards' }).finished.catch(() => {})));
+}
+
+export async function renderFavoritas({ lista, filtro, entrando = [] }) {
+  const secao = $('favoritas-destaque');
+  if (!secao) return;
+  const faixa = $('favoritas-faixa');
+  const visiveis = lista.slice(0, MAXIMO_NA_FAIXA);
+  const novosIds = new Set(visiveis.map((foto) => foto.id));
+  const saindo = [...faixa.querySelectorAll('[data-id]')].map((item) => item.dataset.id).filter((id) => !novosIds.has(id));
+  const espera = saidaDaFaixa;
+  saidaDaFaixa = (async () => {
+    await espera;
+    if (!filtro && !secao.hidden) await sairDaFaixa(saindo);
+  })();
+  await saidaDaFaixa;
+
+  const quantas = lista.length === 1 ? '· 1 foto' : `· ${lista.length.toLocaleString('pt-BR')} fotos`;
+  const estavaEscondida = secao.hidden;
+  secao.hidden = filtro || lista.length === 0;
+  $('favoritas-filtro').hidden = !filtro;
+  $('favoritas-vazia').hidden = !filtro || lista.length > 0;
+  $('favoritas-quantas').textContent = quantas;
+  $('favoritas-filtro-quantas').textContent = quantas;
+  if (secao.hidden) {
+    faixa.replaceChildren();
+    return;
+  }
+
+  const antes = new Map([...faixa.querySelectorAll('[data-id]')].map((item) => [item.dataset.id, item]));
+  const posicoes = new Map([...antes].map(([id, item]) => [id, item.getBoundingClientRect()]));
+  faixa.replaceChildren(...visiveis.map((foto) => antes.get(foto.id) ?? itemDaFaixa(foto)));
+  for (const item of faixa.children) item.getAnimations().forEach((animacao) => animacao.cancel());
+
+  if (!podeAnimar()) return;
+  if (estavaEscondida) animar(secao, [{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], { duration: 360 });
+  for (const item of faixa.querySelectorAll('[data-id]')) {
+    const de = posicoes.get(item.dataset.id);
+    if (!de) continue;
+    const x = de.left - item.getBoundingClientRect().left;
+    if (Math.abs(x) > 1) animar(item, [{ transform: `translateX(${x}px)` }, { transform: 'none' }], { duration: 520 });
+  }
+  const chegando = entrando.filter((id) => novosIds.has(id));
+  if (chegando.length === 0) return;
+  if ($('visor').open) entradasAdiadas.push(...chegando);
+  else animarEntradas(chegando);
+}
+
+export function marcarFavorita(id, foto, favorita) {
+  const quadro = $('grade').querySelector(`[data-id="${id}"]`);
+  if (quadro) {
+    marcarFavoritaNoQuadro(quadro, foto, favorita);
+    if (!podeAnimar()) return;
+    const icone = quadro.querySelector('.grade__favoritar .coracao');
+    if (icone) animar(icone, [{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.5 }, { transform: 'none' }], { duration: 420 });
+  }
+}
+
+export function marcarFavoritaNoVisor(favorita, { avisar = false } = {}) {
+  const botao = $('visor-favoritar');
+  if (!botao) return;
+  botao.setAttribute('aria-pressed', String(favorita));
+  botao.title = favorita ? 'Tirar das favoritas' : 'Favoritar';
+  botao.querySelector('.visor__rotulo').textContent = favorita ? 'Tirar das favoritas' : 'Favoritar';
+  if (!avisar) return;
+  const icone = botao.querySelector('.coracao');
+  icone.classList.remove('pulsa');
+  void icone.getBoundingClientRect();
+  if (podeAnimar()) icone.classList.add('pulsa');
+  confirmarNoVisor(favorita ? 'Adicionada às favoritas' : 'Saiu das favoritas');
+}
+
 export function limparPrincipal() {
   observador?.disconnect();
   observador = null;
@@ -549,7 +714,8 @@ function deslizarDe(posicoes) {
   }
 }
 
-export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }) {
+export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { ativa: false, ids: new Set() }, { ehFavorita = () => false } = {}) {
+  ehFavoritaNaGrade = ehFavorita;
   encerrarVoo();
   const posicoes = posicoesVisiveis();
   limparPrincipal();
@@ -584,8 +750,13 @@ export function renderPrincipal(grupos, { total, espaco }, baixar, selecao = { a
   deslizarDe(posicoes);
 }
 
-export function atualizarSelecao(ativa, ids, total) {
+export function atualizarSelecao(ativa, ids, total, todasFavoritas = false) {
   selecaoNaGrade = { ativa, ids };
+  const favoritar = $('favoritar-selecionadas');
+  if (favoritar) {
+    favoritar.disabled = ids.size === 0;
+    favoritar.textContent = todasFavoritas ? 'Tirar das favoritas' : 'Favoritar';
+  }
   document.body.classList.toggle('modo-selecao', ativa);
   $('grade').classList.toggle('grade--selecao', ativa);
   $('selecao-topo').hidden = total === 0 || ativa;
@@ -1234,6 +1405,11 @@ function ligarVisor(acoes) {
     if (evento.target.closest('.grade__botao')) evento.preventDefault();
   });
   $('grade').addEventListener('click', (evento) => {
+    const favoritar = evento.target.closest('.grade__favoritar');
+    if (favoritar) {
+      acoes.alternarFavorita(favoritar.closest('[data-id]').dataset.id);
+      return;
+    }
     const botao = evento.target.closest('.grade__botao');
     const quadro = botao?.closest('[data-id]');
     if (!quadro) return;
@@ -1264,6 +1440,9 @@ function ligarVisor(acoes) {
     fecharComEfeito();
   });
   visor.addEventListener('close', () => {
+    const adiadas = entradasAdiadas;
+    entradasAdiadas = [];
+    if (adiadas.length) setTimeout(() => animarEntradas(adiadas), 320);
     limparGestos();
     devolverParaAGrade();
     noVisor = null;
@@ -2077,6 +2256,12 @@ export function ligarEventos(acoes) {
   $('entrar-selecao').addEventListener('click', () => acoes.iniciarSelecao());
   $('apagar-selecionadas').addEventListener('click', acoes.abrirConfirmacaoSelecao);
   $('cancelar-selecao').addEventListener('click', acoes.sairDaSelecao);
+  $('favoritar-selecionadas')?.addEventListener('click', acoes.favoritarSelecao);
+  $('favoritas-faixa')?.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('[data-abrir]');
+    if (botao) acoes.abrirFoto(botao.dataset.abrir);
+  });
+  $('visor-favoritar')?.addEventListener('click', acoes.alternarFavoritaAberta);
   $('apagar-selecao-form').addEventListener('submit', (evento) => {
     evento.preventDefault();
     acoes.apagarSelecao();

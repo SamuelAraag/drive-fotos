@@ -1,5 +1,17 @@
 export const NOVIDADES = [
   {
+    versao: '1.18.0',
+    quando: '2026-10-15T10:00',
+    titulo: 'Fotos favoritas',
+    mudancas: [
+      'Na foto aberta, o coração na barra de ações marca a foto como favorita. Tocar de novo desmarca.',
+      'As favoritas aparecem numa faixa no alto da tela inicial, a última marcada primeiro, e "Ver todas" mostra a grade só com elas.',
+      'A foto marcada surge na faixa com um brilho vermelho enquanto as outras abrem espaço. Ao desmarcar, ela encolhe e sai.',
+      'Na grade, a favorita ganha borda vermelha e o coração vermelho no canto, e tocar no coração desmarca. No computador, o coração vazio aparece ao passar o mouse e marca sem abrir a foto. Em "Selecionar", o botão Favoritar marca várias de uma vez.',
+      'As favoritas ficam guardadas no repositório e aparecem iguais em qualquer aparelho. Se faltar internet na hora, a marcação é gravada na próxima vez que o app abrir.',
+    ],
+  },
+  {
     versao: '1.17.1',
     quando: '2026-10-14T18:50',
     titulo: 'Barra e porcentagem de progresso melhoradas',

@@ -7,6 +7,7 @@
   --azul: #3b9dff;
   --erro: #ff8585;
   --sucesso: #4ade80;
+  --favorita: var(--erro);
   --atencao: #f5a524;
   --foco: #a9d3ff;
 
@@ -1253,6 +1254,22 @@ body.modo-selecao .dia__selecao {
   transition: opacity var(--medio);
 }
 
+.grade__quadro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 2px solid var(--favorita);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--medio);
+  pointer-events: none;
+}
+
+.grade__quadro--favorita::before {
+  opacity: 1;
+}
+
 .grade__quadro--destaque {
   z-index: 1;
   overflow: visible;
@@ -2348,6 +2365,193 @@ body.modo-selecao .dia__selecao {
   .grade__quadro--pousou .grade__selo,
   .atalho,
   .grade__imagem--nova {
+    animation: none;
+  }
+}
+
+.favoritas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+  margin-top: var(--e5);
+}
+
+.favoritas__cabeca,
+.favoritas__filtro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+}
+
+.favoritas__filtro {
+  margin-top: var(--e5);
+}
+
+.favoritas__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  font-size: var(--fonte-base);
+  font-weight: 700;
+}
+
+.favoritas__titulo .coracao {
+  width: 18px;
+  height: 18px;
+}
+
+.favoritas__quantas {
+  color: var(--texto-suave);
+  font-weight: 400;
+}
+
+.favoritas__faixa {
+  display: grid;
+  grid-auto-columns: 42%;
+  grid-auto-flow: column;
+  gap: var(--e2);
+  margin: 0 calc(var(--margem) * -1);
+  padding: 0 var(--margem) var(--e2);
+  overflow-x: auto;
+  scroll-padding: 0 var(--margem);
+  scroll-snap-type: x mandatory;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 700px) {
+  .favoritas__faixa {
+    grid-auto-columns: 200px;
+    margin: 0;
+    padding: 0 0 var(--e2);
+  }
+}
+
+.favoritas__item {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--raio);
+  background: var(--superficie);
+  scroll-snap-align: start;
+}
+
+.favoritas__item button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.favoritas__item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--medio);
+}
+
+.favoritas__item button:hover img {
+  transform: scale(1.04);
+}
+
+.favoritas__data {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--e5) var(--e2) var(--e2);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--fundo) 85%, transparent));
+  color: var(--texto);
+  font-size: var(--fonte-pequena);
+  font-weight: 600;
+  text-align: left;
+  pointer-events: none;
+}
+
+.favoritas__vazia {
+  margin-top: var(--e4);
+  padding: var(--e4);
+  border: 1px dashed var(--trilho);
+  border-radius: var(--raio);
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+}
+
+.coracao {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.coracao--cheio,
+.visor__acao--favorita[aria-pressed='true'] .coracao {
+  fill: var(--favorita);
+  stroke: var(--favorita);
+}
+
+.grade__favoritar {
+  position: absolute;
+  z-index: 2;
+  right: var(--e1);
+  bottom: var(--e1);
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-pilula);
+  background: color-mix(in srgb, var(--fundo) 70%, transparent);
+  color: var(--texto);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--rapido);
+}
+
+.grade__favoritar .coracao {
+  width: 20px;
+  height: 20px;
+}
+
+.grade__quadro:hover .grade__favoritar,
+.grade__favoritar:focus-visible,
+.grade__favoritar[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.grade--selecao .grade__favoritar {
+  pointer-events: none;
+}
+
+.grade--selecao .grade__favoritar[aria-pressed='false'] {
+  display: none;
+}
+
+@media (hover: none) {
+  .grade__favoritar[aria-pressed='false'] {
+    display: none;
+  }
+}
+
+.pulsa {
+  animation: pulsa-favorita var(--expandir);
+}
+
+@keyframes pulsa-favorita {
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulsa {
     animation: none;
   }
 }

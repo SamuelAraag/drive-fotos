@@ -130,6 +130,18 @@
         <p class="tela__titulo">Nenhuma foto guardada ainda</p>
         <p class="texto-suave">Envie a primeira pelo botão acima.</p>
       </div>
+      <section class="favoritas" id="favoritas-destaque" aria-labelledby="favoritas-titulo" hidden>
+        <div class="favoritas__cabeca">
+          <h2 class="favoritas__titulo" id="favoritas-titulo"><svg class="coracao coracao--cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3z"/></svg>Favoritas <span class="favoritas__quantas" id="favoritas-quantas"></span></h2>
+          <a class="botao botao--fantasma" href="#favoritas">Ver todas</a>
+        </div>
+        <ul class="favoritas__faixa" id="favoritas-faixa"></ul>
+      </section>
+      <div class="favoritas__filtro" id="favoritas-filtro" hidden>
+        <h2 class="favoritas__titulo" tabindex="-1" id="favoritas-filtro-titulo"><svg class="coracao coracao--cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3z"/></svg>Favoritas <span class="favoritas__quantas" id="favoritas-filtro-quantas"></span></h2>
+        <a class="botao botao--secundario" href="#">Voltar para todas</a>
+      </div>
+      <p class="favoritas__vazia" id="favoritas-vazia" hidden>Nenhuma favorita ainda. Abra uma foto e toque no coração para guardar aqui.</p>
       <a class="aviso aviso--link" id="principal-pendentes" href="#sem-data" hidden></a>
       <div class="selecao-topo" id="selecao-topo" hidden>
         <button type="button" class="botao botao--secundario" id="entrar-selecao">Selecionar</button>
@@ -142,6 +154,7 @@
     <div class="barra-selecao__conteudo">
       <p class="barra-selecao__contagem" id="selecao-contagem" role="status" aria-live="polite"></p>
       <div class="barra-selecao__acoes">
+        <button type="button" class="botao botao--secundario" id="favoritar-selecionadas" disabled>Favoritar</button>
         <button type="button" class="botao botao--perigo" id="apagar-selecionadas" disabled>Apagar</button>
         <button type="button" class="botao botao--secundario" id="cancelar-selecao">Cancelar</button>
       </div>
@@ -226,6 +239,7 @@
     <div class="visor__rodape" id="visor-rodape">
       <p class="campo__erro" id="visor-aviso" role="alert" hidden></p>
       <div class="visor__botoes">
+        <button type="button" class="botao botao--fantasma visor__acao visor__acao--favorita" id="visor-favoritar" aria-pressed="false" title="Favoritar"><svg class="visor__icone coracao" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3z"/></svg><span class="visor__rotulo">Favoritar</span></button>
         <button type="button" class="botao botao--fantasma visor__acao" id="visor-baixar" title="Baixar"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg><span class="visor__rotulo">Baixar</span></button>
         <button type="button" class="botao botao--fantasma visor__acao" id="visor-link" title="Copiar link"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg><span class="visor__rotulo">Copiar link</span></button>
         <button type="button" class="botao botao--fantasma visor__acao" id="visor-renomear" title="Renomear"><svg class="visor__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3zM13.5 8.5l3 3"/></svg><span class="visor__rotulo">Renomear</span></button>
