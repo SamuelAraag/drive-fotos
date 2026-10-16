@@ -1,5 +1,15 @@
 export const NOVIDADES = [
   {
+    versao: '1.19.0',
+    quando: '2026-10-15T22:00',
+    titulo: 'A foto aberta fica no endereço',
+    mudancas: [
+      'Com uma foto aberta, o endereço da página passa a ter o código dela. Recarregar a página abre a mesma foto.',
+      'O endereço também guarda se a foto foi aberta pelas favoritas. Ao recarregar, as setas continuam passando só por elas.',
+      'Fechar a foto ou voltar pelo navegador tira a foto do endereço.',
+    ],
+  },
+  {
     versao: '1.18.1',
     quando: '2026-10-15T21:00',
     titulo: 'Favoritas abertas navegam só entre elas',
