@@ -453,7 +453,6 @@ function coracao(cheio) {
 }
 
 function marcarFavoritaNoQuadro(quadro, foto, favorita) {
-  quadro.querySelector('.grade__selo-favorita')?.remove();
   const botao = quadro.querySelector('.grade__favoritar');
   if (botao) {
     botao.setAttribute('aria-pressed', String(favorita));
@@ -462,10 +461,6 @@ function marcarFavoritaNoQuadro(quadro, foto, favorita) {
     botao.replaceChildren(coracao(favorita));
   }
   quadro.querySelector('.grade__botao').setAttribute('aria-label', `${descricaoDaFoto(foto)}${favorita ? ', favorita' : ''}`);
-  if (!favorita) return;
-  const selo = el('span', 'grade__selo-favorita');
-  selo.append(coracao(true));
-  quadro.append(selo);
 }
 
 const PRIMEIRA_LEVA = 150;
@@ -667,9 +662,8 @@ export function marcarFavorita(id, foto, favorita) {
   if (quadro) {
     marcarFavoritaNoQuadro(quadro, foto, favorita);
     if (!podeAnimar()) return;
-    quadro.querySelector('.grade__favoritar .coracao')?.classList.add('pulsa');
-    const selo = quadro.querySelector('.grade__selo-favorita');
-    if (selo) animar(selo, [{ transform: 'scale(0)' }, { transform: 'scale(1.3)', offset: 0.6 }, { transform: 'none' }], { duration: 420 });
+    const icone = quadro.querySelector('.grade__favoritar .coracao');
+    if (icone) animar(icone, [{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.5 }, { transform: 'none' }], { duration: 420 });
   }
 }
 
