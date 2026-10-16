@@ -302,15 +302,43 @@ async function mostrarAberta({ abrindo = false } = {}) {
   }
 }
 
+let listaAberta = null;
+let fotoDoEnderecoAberta = false;
+
+function enderecoDaFoto(id) {
+  const endereco = new URL(location.href);
+  endereco.searchParams.delete('foto');
+  endereco.searchParams.delete('lista');
+  if (id) endereco.searchParams.set('foto', id);
+  if (id && listaAberta) endereco.searchParams.set('lista', listaAberta);
+  return endereco.href;
+}
+
+function abrirFotoDoEndereco({ ultimaChance = false } = {}) {
+  if (fotoDoEnderecoAberta || !fotos) return;
+  const parametros = new URLSearchParams(location.search);
+  const id = parametros.get('foto');
+  const existe = Boolean(id) && fotos.some((item) => item.id === id);
+  if (id && !existe && !ultimaChance) return;
+  fotoDoEnderecoAberta = true;
+  if (!id) return;
+  const lista = parametros.get('lista');
+  listaAberta = null;
+  history.replaceState(history.state, '', enderecoDaFoto(null));
+  if (!existe || naTelaSemData()) return;
+  abrirFoto(id, { lista });
+}
+
 function abrirFoto(id, { lista = null } = {}) {
   if (!fotos?.some((item) => item.id === id)) return;
+  listaAberta = lista === 'favoritas' ? 'favoritas' : null;
   if (lista === 'favoritas') navegacao = favoritasEmOrdem().map((item) => item.id);
   else if (naTelaDeFavoritas()) navegacao = fotos.filter(ehFavorita).map((item) => item.id);
   else navegacao = null;
   if (navegacao && !navegacao.includes(id)) navegacao = null;
   aberta = id;
 
-  history.pushState({ visor: true }, '');
+  history.pushState({ visor: true }, '', enderecoDaFoto(id));
   mostrarAberta({ abrindo: true });
 }
 
@@ -320,6 +348,7 @@ function passarFoto(sentido) {
   const vizinha = lista[lista.findIndex((item) => item.id === aberta) + sentido];
   if (!vizinha) return;
   aberta = vizinha.id;
+  history.replaceState(history.state, '', enderecoDaFoto(aberta));
   ui.passouParaAFoto(vizinha.id);
   mostrarAberta();
 }
@@ -331,6 +360,8 @@ function fotoFechada() {
   ui.fecharRenomear();
   ui.fecharApagar();
   if (history.state?.visor) history.back();
+  else if (new URLSearchParams(location.search).has('foto')) history.replaceState(history.state, '', enderecoDaFoto(null));
+  listaAberta = null;
   if (id != null) ui.voltarParaAFoto(id);
 }
 
@@ -527,6 +558,7 @@ async function apagarFoto() {
     return;
   }
   aberta = vizinha.id;
+  history.replaceState(history.state, '', enderecoDaFoto(aberta));
   ui.passouParaAFoto(vizinha.id);
   render();
   mostrarAberta();
@@ -972,6 +1004,7 @@ async function carregar() {
   if (guardadas) {
     fotos = guardadas;
     aplicarRota();
+    abrirFotoDoEndereco();
   } else {
     ui.mostrarTela('carregando');
   }
@@ -981,9 +1014,13 @@ async function carregar() {
     if (guardadas && fotos !== guardadas) return;
     armazem.guardarFotos(novas);
     aquecerNomes();
-    if (guardadas && mesmaLista(novas, guardadas)) return;
+    if (guardadas && mesmaLista(novas, guardadas)) {
+      abrirFotoDoEndereco({ ultimaChance: true });
+      return;
+    }
     fotos = novas;
     aplicarRota();
+    abrirFotoDoEndereco({ ultimaChance: true });
   } catch (erro) {
     if (erro.tipo === 'token') {
       github.apagarToken();
@@ -993,6 +1030,7 @@ async function carregar() {
 
     if (guardadas) {
       if (erro.tipo === 'cortada') ui.erroAoAtualizar(erro.message);
+      abrirFotoDoEndereco({ ultimaChance: true });
       return;
     }
     ui.renderErro(erro.message);
@@ -1079,6 +1117,7 @@ async function entrar(token) {
     ui.fecharLogin();
     render();
     ui.focarTela('principal');
+    abrirFotoDoEndereco({ ultimaChance: true });
     aquecerNomes();
     bombear();
   } catch (erro) {
