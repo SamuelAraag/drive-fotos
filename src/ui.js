@@ -930,15 +930,19 @@ function trocarAmbiente(url) {
   camadas[camadaDoAmbiente].classList.add('visor__desfoque--visivel');
 }
 
+let abertoPelaFaixa = false;
+
+const quadroDoVisor = (id) => (abertoPelaFaixa && $('favoritas-faixa')?.querySelector(`[data-id="${id}"]`)) || quadroDe(id);
+
 function tirarDaGrade(id) {
   devolverParaAGrade();
-  const quadro = quadroDe(id);
+  const quadro = quadroDoVisor(id);
   if (quadro) quadro.style.visibility = 'hidden';
   foraDaGrade = id;
 }
 
 function devolverParaAGrade() {
-  const quadro = foraDaGrade == null ? null : quadroDe(foraDaGrade);
+  const quadro = foraDaGrade == null ? null : quadroDoVisor(foraDaGrade);
   if (quadro) quadro.style.visibility = '';
   foraDaGrade = null;
 }
@@ -1077,12 +1081,12 @@ export async function abrirVisor(foto, dados) {
   }
   const previaPronta = renderVisor(foto, dados);
   const partes = [$('visor-foto'), $('visor-ambiente'), ...cromo()];
-  if (!podeAnimar() || !foto.miniatura || !quadroDe(foto.id)) return;
+  if (!podeAnimar() || !foto.miniatura || !quadroDoVisor(foto.id)) return;
 
   for (const parte of partes) parte.style.opacity = '0';
   const pronta = await previaPronta;
   for (const parte of partes) parte.style.opacity = '';
-  const quadro = quadroDe(foto.id);
+  const quadro = quadroDoVisor(foto.id);
   if (!pronta || noVisor !== foto.id || !visor.open || !quadro) return;
 
   const partida = medirPartida(quadro);
@@ -1104,7 +1108,7 @@ export function passouParaAFoto(id) {
 async function fecharComEfeito() {
   const visor = $('visor');
   if (!visor.open || fechando) return;
-  const quadro = noVisor == null ? null : quadroDe(noVisor);
+  const quadro = noVisor == null ? null : quadroDoVisor(noVisor);
   if (!podeAnimar() || !quadro || !proporcaoNoVisor) {
     visor.close();
     limparGestos();
@@ -1142,7 +1146,7 @@ export function fecharVisor({ efeito = false } = {}) {
 }
 
 export function voltarParaAFoto(id) {
-  const botao = quadroDe(id)?.querySelector('.grade__botao');
+  const botao = quadroDoVisor(id)?.querySelector('.grade__botao, button');
   if (!botao) return;
   botao.focus({ preventScroll: true });
   botao.scrollIntoView({ block: 'nearest' });
@@ -1447,6 +1451,7 @@ function ligarVisor(acoes) {
     devolverParaAGrade();
     noVisor = null;
     acoes.fotoFechada();
+    abertoPelaFaixa = false;
   });
   visor.addEventListener('keydown', (evento) => {
     if (evento.target.closest('input, textarea')) return;
@@ -2259,7 +2264,9 @@ export function ligarEventos(acoes) {
   $('favoritar-selecionadas')?.addEventListener('click', acoes.favoritarSelecao);
   $('favoritas-faixa')?.addEventListener('click', (evento) => {
     const botao = evento.target.closest('[data-abrir]');
-    if (botao) acoes.abrirFoto(botao.dataset.abrir);
+    if (!botao) return;
+    abertoPelaFaixa = true;
+    acoes.abrirFoto(botao.dataset.abrir, { lista: 'favoritas' });
   });
   $('visor-favoritar')?.addEventListener('click', acoes.alternarFavoritaAberta);
   $('apagar-selecao-form').addEventListener('submit', (evento) => {

@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.18.1',
+    quando: '2026-10-15T21:00',
+    titulo: 'Favoritas abertas navegam só entre elas',
+    mudancas: [
+      'Ao abrir uma foto pela faixa de favoritas ou por "Ver todas", as setas e o deslizar passam só pelas favoritas. A contagem mostra a posição entre elas, como "2 de 13".',
+      'Aberta pela faixa, a foto sai dela e volta para ela ao fechar.',
+    ],
+  },
+  {
     versao: '1.18.0',
     quando: '2026-10-15T10:00',
     titulo: 'Fotos favoritas',
