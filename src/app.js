@@ -173,8 +173,17 @@ function esquecerOriginais() {
   originais.clear();
 }
 
+let navegacao = null;
+
+function listaDoVisor() {
+  if (!navegacao || !fotos) return fotos ?? [];
+  const porId = new Map(fotos.map((item) => [item.id, item]));
+  return navegacao.map((id) => porId.get(id)).filter(Boolean);
+}
+
 function prepararVizinhas(indice) {
-  for (const vizinha of [fotos[indice + 1], fotos[indice - 1]]) {
+  const lista = listaDoVisor();
+  for (const vizinha of [lista[indice + 1], lista[indice - 1]]) {
     if (vizinha) baixarOriginal(vizinha).catch(() => {});
   }
 }
@@ -259,17 +268,18 @@ function indiceNoCommit({ entram = [], saem = [] }) {
 }
 
 async function mostrarAberta({ abrindo = false } = {}) {
-  const indice = fotos.findIndex((item) => item.id === aberta);
+  const lista = listaDoVisor();
+  const indice = lista.findIndex((item) => item.id === aberta);
   if (indice < 0) {
     ui.fecharVisor();
     return;
   }
-  const item = fotos[indice];
+  const item = lista[indice];
   const dados = {
     posicao: indice + 1,
-    total: fotos.length,
+    total: lista.length,
     temAnterior: indice > 0,
-    temProxima: indice < fotos.length - 1,
+    temProxima: indice < lista.length - 1,
   };
   if (abrindo) ui.abrirVisor(item, dados);
   else ui.renderVisor(item, dados);
@@ -279,7 +289,7 @@ async function mostrarAberta({ abrindo = false } = {}) {
     const url = await baixarOriginal(item);
     if (aberta !== item.id) return;
     ui.mostrarOriginal(item, url);
-    prepararVizinhas(fotos.findIndex((outra) => outra.id === item.id));
+    prepararVizinhas(listaDoVisor().findIndex((outra) => outra.id === item.id));
   } catch (erro) {
     if (aberta !== item.id) return;
     if (erro.tipo === 'token') {
@@ -292,8 +302,12 @@ async function mostrarAberta({ abrindo = false } = {}) {
   }
 }
 
-function abrirFoto(id) {
+function abrirFoto(id, { lista = null } = {}) {
   if (!fotos?.some((item) => item.id === id)) return;
+  if (lista === 'favoritas') navegacao = favoritasEmOrdem().map((item) => item.id);
+  else if (naTelaDeFavoritas()) navegacao = fotos.filter(ehFavorita).map((item) => item.id);
+  else navegacao = null;
+  if (navegacao && !navegacao.includes(id)) navegacao = null;
   aberta = id;
 
   history.pushState({ visor: true }, '');
@@ -302,7 +316,8 @@ function abrirFoto(id) {
 
 function passarFoto(sentido) {
   if (aberta == null) return;
-  const vizinha = fotos[fotos.findIndex((item) => item.id === aberta) + sentido];
+  const lista = listaDoVisor();
+  const vizinha = lista[lista.findIndex((item) => item.id === aberta) + sentido];
   if (!vizinha) return;
   aberta = vizinha.id;
   ui.passouParaAFoto(vizinha.id);
@@ -312,6 +327,7 @@ function passarFoto(sentido) {
 function fotoFechada() {
   const id = aberta;
   aberta = null;
+  navegacao = null;
   ui.fecharRenomear();
   ui.fecharApagar();
   if (history.state?.visor) history.back();
@@ -495,7 +511,7 @@ async function apagarFoto() {
   }
   ui.apagarOcupado(false);
 
-  const indice = fotos.findIndex((outra) => outra.id === item.id);
+  const indice = listaDoVisor().findIndex((outra) => outra.id === item.id);
   if (!removerFotosDaLista([item])) return;
   ui.fecharApagar();
   if (aberta !== item.id) {
@@ -503,7 +519,8 @@ async function apagarFoto() {
     return;
   }
 
-  const vizinha = fotos[indice] ?? fotos[indice - 1];
+  const restantes = listaDoVisor();
+  const vizinha = restantes[indice] ?? restantes[indice - 1];
   if (!vizinha) {
     render();
     ui.fecharVisor();
@@ -774,8 +791,8 @@ function favoritarSelecao() {
   mostrarMudancaDeFavoritas(mudam, favorita);
 }
 
-function renderFaixaDeFavoritas({ entrando = [] } = {}) {
-  const lista = (fotos ?? [])
+function favoritasEmOrdem() {
+  return (fotos ?? [])
     .filter(ehFavorita)
     .sort((a, b) => {
       const quandoA = favoritadaEm(a);
@@ -783,7 +800,10 @@ function renderFaixaDeFavoritas({ entrando = [] } = {}) {
       if (quandoA !== quandoB) return quandoA < quandoB ? 1 : -1;
       return a.id < b.id ? 1 : -1;
     });
-  ui.renderFavoritas({ lista, filtro: naTelaDeFavoritas(), entrando });
+}
+
+function renderFaixaDeFavoritas({ entrando = [] } = {}) {
+  ui.renderFavoritas({ lista: favoritasEmOrdem(), filtro: naTelaDeFavoritas(), entrando });
 }
 let lendoPendentes = false;
 let pendentesIncompletas = false;
