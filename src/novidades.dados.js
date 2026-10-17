@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.20.0',
+    quando: '2026-10-17T12:00',
+    titulo: 'Cada pessoa entra com a própria conta',
+    mudancas: [
+      'O app usa o repositório drive-fotos-dados da conta dona do token. Qualquer pessoa pode usar o app com as próprias fotos.',
+      'No login, o app confere se o repositório existe e se é privado. Se estiver público, o login é recusado.',
+    ],
+  },
+  {
     versao: '1.19.0',
     quando: '2026-10-15T22:00',
     titulo: 'A foto aberta fica no endereço',

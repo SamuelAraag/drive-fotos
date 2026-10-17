@@ -67,7 +67,7 @@ separada se apoia nessa segunda regra.
 
 | # | Requisito | Origem |
 | --- | --- | --- |
-| RF01 | Entrar com token pessoal, validado contra o repositório de dados | Plano |
+| RF01 | Entrar com token pessoal. O dono do repositório `drive-fotos-dados` é a conta do token, e o app recusa repositório ausente ou público | Plano |
 | RF02 | Sair apaga o token e o cache de fotos do navegador | Gap |
 | RF03 | Enviar uma ou várias fotos por toque, clique, teclado ou arrastar | Plano |
 | RF04 | Recusar arquivo vazio, pasta, não imagem e arquivo acima do teto, com aviso | Plano, limite |

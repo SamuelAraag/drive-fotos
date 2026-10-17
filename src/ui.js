@@ -1,6 +1,6 @@
 import { analisar, diaEmTexto, fmtTamanho } from './foto.js';
 import { ligarGestos } from './gestos.js';
-import { BASE_DE_TESTES, REPO_DADOS, lerToken } from './github.js';
+import { BASE_DE_TESTES, NOME_DO_REPO, lerToken } from './github.js';
 import { VERSAO_ATUAL } from './novidades.dados.js';
 
 const $ = (id) => document.getElementById(id);
@@ -13,7 +13,7 @@ const TELAS_COM_ROLAGEM_SUAVE = 5;
 let atualizacaoOcupada = false;
 let quantasApagarSelecao = 0;
 
-$('login-repo').textContent = REPO_DADOS;
+for (const nome of document.querySelectorAll('.login-repo')) nome.textContent = NOME_DO_REPO;
 $('base-de-testes').hidden = !BASE_DE_TESTES;
 $('versao').textContent = VERSAO_ATUAL;
 if ($('mais-versao')) $('mais-versao').textContent = VERSAO_ATUAL;

@@ -5,8 +5,9 @@ build e sem dependências.
 
 ## Armazenamento
 
-Este repositório só tem a interface. As fotos ficam em outro repositório, privado, de outra
-conta do GitHub, e o app lê e grava nele pela API do GitHub. O plano está em
+Este repositório só tem a interface. As fotos de cada pessoa ficam num repositório privado
+chamado `drive-fotos-dados`, na conta dela do GitHub, e o app lê e grava nele pela API do
+GitHub. O dono do repositório é a conta do token usado no login. O plano está em
 `docs/planos/plano-inicial.md` e os requisitos em `docs/requisitos.md`.
 
 ## Base oficial e base de testes
@@ -23,11 +24,13 @@ A escolha é pelo endereço da página, em `src/github.js`. O mesmo token serve 
 
 Você entra com um token pessoal do GitHub, que fica guardado só no navegador.
 
-1. Na conta dona do repositório de dados, abra Settings > Developer settings > Personal
+1. Na sua conta, crie um repositório privado chamado `drive-fotos-dados`, marcando
+   "Add a README". O app recusa o repositório se ele estiver público.
+2. Abra Settings > Developer settings > Personal
    access tokens > Fine-grained tokens.
-2. Clique em "Generate new token" e dê acesso apenas ao repositório de dados.
-3. Em Contents, escolha "Read and write".
-4. Copie o token e cole na tela de login do app.
+3. Clique em "Generate new token" e dê acesso apenas ao `drive-fotos-dados`.
+4. Em Contents, escolha "Read and write".
+5. Copie o token e cole na tela de login do app.
 
 O botão "Sair" apaga o token e as fotos guardadas no navegador.
 
