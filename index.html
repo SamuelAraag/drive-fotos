@@ -337,10 +337,11 @@
     <form id="login-form" novalidate>
       <img class="logo logo--grande" src="src/logo.svg" alt="" width="48" height="48">
       <h2 class="tela__titulo" id="login-titulo">Entrar no Drive Fotos</h2>
-      <p class="texto-suave">As fotos ficam num repositório privado do GitHub. Gere um token só para ele, na conta dona do repositório:</p>
+      <p class="texto-suave">As fotos ficam num repositório privado da sua conta do GitHub. Antes de entrar:</p>
       <ol class="login__passos texto-suave">
+        <li>Crie um repositório <strong>privado</strong> chamado <strong class="login-repo"></strong>, marcando <strong>Add a README</strong>.</li>
         <li>GitHub &gt; Settings &gt; Developer settings &gt; Personal access tokens &gt; <strong>Fine-grained tokens</strong>.</li>
-        <li><strong>Generate new token</strong>, com acesso só ao repositório <strong id="login-repo"></strong>.</li>
+        <li><strong>Generate new token</strong>, com acesso só ao repositório <strong class="login-repo"></strong>.</li>
         <li>Permissão <strong>Contents: Read and write</strong>.</li>
       </ol>
       <label class="campo__rotulo" for="login-token">Token do GitHub</label>

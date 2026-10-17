@@ -1,4 +1,3 @@
-const DONO = 'samuelsantosbackupfiles';
 const REPO = 'drive-fotos-dados';
 const BRANCH_OFICIAL = 'main';
 const BRANCH_DE_TESTES = 'testes';
@@ -9,10 +8,11 @@ const BRANCH = LOCAL ? BRANCH_DE_TESTES : BRANCH_OFICIAL;
 const MAX_TENTATIVAS_DE_COMMIT = 4;
 const TEMPO_MAXIMO_DE_ENVIO_MS = 5 * 60 * 1000;
 
-const URL_REPO = `https://api.github.com/repos/${DONO}/${REPO}`;
+const URL_API = 'https://api.github.com';
 const CHAVE_TOKEN = 'drive-fotos.token';
+const CHAVE_DONO = 'drive-fotos.dono';
 
-export const REPO_DADOS = `${DONO}/${REPO}`;
+export const NOME_DO_REPO = REPO;
 export const BRANCH_DADOS = BRANCH;
 export const BASE_DE_TESTES = LOCAL;
 
@@ -34,14 +34,33 @@ export function lerToken() {
   }
 }
 
+export function lerDono() {
+  try {
+    return localStorage.getItem(CHAVE_DONO);
+  } catch {
+    return null;
+  }
+}
+
+const repoDados = () => `${lerDono()}/${REPO}`;
+const urlRepo = () => `${URL_API}/repos/${repoDados()}`;
+
+function esquecerConta() {
+  localStorage.removeItem(CHAVE_DONO);
+  descobrindoDono = null;
+  esquecerPonta();
+  listagem = null;
+  listagemLida = false;
+}
+
 export function salvarToken(token) {
   localStorage.setItem(CHAVE_TOKEN, token);
+  esquecerConta();
 }
 
 export function apagarToken() {
   localStorage.removeItem(CHAVE_TOKEN);
-  esquecerPonta();
-  listagem = null;
+  esquecerConta();
 }
 
 function esperaDoLimite(status, cabecalho) {
@@ -73,18 +92,18 @@ function erroDaResposta(status, cabecalho) {
     case 403:
       return new ErroGitHub(
         'permissao',
-        `O GitHub recusou o acesso. Confira se o token tem a permissão Contents: Read and write no repositório ${REPO_DADOS}.`,
+        `O GitHub recusou o acesso. Confira se o token tem a permissão Contents: Read and write no repositório ${repoDados()}.`,
       );
     case 404:
       return new ErroGitHub(
         'ausente',
-        `Não achei a branch ${BRANCH} de ${REPO_DADOS}. Confira se o repositório existe e se o token tem acesso a ele.`,
+        `Não achei a branch ${BRANCH} de ${repoDados()}. Confira se o repositório existe e se o token tem acesso a ele.`,
       );
     case 409:
 
       return new ErroGitHub(
         'vazio',
-        `O repositório ${REPO_DADOS} ainda está vazio. Crie um commit inicial nele, por exemplo um README, e tente de novo.`,
+        `O repositório ${repoDados()} ainda está vazio. Crie um commit inicial nele, por exemplo um README, e tente de novo.`,
         { status: 409 },
       );
     default:
@@ -103,10 +122,10 @@ function cabecalhos(extras) {
   };
 }
 
-async function requisitar(caminho, opcoes = {}) {
+async function requisitarApi(endereco, opcoes = {}) {
   let resposta;
   try {
-    resposta = await fetch(`${URL_REPO}${caminho}`, {
+    resposta = await fetch(endereco, {
       ...opcoes,
 
       cache: 'no-store',
@@ -120,10 +139,50 @@ async function requisitar(caminho, opcoes = {}) {
   throw erroDaResposta(resposta.status, (nome) => resposta.headers.get(nome));
 }
 
-function enviarComProgresso(caminho, corpo, aoProgredir) {
+let descobrindoDono = null;
+
+async function descobrirDono() {
+  const { login } = await (await requisitarApi(`${URL_API}/user`)).json();
+  let repositorio;
+  try {
+    repositorio = await (await requisitarApi(`${URL_API}/repos/${login}/${REPO}`)).json();
+  } catch (erro) {
+    if (erro.tipo === 'ausente' || erro.tipo === 'permissao') {
+      throw new ErroGitHub(
+        'ausente',
+        `Não achei o repositório ${REPO} na conta ${login}. Crie esse repositório como privado e confira se o token tem acesso a ele.`,
+      );
+    }
+    throw erro;
+  }
+  if (!repositorio.private) {
+    throw new ErroGitHub(
+      'publico',
+      `O repositório ${login}/${REPO} está público, e qualquer pessoa poderia ver as fotos. Deixe ele privado em Settings e entre de novo.`,
+    );
+  }
+  localStorage.setItem(CHAVE_DONO, login);
+}
+
+function garantirDono() {
+  if (lerDono()) return Promise.resolve();
+  descobrindoDono ??= descobrirDono().catch((erro) => {
+    descobrindoDono = null;
+    throw erro;
+  });
+  return descobrindoDono;
+}
+
+async function requisitar(caminho, opcoes = {}) {
+  await garantirDono();
+  return requisitarApi(`${urlRepo()}${caminho}`, opcoes);
+}
+
+async function enviarComProgresso(caminho, corpo, aoProgredir) {
+  await garantirDono();
   return new Promise((resolver, rejeitar) => {
     const pedido = new XMLHttpRequest();
-    pedido.open('POST', `${URL_REPO}${caminho}`);
+    pedido.open('POST', `${urlRepo()}${caminho}`);
     for (const [nome, valor] of Object.entries(cabecalhos({ 'Content-Type': 'application/json' }))) {
       pedido.setRequestHeader(nome, valor);
     }
@@ -150,7 +209,7 @@ function enviarComProgresso(caminho, corpo, aoProgredir) {
 
 const PASTAS_AO_MESMO_TEMPO = 6;
 export const NOME_DO_CACHE_DA_LISTAGEM = 'drive-fotos-listagem-v1';
-const ENDERECO_DA_LISTAGEM = `${location.origin}/__listagem__/${BRANCH}`;
+const enderecoDaListagem = () => `${location.origin}/__listagem__/${lerDono()}/${BRANCH}`;
 
 const SEMPRE_POR_PASTA = LOCAL && new URLSearchParams(location.search).has('listagem-por-pasta');
 
@@ -159,7 +218,7 @@ let listagemLida = false;
 
 async function lerListagemGuardada() {
   try {
-    const resposta = await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).match(ENDERECO_DA_LISTAGEM);
+    const resposta = await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).match(enderecoDaListagem());
     const guardada = resposta ? await resposta.json() : null;
     return guardada?.raiz && guardada.pastas ? guardada : null;
   } catch {
@@ -169,7 +228,7 @@ async function lerListagemGuardada() {
 
 async function guardarListagem() {
   try {
-    await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).put(ENDERECO_DA_LISTAGEM, new Response(JSON.stringify(listagem)));
+    await (await caches.open(NOME_DO_CACHE_DA_LISTAGEM)).put(enderecoDaListagem(), new Response(JSON.stringify(listagem)));
   } catch {
   }
 }
@@ -219,7 +278,7 @@ async function lerPasta(caminho, sha, antigas, novas) {
   if (json.truncated) {
     throw new ErroGitHub(
       'cortada',
-      `A pasta ${caminho || 'principal'} de ${REPO_DADOS} tem arquivos demais para o GitHub listar de uma vez. As fotos continuam guardadas, mas o app não consegue mostrar a lista completa.`,
+      `A pasta ${caminho || 'principal'} de ${repoDados()} tem arquivos demais para o GitHub listar de uma vez. As fotos continuam guardadas, mas o app não consegue mostrar a lista completa.`,
     );
   }
   const pasta = { sha, arquivos: [], subpastas: [] };

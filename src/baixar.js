@@ -1,5 +1,5 @@
 import { fmtTamanho } from './foto.js';
-import { REPO_DADOS } from './github.js';
+import { NOME_DO_REPO } from './github.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -25,7 +25,7 @@ function lerLink() {
     return null;
   }
   const doRepositorio =
-    endereco.protocol === 'https:' && endereco.hostname === 'raw.githubusercontent.com' && endereco.pathname.startsWith(`/${REPO_DADOS}/`);
+    endereco.protocol === 'https:' && endereco.hostname === 'raw.githubusercontent.com' && endereco.pathname.split('/')[2] === NOME_DO_REPO;
   if (!doRepositorio) return null;
 
   const pedido = parametros.get('n') || decodeURIComponent(endereco.pathname.split('/').pop());

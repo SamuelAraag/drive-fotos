@@ -1,18 +1,18 @@
-import { BRANCH_DADOS, NOME_DO_CACHE_DA_LISTAGEM } from './github.js';
+import { BRANCH_DADOS, NOME_DO_CACHE_DA_LISTAGEM, lerDono } from './github.js';
 
 const NOME_DO_CACHE = 'drive-fotos-arquivos-v1';
 const CHAVE_ORIGINAIS = 'drive-fotos.originais';
 
 const CHAVE_FOTOS = `drive-fotos.fotos.${BRANCH_DADOS}`;
 
-const CHAVE_INDICES = `drive-fotos.indices.${BRANCH_DADOS}`;
+const chaveIndices = () => `drive-fotos.indices.${lerDono()}.${BRANCH_DADOS}`;
 
 const TETO_DE_ORIGINAIS = 1024 * 1024 * 1024;
 const TETO_DE_MINIATURAS = 2000;
 const GUARDADAS_ENTRE_FAXINAS = 100;
 
 const endereco = (sha) => `${location.origin}/__arquivo__/${sha}`;
-const ENDERECO_DA_LISTA = `${location.origin}/__lista__/${BRANCH_DADOS}`;
+const enderecoDaLista = () => `${location.origin}/__lista__/${lerDono()}/${BRANCH_DADOS}`;
 
 let cache = null;
 
@@ -138,9 +138,10 @@ function esquecerListaAntiga() {
 }
 
 export async function lerFotos() {
+  if (!lerDono()) return null;
   const arquivos = await abrir();
   try {
-    const resposta = await arquivos?.match(ENDERECO_DA_LISTA);
+    const resposta = await arquivos?.match(enderecoDaLista());
     const lista = resposta ? await resposta.json() : null;
     if (Array.isArray(lista)) return lista;
   } catch {
@@ -156,12 +157,13 @@ export function guardarFotos(lista) {
   gravacaoDaLista = gravacaoDaLista.then(async () => {
     esquecerListaAntiga();
     const arquivos = await abrir();
-    if (!arquivos) return false;
+    if (!arquivos || !lerDono()) return false;
+    const endereco = enderecoDaLista();
     try {
-      await arquivos.put(ENDERECO_DA_LISTA, new Response(texto, { headers: { 'Content-Type': 'application/json' } }));
+      await arquivos.put(endereco, new Response(texto, { headers: { 'Content-Type': 'application/json' } }));
       return true;
     } catch {
-      await arquivos.delete(ENDERECO_DA_LISTA).catch(() => {});
+      await arquivos.delete(endereco).catch(() => {});
       return false;
     }
   });
@@ -169,9 +171,10 @@ export function guardarFotos(lista) {
 }
 
 export function manterIndices(atuais) {
+  if (!lerDono()) return;
   try {
-    const antes = JSON.parse(localStorage.getItem(CHAVE_INDICES)) ?? [];
-    localStorage.setItem(CHAVE_INDICES, JSON.stringify(atuais));
+    const antes = JSON.parse(localStorage.getItem(chaveIndices())) ?? [];
+    localStorage.setItem(chaveIndices(), JSON.stringify(atuais));
     const velhos = antes.filter((sha) => !atuais.includes(sha));
     if (velhos.length) apagar(velhos);
   } catch {
