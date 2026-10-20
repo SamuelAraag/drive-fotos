@@ -413,7 +413,7 @@ body.modo-selecao .inicio {
   border: 1px solid var(--trilho);
   border-radius: var(--raio-pilula);
   background: var(--superficie);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--fundo) 80%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fundo) 90%, transparent);
   font-size: var(--fonte-pequena);
   font-variant-numeric: tabular-nums;
 }
