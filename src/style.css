@@ -413,7 +413,7 @@ body.modo-selecao .inicio {
   border: 1px solid var(--trilho);
   border-radius: var(--raio-pilula);
   background: var(--superficie);
-  box-shadow: 0 6px 20px color-mix(in srgb, #000 45%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--fundo) 80%, transparent);
   font-size: var(--fonte-pequena);
   font-variant-numeric: tabular-nums;
 }
@@ -843,7 +843,7 @@ html {
 .veu {
   position: fixed;
   inset: 0;
-  z-index: 1;
+  z-index: 6;
   background: color-mix(in srgb, var(--fundo) 40%, transparent);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
