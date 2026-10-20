@@ -1,5 +1,14 @@
 export const NOVIDADES = [
   {
+    versao: '1.19.1',
+    quando: '2026-10-20T09:00',
+    titulo: 'O coração das favoritas não cobre mais o espaço usado',
+    mudancas: [
+      'O coração de uma foto favorita aparecia por cima do quadro de espaço usado, no canto de baixo da tela, e escondia o número. O quadro agora fica na frente de tudo na lista de fotos.',
+      'O quadro de espaço usado ganhou sombra para se separar das fotos que passam por baixo.',
+    ],
+  },
+  {
     versao: '1.19.0',
     quando: '2026-10-15T22:00',
     titulo: 'A foto aberta fica no endereço',
