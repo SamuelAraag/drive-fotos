@@ -7,7 +7,6 @@ const $ = (id) => document.getElementById(id);
 
 const TELAS = ['carregando', 'erro', 'principal', 'sem-data'];
 const FIM_PUXAR = 64;
-const QUADROS_DO_ESQUELETO = 24;
 const TELAS_ATE_O_BOTAO_DE_INICIO = 2;
 const TELAS_COM_ROLAGEM_SUAVE = 5;
 let atualizacaoOcupada = false;
@@ -19,6 +18,7 @@ $('versao').textContent = VERSAO_ATUAL;
 if ($('mais-versao')) $('mais-versao').textContent = VERSAO_ATUAL;
 
 export function mostrarTela(nome) {
+  if (nome && nome !== 'carregando' && !$('tela-carregando').hidden) voarLogoParaOTopo();
   for (const tela of TELAS) $(`tela-${tela}`).hidden = tela !== nome;
   $('atualizar').hidden = !lerToken();
   if ($('mais-abrir')) $('mais-abrir').hidden = !lerToken();
@@ -130,8 +130,6 @@ export function focarTela(nome) {
 export function renderErro(mensagem) {
   $('erro-mensagem').textContent = mensagem;
 }
-
-$('esqueleto-grade')?.append(...Array.from({ length: QUADROS_DO_ESQUELETO }, () => el('li', 'grade__quadro')));
 
 function el(tag, classe, texto) {
   const no = document.createElement(tag);
@@ -253,6 +251,32 @@ const podeAnimar = () => !semMovimento.matches && !document.hidden;
 
 function animar(no, quadros, opcoes) {
   return no.animate(quadros, { easing: SUAVE, ...opcoes });
+}
+
+function voarLogoParaOTopo() {
+  const logo = $('carregando-logo');
+  if (!podeAnimar() || Number(getComputedStyle(logo).opacity) < 0.5) return;
+  const destino = $('logo-topo');
+  const de = logo.getBoundingClientRect();
+  const para = destino.getBoundingClientRect();
+  const [a, b] = new DOMMatrix(getComputedStyle(logo.firstElementChild).transform).toFloat64Array();
+  const giro = ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+  const voando = logo.cloneNode(true);
+  voando.removeAttribute('id');
+  voando.classList.add('carregando__logo--voando');
+  voando.style.left = `${de.left}px`;
+  voando.style.top = `${de.top}px`;
+  document.body.append(voando);
+  destino.classList.add('logo--esperando');
+  const dx = para.left + para.width / 2 - (de.left + de.width / 2);
+  const dy = para.top + para.height / 2 - (de.top + de.height / 2);
+  animar(voando.firstElementChild, [{ transform: `rotate(${giro}deg)` }, { transform: 'rotate(360deg)' }], { duration: 520 });
+  animar(voando, [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${para.width / de.width})` }], { duration: 520 })
+    .finished.catch(() => {})
+    .finally(() => {
+      destino.classList.remove('logo--esperando');
+      voando.remove();
+    });
 }
 
 function marcarDestaque(quadro, chegando) {
