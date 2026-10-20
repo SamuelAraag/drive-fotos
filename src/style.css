@@ -706,25 +706,52 @@ html {
   gap: var(--e3);
 }
 
-.esqueleto {
-  display: flex;
-  flex-direction: column;
-  gap: var(--e5);
+.carregando {
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e4);
   pointer-events: none;
-  animation: pulsar 1.6s ease-in-out infinite;
 }
 
-.esqueleto .esqueleto__vazio,
-.esqueleto .esqueleto__vazio * {
-  color: transparent;
+.carregando__logo {
+  width: 72px;
+  height: 72px;
+  animation: surgir var(--medio) 0.3s both;
 }
 
-.esqueleto__linha {
+.carregando__logo svg {
   display: block;
-  width: 9rem;
-  height: 1.5em;
-  border-radius: var(--e1);
-  background: var(--superficie);
+  width: 100%;
+  height: 100%;
+  animation: girar 1.4s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.carregando__logo--voando {
+  position: fixed;
+  z-index: 6;
+  animation: none;
+  pointer-events: none;
+}
+
+.carregando__logo--voando svg {
+  animation: none;
+}
+
+.carregando__texto {
+  color: var(--texto-suave);
+  font-size: var(--fonte-pequena);
+  animation: surgir var(--medio) 1.2s both;
+}
+
+body:has(#tela-carregando:not([hidden])) .topo__titulo .logo,
+.logo--esperando {
+  opacity: 0;
+}
+
+body:has(#tela-carregando:not([hidden])) .rodape {
+  visibility: hidden;
 }
 
 .zona {
@@ -2360,7 +2387,10 @@ body.modo-selecao .dia__selecao {
     transition: none;
   }
 
-  .esqueleto,
+  .carregando__logo svg {
+    animation: pulsar 1.6s ease-in-out infinite;
+  }
+
   .grade__quadro--carregando,
   .grade__quadro--pousou,
   .grade__quadro--pousou::after,

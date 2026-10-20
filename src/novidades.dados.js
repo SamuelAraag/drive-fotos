@@ -1,5 +1,15 @@
 export const NOVIDADES = [
   {
+    versao: '1.19.2',
+    quando: '2026-10-20T10:00',
+    titulo: 'O app abre com o logo girando',
+    mudancas: [
+      'Enquanto as fotos carregam, o logo do Drive Fotos gira no meio da tela. Antes aparecia só o cabeçalho e o rodapé com a versão.',
+      'Quando as fotos chegam, o logo encolhe e vai para o lugar dele no cabeçalho.',
+      'Se as fotos abrem em menos de 0,3 segundo, o logo nem aparece.',
+    ],
+  },
+  {
     versao: '1.19.1',
     quando: '2026-10-20T09:00',
     titulo: 'O coração das favoritas não cobre mais o espaço usado',

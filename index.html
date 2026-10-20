@@ -24,7 +24,7 @@
   </div>
 
   <header class="topo">
-    <h1 class="topo__titulo"><img class="logo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos<span class="etiqueta" id="base-de-testes" hidden><span class="etiqueta__resto">base de </span>testes</span></h1>
+    <h1 class="topo__titulo"><img class="logo" id="logo-topo" src="src/logo.svg" alt="" width="24" height="24">Drive Fotos<span class="etiqueta" id="base-de-testes" hidden><span class="etiqueta__resto">base de </span>testes</span></h1>
     <div class="topo__acoes">
       <span class="texto-suave texto-pequeno topo__sincronia" id="sincronia" role="status"></span>
       <button type="button" class="botao botao--fantasma" id="atualizar" hidden>Atualizar</button>
@@ -50,26 +50,29 @@
       <p id="atualizar-erro-texto"></p>
       <button type="button" class="botao botao--secundario" id="atualizar-de-novo">Tentar de novo</button>
     </div>
-    <section class="tela" id="tela-carregando" hidden>
-      <p class="so-leitor" role="status">Carregando suas fotos...</p>
-      <div class="esqueleto" aria-hidden="true">
-        <div class="envio">
-          <div class="zona esqueleto__vazio">
-            <svg class="zona__icone" viewBox="0 0 24 24"></svg>
-            <span class="zona__titulo">Enviar fotos</span>
-            <span class="zona__detalhe">Toque para escolher ou arraste as fotos para cá</span>
-          </div>
-        </div>
-        <div class="selecao-topo">
-          <span class="botao botao--secundario esqueleto__vazio">Selecionar</span>
-        </div>
-        <div class="dias">
-          <section class="dia">
-            <div class="dia__cabeca">
-              <span class="dia__titulo esqueleto__linha"></span>
-            </div>
-            <ul class="grade" id="esqueleto-grade"></ul>
-          </section>
+    <section class="tela carregando" id="tela-carregando">
+      <div class="carregando__logo" id="carregando-logo" aria-hidden="true">
+        <svg viewBox="0 0 100 100">
+          <path d="M50 50 L50.00 10.00 C34.06 14.19 32.46 32.46 50 50Z" fill="#e8183f"/>
+          <path d="M50.00 10.00 C34.06 14.19 32.46 32.46 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L78.28 21.72 C64.05 13.40 50.00 25.20 50 50Z" fill="#262a33"/>
+          <path d="M78.28 21.72 C64.05 13.40 50.00 25.20 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L90.00 50.00 C85.81 34.06 67.54 32.46 50 50Z" fill="#e8183f"/>
+          <path d="M90.00 50.00 C85.81 34.06 67.54 32.46 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L78.28 78.28 C86.60 64.05 74.80 50.00 50 50Z" fill="#262a33"/>
+          <path d="M78.28 78.28 C86.60 64.05 74.80 50.00 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L50.00 90.00 C65.94 85.81 67.54 67.54 50 50Z" fill="#e8183f"/>
+          <path d="M50.00 90.00 C65.94 85.81 67.54 67.54 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L21.72 78.28 C35.95 86.60 50.00 74.80 50 50Z" fill="#262a33"/>
+          <path d="M21.72 78.28 C35.95 86.60 50.00 74.80 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L10.00 50.00 C14.19 65.94 32.46 67.54 50 50Z" fill="#e8183f"/>
+          <path d="M10.00 50.00 C14.19 65.94 32.46 67.54 50 50" fill="none" stroke="#ff5c78" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M50 50 L21.72 21.72 C13.40 35.95 25.20 50.00 50 50Z" fill="#262a33"/>
+          <path d="M21.72 21.72 C13.40 35.95 25.20 50.00 50 50" fill="none" stroke="#3a3f4b" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="carregando__texto" role="status">Carregando suas fotos...</p>
+    </section>
         </div>
       </div>
     </section>
