@@ -1601,7 +1601,12 @@ function resumoDaFila(itens, { enviando, pausadaAte }) {
 }
 
 const TITULO_DA_ZONA = $('zona-titulo').textContent;
-const DETALHE_DA_ZONA = $('zona-detalhe').textContent;
+const ehMac = /Mac|iPhone|iPad/.test(navigator.platform);
+const temTeclado = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+const DETALHE_DA_ZONA = temTeclado
+  ? `Clique para escolher, arraste ou cole com ${ehMac ? 'Cmd' : 'Ctrl'}+V`
+  : $('zona-detalhe').textContent;
+$('zona-detalhe').textContent = DETALHE_DA_ZONA;
 
 let posicaoNaFila = '';
 
@@ -2104,6 +2109,29 @@ export function anunciarEnvio(texto) {
   $('envio-status').textContent = texto;
 }
 
+const NOME_GENERICO_DE_COLADA = /^(image|imagem)?(\.[a-z0-9]+)?$/i;
+
+function nomeDaColada(arquivo, indice, agora) {
+  if (!NOME_GENERICO_DE_COLADA.test(arquivo.name)) return arquivo;
+  const dois = (numero) => String(numero).padStart(2, '0');
+  const dia = `${agora.getFullYear()}-${dois(agora.getMonth() + 1)}-${dois(agora.getDate())}`;
+  const hora = `${dois(agora.getHours())}.${dois(agora.getMinutes())}.${dois(agora.getSeconds())}`;
+  const extensao = arquivo.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png';
+  const sequencia = indice > 0 ? ` ${indice + 1}` : '';
+  return new File([arquivo], `Colada ${dia} ${hora}${sequencia}.${extensao}`, { type: arquivo.type, lastModified: agora.getTime() });
+}
+
+function ligarColar(acoes) {
+  window.addEventListener('paste', (evento) => {
+    if (evento.target.closest?.('input, textarea, select, [contenteditable], dialog')) return;
+    const imagens = [...(evento.clipboardData?.files ?? [])].filter((arquivo) => arquivo.type.startsWith('image/'));
+    if (imagens.length === 0 || !acoes.podeEnviar()) return;
+    evento.preventDefault();
+    const agora = new Date();
+    acoes.arquivos(imagens.map((arquivo, indice) => nomeDaColada(arquivo, indice, agora)));
+  });
+}
+
 function ligarArraste(acoes) {
   let contador = 0;
   const veu = $('veu');
@@ -2280,6 +2308,7 @@ export function ligarEventos(acoes) {
   $('atualizar').addEventListener('click', acoes.atualizar);
   $('atualizar-de-novo').addEventListener('click', acoes.atualizar);
   ligarArraste(acoes);
+  ligarColar(acoes);
   ligarVisor(acoes);
   ligarPendentes(acoes);
   $('entrar-selecao').addEventListener('click', () => acoes.iniciarSelecao());

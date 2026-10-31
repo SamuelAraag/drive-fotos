@@ -1,5 +1,15 @@
 export const NOVIDADES = [
   {
+    versao: '1.20.0',
+    quando: '2026-10-31T10:00',
+    titulo: 'Agora dá para colar uma foto',
+    mudancas: [
+      'Com uma imagem copiada, Cmd+V no Mac e Ctrl+V no Windows mandam a foto para o envio, sem precisar escolher o arquivo.',
+      'A foto colada entra na mesma fila do botão Enviar fotos, com o mesmo progresso.',
+      'Print de tela não tem nome de arquivo, então a foto recebe a data e a hora em que foi colada.',
+    ],
+  },
+  {
     versao: '1.19.2',
     quando: '2026-10-20T10:00',
     titulo: 'O app abre com o logo girando',
